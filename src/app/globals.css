@@ -1,26 +1,40 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Palette taken from the reference mock-up: near-black page, slightly lifted
+ * card, hairline rules. Committed to a single dark look on purpose — that is
+ * the design, not a theme preference.
+ */
+@theme {
+  --color-ink: #0d0d0d;
+  --color-surface: #1a1a1a;
+  --color-surface-2: #202020;
+  --color-rule: #3a3a3a;
+  --color-body: #e8e8e8;
+  --color-muted: #9a9a9a;
+  --color-accent: #e07a2f;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background: var(--color-ink);
+  color: var(--color-body);
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Never let a wide element scroll the page sideways on mobile. */
+  overflow-x: hidden;
+}
+
+/* Condensed, slightly wide display face for headings, echoing the mock-up. */
+.display {
+  font-family: "Futura", "Jost", ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
 }

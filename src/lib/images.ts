@@ -90,6 +90,11 @@ export async function findCommonsImages(
     const artist = stripHtml(meta.Artist?.value ?? "");
     if (!artist) continue; // Unattributable — skip it.
 
+    // Commons sometimes puts boilerplate where the author should be
+    // ("This image has been extracted from another file"). That is not a
+    // credit, so the image is unusable under CC BY / BY-SA.
+    if (/^this (image|file)\b/i.test(artist) || artist.length > 80) continue;
+
     out.push({
       url: info.thumburl ?? info.url,
       width: info.thumbwidth ?? info.width,
