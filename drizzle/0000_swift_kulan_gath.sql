@@ -1,3 +1,5 @@
+CREATE TYPE "public"."image_kind" AS ENUM('headshot', 'action', 'portrait', 'composite');--> statement-breakpoint
+CREATE TYPE "public"."image_license" AS ENUM('cc0', 'cc_by', 'cc_by_sa', 'public_domain', 'nba_cdn', 'own');--> statement-breakpoint
 CREATE TYPE "public"."rumor_status" AS ENUM('rumor', 'reported', 'confirmed', 'completed', 'debunked');--> statement-breakpoint
 CREATE TYPE "public"."rumor_type" AS ENUM('trade', 'signing', 'free_agency', 'buyout', 'extension', 'waiver', 'draft', 'injury_impact', 'other');--> statement-breakpoint
 CREATE TABLE "feed_items" (
@@ -12,6 +14,22 @@ CREATE TABLE "feed_items" (
 	"fetched_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"processed_at" timestamp with time zone,
 	"rejected_reason" text
+);
+--> statement-breakpoint
+CREATE TABLE "player_images" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"player_id" integer NOT NULL,
+	"kind" "image_kind" DEFAULT 'action' NOT NULL,
+	"url" text NOT NULL,
+	"blob_path" text,
+	"width" integer,
+	"height" integer,
+	"license" "image_license" NOT NULL,
+	"attribution" text,
+	"attribution_url" text,
+	"source_url" text NOT NULL,
+	"is_primary" boolean DEFAULT false NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "players" (
@@ -52,6 +70,7 @@ CREATE TABLE "rumors" (
 	"source_id" integer NOT NULL,
 	"feed_item_id" integer NOT NULL,
 	"source_url" text NOT NULL,
+	"image_id" integer,
 	"published_at" timestamp with time zone NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"is_published" boolean DEFAULT false NOT NULL
@@ -84,6 +103,7 @@ CREATE TABLE "teams" (
 );
 --> statement-breakpoint
 ALTER TABLE "feed_items" ADD CONSTRAINT "feed_items_source_id_sources_id_fk" FOREIGN KEY ("source_id") REFERENCES "public"."sources"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "player_images" ADD CONSTRAINT "player_images_player_id_players_id_fk" FOREIGN KEY ("player_id") REFERENCES "public"."players"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "players" ADD CONSTRAINT "players_current_team_id_teams_id_fk" FOREIGN KEY ("current_team_id") REFERENCES "public"."teams"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "rumor_players" ADD CONSTRAINT "rumor_players_rumor_id_rumors_id_fk" FOREIGN KEY ("rumor_id") REFERENCES "public"."rumors"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "rumor_players" ADD CONSTRAINT "rumor_players_player_id_players_id_fk" FOREIGN KEY ("player_id") REFERENCES "public"."players"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -91,8 +111,11 @@ ALTER TABLE "rumor_teams" ADD CONSTRAINT "rumor_teams_rumor_id_rumors_id_fk" FOR
 ALTER TABLE "rumor_teams" ADD CONSTRAINT "rumor_teams_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "rumors" ADD CONSTRAINT "rumors_source_id_sources_id_fk" FOREIGN KEY ("source_id") REFERENCES "public"."sources"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "rumors" ADD CONSTRAINT "rumors_feed_item_id_feed_items_id_fk" FOREIGN KEY ("feed_item_id") REFERENCES "public"."feed_items"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "rumors" ADD CONSTRAINT "rumors_image_id_player_images_id_fk" FOREIGN KEY ("image_id") REFERENCES "public"."player_images"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "feed_items_url_hash_idx" ON "feed_items" USING btree ("url_hash");--> statement-breakpoint
 CREATE INDEX "feed_items_unprocessed_idx" ON "feed_items" USING btree ("processed_at","published_at");--> statement-breakpoint
+CREATE INDEX "player_images_player_idx" ON "player_images" USING btree ("player_id","kind","is_primary");--> statement-breakpoint
+CREATE UNIQUE INDEX "player_images_url_idx" ON "player_images" USING btree ("url");--> statement-breakpoint
 CREATE UNIQUE INDEX "players_slug_idx" ON "players" USING btree ("slug");--> statement-breakpoint
 CREATE INDEX "players_team_idx" ON "players" USING btree ("current_team_id");--> statement-breakpoint
 CREATE INDEX "rumor_players_player_idx" ON "rumor_players" USING btree ("player_id");--> statement-breakpoint

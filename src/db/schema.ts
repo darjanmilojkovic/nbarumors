@@ -26,6 +26,28 @@ export const rumorTypeEnum = pgEnum("rumor_type", [
   "other",
 ]);
 
+/** Shape/purpose of a player image, so the UI can pick the right one per slot. */
+export const imageKindEnum = pgEnum("image_kind", [
+  "headshot", // NBA CDN mugshot, square-ish. Byline rows, tag pages.
+  "action", // In-game photo, landscape. The card hero.
+  "portrait", // Off-court or posed, portrait orientation.
+  "composite", // Something we generated ourselves (e.g. two-player OG image).
+]);
+
+/**
+ * Licensing terms we are allowed to publish under. Anything not on this list
+ * does not get stored — no Getty/AP/team-photographer images, and no
+ * media-brand graphics like the ClutchPoints composite.
+ */
+export const imageLicenseEnum = pgEnum("image_license", [
+  "cc0",
+  "cc_by",
+  "cc_by_sa",
+  "public_domain",
+  "nba_cdn", // Official NBA headshot endpoint, hotlinked, not rehosted.
+  "own", // We made it or we own the rights.
+]);
+
 /** How firm the report is: pure speculation vs. a done deal. */
 export const rumorStatusEnum = pgEnum("rumor_status", [
   "rumor",
@@ -69,7 +91,10 @@ export const players = pgTable(
     aliases: text("aliases").array().notNull().default([]),
     position: varchar("position", { length: 8 }),
     currentTeamId: integer("current_team_id").references(() => teams.id),
-    /** NBA CDN headshot; null until we have a verified player id. */
+    /**
+     * NBA's player id. Deterministically builds the CDN headshot URL, so we
+     * keep it here as a fast path; richer imagery lives in `player_images`.
+     */
     nbaPlayerId: varchar("nba_player_id", { length: 16 }),
     headshotUrl: text("headshot_url"),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -79,6 +104,45 @@ export const players = pgTable(
   (t) => [
     uniqueIndex("players_slug_idx").on(t.slug),
     index("players_team_idx").on(t.currentTeamId),
+  ],
+);
+
+/**
+ * Player images, many per player. Every row carries the license and the
+ * attribution string the license requires us to display — CC BY and CC BY-SA
+ * both mandate credit, so a row without attribution is unusable and the
+ * ingest refuses to write it.
+ */
+export const playerImages = pgTable(
+  "player_images",
+  {
+    id: serial("id").primaryKey(),
+    playerId: integer("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    kind: imageKindEnum("kind").notNull().default("action"),
+    /** Where we serve it from — remote URL, or our blob path once cached. */
+    url: text("url").notNull(),
+    /** Set once mirrored to Vercel Blob; null means we hotlink `url`. */
+    blobPath: text("blob_path"),
+    width: integer("width"),
+    height: integer("height"),
+    license: imageLicenseEnum("license").notNull(),
+    /** Rendered credit line, e.g. "Erik Drost / CC BY 2.0". */
+    attribution: text("attribution"),
+    /** Canonical page for the image, needed for CC attribution links. */
+    attributionUrl: text("attribution_url"),
+    /** Page we found it on (Commons file page, NBA endpoint, etc.). */
+    sourceUrl: text("source_url").notNull(),
+    /** Preferred image for this player in this kind. */
+    isPrimary: boolean("is_primary").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("player_images_player_idx").on(t.playerId, t.kind, t.isPrimary),
+    uniqueIndex("player_images_url_idx").on(t.url),
   ],
 );
 
@@ -156,6 +220,14 @@ export const rumors = pgTable(
       .notNull()
       .references(() => feedItems.id),
     sourceUrl: text("source_url").notNull(),
+    /**
+     * Card hero. Chosen at publish time from the primary player's images —
+     * an `action` shot when we have one, else their headshot, else the card
+     * falls back to the two team logos alone.
+     */
+    imageId: integer("image_id").references(() => playerImages.id, {
+      onDelete: "set null",
+    }),
     publishedAt: timestamp("published_at", { withTimezone: true }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -211,6 +283,7 @@ export const rumorPlayers = pgTable(
 
 export type Team = typeof teams.$inferSelect;
 export type Player = typeof players.$inferSelect;
+export type PlayerImage = typeof playerImages.$inferSelect;
 export type Source = typeof sources.$inferSelect;
 export type FeedItem = typeof feedItems.$inferSelect;
 export type Rumor = typeof rumors.$inferSelect;
