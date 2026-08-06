@@ -13,9 +13,12 @@
     "db:studio": "drizzle-kit studio --config=drizzle.config.ts",
     "db:seed": "tsx src/db/seed.ts",
     "ingest": "tsx src/scripts/ingest.ts",
-    "peek": "tsx src/scripts/peek.ts"
+    "peek": "tsx src/scripts/peek.ts",
+    "extract": "tsx src/scripts/extract.ts",
+    "peek:rumors": "tsx src/scripts/peek-rumors.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.115.0",
     "@neondatabase/serverless": "^1.1.0",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",

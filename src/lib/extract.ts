@@ -1,0 +1,203 @@
+import Anthropic from "@anthropic-ai/sdk";
+import { SEED_TEAMS } from "@/db/seed-data/teams";
+
+/**
+ * Default to Opus 5. Override with EXTRACTION_MODEL in .env.local to trade
+ * quality for cost — this is the single biggest lever on the monthly bill.
+ */
+const MODEL = process.env.EXTRACTION_MODEL ?? "claude-opus-5";
+
+export type Extraction = {
+  isRumor: boolean;
+  rejectedReason: string | null;
+  type:
+    | "trade"
+    | "signing"
+    | "free_agency"
+    | "buyout"
+    | "extension"
+    | "waiver"
+    | "draft"
+    | "injury_impact"
+    | "other";
+  status: "rumor" | "reported" | "confirmed" | "completed" | "debunked";
+  confidence: number;
+  headline: string;
+  body: string;
+  reportedBy: string | null;
+  players: { name: string; isPrimary: boolean }[];
+  teams: { abbreviation: string; role: "to" | "from" | "mentioned" }[];
+};
+
+const TEAM_LIST = SEED_TEAMS.map(
+  (t) => `${t.abbreviation}=${t.city} ${t.name}`,
+).join(", ");
+
+/**
+ * The schema is the contract. `strict`-style JSON schema output means we never
+ * parse freeform prose, and the enums keep `type`/`status` aligned with the
+ * Postgres enums without a translation layer.
+ */
+const SCHEMA = {
+  type: "object",
+  properties: {
+    isRumor: {
+      type: "boolean",
+      description:
+        "True only if this is about a player transfer, trade, signing, contract, buyout, waiver, or draft move. False for game recaps, standings, injuries with no transfer angle, off-court news, awards, or opinion pieces.",
+    },
+    rejectedReason: {
+      type: ["string", "null"],
+      description: "If isRumor is false, a short reason. Otherwise null.",
+    },
+    type: {
+      type: "string",
+      enum: [
+        "trade",
+        "signing",
+        "free_agency",
+        "buyout",
+        "extension",
+        "waiver",
+        "draft",
+        "injury_impact",
+        "other",
+      ],
+    },
+    status: {
+      type: "string",
+      enum: ["rumor", "reported", "confirmed", "completed", "debunked"],
+      description:
+        "rumor = speculation or 'linked with'. reported = a named insider reports it. confirmed = team or player confirmed. completed = the move is done. debunked = denied.",
+    },
+    confidence: {
+      type: "number",
+      description: "0-1 confidence that this is a real, on-topic transfer story.",
+    },
+    headline: {
+      type: "string",
+      description:
+        "An original headline in your own words, under 80 characters. Do NOT copy the source headline.",
+    },
+    body: {
+      type: "string",
+      description:
+        "2-4 original sentences summarizing the reported facts, in your own words. Never copy phrasing from the source. Attribute claims, e.g. 'according to ESPN'. State plainly if it is speculation.",
+    },
+    reportedBy: {
+      type: ["string", "null"],
+      description:
+        "The reporter credited in the source, e.g. 'Shams Charania'. Null if none named.",
+    },
+    players: {
+      type: "array",
+      description: "NBA players involved. Use full, correctly spelled names.",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          isPrimary: {
+            type: "boolean",
+            description: "True for the player the move is actually about.",
+          },
+        },
+        required: ["name", "isPrimary"],
+        additionalProperties: false,
+      },
+    },
+    teams: {
+      type: "array",
+      description: `Teams involved, by abbreviation. Valid: ${TEAM_LIST}`,
+      items: {
+        type: "object",
+        properties: {
+          abbreviation: { type: "string" },
+          role: {
+            type: "string",
+            enum: ["to", "from", "mentioned"],
+            description:
+              "to = acquiring the player, from = losing the player, mentioned = otherwise involved.",
+          },
+        },
+        required: ["abbreviation", "role"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: [
+    "isRumor",
+    "rejectedReason",
+    "type",
+    "status",
+    "confidence",
+    "headline",
+    "body",
+    "reportedBy",
+    "players",
+    "teams",
+  ],
+  additionalProperties: false,
+} as const;
+
+/**
+ * Stable across every request, so it caches. Volatile per-item content goes in
+ * the user turn, after the cache breakpoint.
+ */
+const SYSTEM = `You extract NBA transfer news for nbarumors.cc.
+
+You are given the headline and summary of a news item from a sports feed. Your job:
+
+1. Decide whether it is about a player transfer, trade, signing, contract, buyout, waiver, or draft move. Most items are not — game recaps, standings, awards, off-court news, and pure injury reports are all rejected.
+2. If it is, extract the structured facts and write an ORIGINAL headline and 2-4 sentence summary.
+
+Rules for the text you write:
+- Write in your own words. Never reuse the source's phrasing or sentence structure. The source text is copyrighted; you are reporting the underlying facts, which are not.
+- Attribute reported claims to the outlet or reporter.
+- Do not overstate certainty. If a move is speculation, say so.
+- No hype, no invented details. If the source does not say it, it does not go in.
+
+Valid team abbreviations: ${TEAM_LIST}`;
+
+const client = new Anthropic();
+
+export async function extractRumor(item: {
+  title: string;
+  rawSummary: string | null;
+  publisher: string | null;
+  sourceName: string;
+}): Promise<Extraction> {
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 2000,
+    output_config: {
+      effort: "low",
+      format: { type: "json_schema", schema: SCHEMA },
+    },
+    system: [
+      { type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } },
+    ],
+    messages: [
+      {
+        role: "user",
+        content: [
+          `Outlet: ${item.publisher ?? item.sourceName}`,
+          `Headline: ${item.title}`,
+          `Summary: ${item.rawSummary ?? "(none provided)"}`,
+        ].join("\n"),
+      },
+    ],
+  });
+
+  // Safety classifiers can decline; check before reading content.
+  if (response.stop_reason === "refusal") {
+    throw new Error("model declined to process this item");
+  }
+
+  const text = response.content.find((b) => b.type === "text");
+  if (!text || text.type !== "text") {
+    throw new Error(`no text block in response (stop: ${response.stop_reason})`);
+  }
+  return JSON.parse(text.text) as Extraction;
+}
+
+export const extractionModel = () => MODEL;
