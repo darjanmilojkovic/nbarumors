@@ -181,6 +181,12 @@ export const feedItems = pgTable(
     title: text("title").notNull(),
     rawSummary: text("raw_summary"),
     author: varchar("author", { length: 128 }),
+    /**
+     * Outlet that actually published the story. For direct feeds this is the
+     * URL's domain; for Google News, whose links stay on a redirector, it is
+     * parsed from the " - Publisher" suffix Google appends to every title.
+     */
+    publisher: varchar("publisher", { length: 96 }),
     publishedAt: timestamp("published_at", { withTimezone: true }).notNull(),
     fetchedAt: timestamp("fetched_at", { withTimezone: true })
       .notNull()

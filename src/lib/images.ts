@@ -61,8 +61,21 @@ export async function findCommonsImages(
   });
   if (!res.ok) return [];
 
-  const data = await res.json();
-  const pages: Record<string, any> = data?.query?.pages ?? {};
+  type CommonsPage = {
+    imageinfo?: {
+      url: string;
+      thumburl?: string;
+      width: number;
+      height: number;
+      thumbwidth?: number;
+      thumbheight?: number;
+      descriptionurl: string;
+      extmetadata?: Record<string, { value?: string }>;
+    }[];
+  };
+
+  const data = (await res.json()) as { query?: { pages?: Record<string, CommonsPage> } };
+  const pages = data?.query?.pages ?? {};
 
   const out: CommonsImage[] = [];
   for (const page of Object.values(pages)) {
