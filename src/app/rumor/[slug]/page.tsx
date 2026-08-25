@@ -47,7 +47,7 @@ export default async function RumorPage({ params }: PageProps<"/rumor/[slug]">) 
             href="/"
             className="font-mono text-[11px] tracking-wider text-muted uppercase hover:text-link"
           >
-            ← Back to all rumors
+            ← Back to all updates
           </Link>
         </div>
 
