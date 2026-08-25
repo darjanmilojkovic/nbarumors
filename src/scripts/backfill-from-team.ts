@@ -35,7 +35,8 @@ async function main() {
   const limit = limitArg > -1 ? Number(process.argv[limitArg + 1]) : null;
 
   const { db } = await import("@/db");
-  const { rumors, rumorTeams, teams, feedItems } = await import("@/db/schema");
+  const { rumors, rumorTeams, teams, feedItems, rumorPlayers, players } =
+    await import("@/db/schema");
   const { SEED_TEAMS } = await import("@/db/seed-data/teams");
   const Anthropic = (await import("@anthropic-ai/sdk")).default;
   const client = new Anthropic();
@@ -64,9 +65,22 @@ async function main() {
       type: rumors.type,
       title: feedItems.title,
       rawSummary: feedItems.rawSummary,
+      /*
+       * Who the post is actually about. Without naming them, the model pulled
+       * any team standing near any player: it read "defended his Warriors
+       * legacy" as Klay's origin when he came from Dallas, and lifted a
+       * Thompson buyout out of a roundup to answer a question about three
+       * other players entirely.
+       */
+      primaryPlayer: players.fullName,
     })
     .from(rumors)
     .leftJoin(feedItems, eq(feedItems.id, rumors.feedItemId))
+    .leftJoin(
+      rumorPlayers,
+      sql`${rumorPlayers.rumorId} = ${rumors.id} and ${rumorPlayers.isPrimary}`,
+    )
+    .leftJoin(players, eq(players.id, rumorPlayers.playerId))
     .where(
       and(
         eq(rumors.isPublished, true),
@@ -86,7 +100,7 @@ async function main() {
     properties: {
       fromAbbreviation: {
         type: ["string", "null"],
-        description: `The abbreviation of the team the player is LEAVING, if the text states or plainly implies one — traded away by, waived by, bought out by, cleared waivers from, or the team they played for immediately before this move. Null if the text gives no origin team. Never guess from general knowledge of where a player used to play; it must be supported by this text. Valid: ${TEAM_LIST}`,
+        description: `The team THE NAMED PLAYER is leaving as part of THIS move — traded away by, waived by, bought out by, or cleared waivers from. Return null unless all of these hold: (1) the item names a single player moving, (2) the text says where that specific player is coming from, and (3) it is the club they are leaving in this transaction, not a former club from earlier in their career. A team mentioned only because the player once played there, or because they averaged points there, is NOT the origin. If the item covers several players, or is a roundup, or names teams merely as suitors, return null. Prefer null over a guess. Valid: ${TEAM_LIST}`,
       },
       evidence: {
         type: ["string", "null"],
@@ -120,7 +134,12 @@ async function main() {
       messages: [
         {
           role: "user",
-          content: `Which NBA team is the player leaving in this ${c.type} item?\n\n${source}`,
+          content: [
+            `This ${c.type} item is about ${c.primaryPlayer ?? "one player"}.`,
+            `Which NBA team is ${c.primaryPlayer ?? "that player"} leaving as part of this move? Answer null if the text does not say.`,
+            "",
+            source,
+          ].join("\n"),
         },
       ],
     });
@@ -170,7 +189,9 @@ async function main() {
       await db
         .update(rumorTeams)
         .set({ role: "from" })
-        .where(and(eq(rumorTeams.rumorId, c.id), eq(rumorTeams.teamId, teamId)));
+        .where(
+          and(eq(rumorTeams.rumorId, c.id), eq(rumorTeams.teamId, teamId)),
+        );
     } else {
       await db
         .insert(rumorTeams)
@@ -185,7 +206,9 @@ async function main() {
 
   console.log(
     `\n${dryRun ? "would set" : "set"} an origin team on ${dryRun ? found : written} of ${candidates.length}` +
-      (skippedSameTeam ? `\nskipped ${skippedSameTeam} where the model returned the destination` : "") +
+      (skippedSameTeam
+        ? `\nskipped ${skippedSameTeam} where the model returned the destination`
+        : "") +
       `\n\ntokens: ${inTokens.toLocaleString()} in · ${outTokens.toLocaleString()} out` +
       `\ncost at ${IN_RATE}/${OUT_RATE} per Mtok: $${cost.toFixed(4)} — $${per.toFixed(5)}/post`,
   );

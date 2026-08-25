@@ -278,7 +278,7 @@ export async function mostMentioned(limit = 6) {
 }
 
 /** Genuinely completed moves — the ticker, without inventing transactions. */
-export async function recentlyDone(limit = 8) {
+export async function recentlyDone(limit = 6) {
   return db
     .select({
       slug: rumors.slug,
