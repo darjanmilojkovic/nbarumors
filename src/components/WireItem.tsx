@@ -107,41 +107,72 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
   const logoTiles = !hasAnyPhoto ? rumor.teams.slice(0, MAX_FACES) : [];
 
   const bars = sourcingScore(rumor);
+  const hasNamedReporter =
+    Boolean(rumor.reportedBy) && rumor.reportedBy !== rumor.sourceName;
 
   return (
     <article className="border-b border-rule px-4 py-5 transition-colors hover:bg-surface-2 sm:px-5">
       {/*
-       * Byline and kicker run full width above the columns, so the portrait
-       * gutter starts level with the headline rather than with the outlet
-       * name — the faces belong to the story, not to the byline.
+       * Explicit grid rather than a flex row. Byline and kicker sit in the
+       * text column so they line up with the headline, while the portrait
+       * gutter is placed on row 3 — level with the headline, because the
+       * faces belong to the story rather than to the byline.
        */}
-      <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-        <span className="text-sm font-semibold">
-          {rumor.reportedBy && rumor.reportedBy !== rumor.sourceName
-            ? rumor.reportedBy
-            : rumor.sourceName}
-        </span>
-        <span className="font-mono text-[11px] text-muted">
-          {rumor.reportedBy && rumor.reportedBy !== rumor.sourceName
-            ? `· ${rumor.sourceName} `
-            : ""}
-          · {ago(rumor.publishedAt)}
-        </span>
-        <span
-          className={`ml-auto inline-flex items-center gap-1.5 rounded-sm px-2 py-0.5 font-mono text-[10px] font-bold tracking-widest uppercase ${state.cls}`}
-        >
-          <span className="h-1.5 w-1.5 rounded-full bg-current" />
-          {state.label}
-        </span>
-      </div>
+      <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 sm:gap-x-4">
+        <div className="col-start-2 mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+          {/*
+           * The outlet name is the way back to the original article. Every
+           * summary here is our words about someone else's reporting, so the
+           * link out has to be somewhere obvious rather than absent.
+           */}
+          {hasNamedReporter ? (
+            /*
+             * When a reporter is credited, the byline is theirs and the link
+             * hangs off their name — that is whose work it is. The outlet
+             * stays as plain context beside it.
+             */
+            <>
+              <a
+                href={rumor.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer nofollow"
+                title={`Read ${rumor.reportedBy}'s report at ${rumor.sourceName}`}
+                className="text-sm font-semibold hover:text-link"
+              >
+                {rumor.reportedBy} ↗
+              </a>
+              <span className="font-mono text-[11px] text-muted">
+                · {rumor.sourceName}
+              </span>
+            </>
+          ) : (
+            <a
+              href={rumor.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer nofollow"
+              title={`Read the original at ${rumor.sourceName}`}
+              className="text-sm font-semibold hover:text-link"
+            >
+              {rumor.sourceName} ↗
+            </a>
+          )}
+          <span className="font-mono text-[11px] text-muted">
+            · {ago(rumor.publishedAt)}
+          </span>
+          <span
+            className={`ml-auto inline-flex items-center gap-1.5 rounded-sm px-2 py-0.5 font-mono text-[10px] font-bold tracking-widest uppercase ${state.cls}`}
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-current" />
+            {state.label}
+          </span>
+        </div>
 
-      <div className="mb-2 font-mono text-[10px] tracking-widest text-muted uppercase">
-        {CAT[rumor.type] ?? "Update"}
-        {rumor.teams.length > 0 &&
-          ` · ${rumor.teams.map((t) => t.abbreviation).join(" / ")}`}
-      </div>
+        <div className="col-start-2 mb-2 font-mono text-[10px] tracking-widest text-muted uppercase">
+          {CAT[rumor.type] ?? "Update"}
+          {rumor.teams.length > 0 &&
+            ` · ${rumor.teams.map((t) => t.abbreviation).join(" / ")}`}
+        </div>
 
-      <div className="flex gap-3 sm:gap-4">
         {/*
          * A trade names several players, so show each of them — stacked
          * vertically in the gutter, primary first. Uniform 56px tiles with an
@@ -149,7 +180,7 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
          * and the cap at three stops a rumor roundup mentioning eight names
          * from turning into a wall of faces.
          */}
-        <div className="flex shrink-0 flex-col gap-2">
+        <div className="col-start-1 row-start-3 flex shrink-0 flex-col gap-2">
           {logoTiles.length > 0 ? (
             logoTiles.map((t) => (
               <Link
@@ -201,7 +232,7 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
           )}
         </div>
 
-        <div className="min-w-0 flex-1">
+        <div className="col-start-2 row-start-3 min-w-0">
           <h2 className="display mb-1.5 text-lg leading-tight text-balance text-white sm:text-[22px]">
             <Link href={`/rumor/${rumor.slug}`} className="hover:text-link">
               {rumor.headline}
@@ -222,7 +253,11 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
                 <span
                   key={i}
                   className={`block h-1 w-5 rounded-[1px] ${
-                    i <= bars ? (bars >= 4 ? "bg-accent" : "bg-heat") : "bg-rule"
+                    i <= bars
+                      ? bars >= 4
+                        ? "bg-accent"
+                        : "bg-heat"
+                      : "bg-rule"
                   }`}
                 />
               ))}
