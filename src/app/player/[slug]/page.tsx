@@ -15,8 +15,7 @@ export default async function PlayerPage({ params }: PageProps<"/player/[slug]">
 
   return (
     <WireShell
-      playerLabel={player.fullName}
-      playerHref={`/player/${player.slug}`}
+      playerLabel={player.fullName}
     >
       {/* Mirrors the team page lockup: mark first, then name and count. */}
       <div className="mb-6 flex items-center gap-4 px-4 pt-8 sm:px-0">

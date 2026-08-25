@@ -11,14 +11,10 @@ import { Logo } from "@/components/Logo";
  */
 export function SiteHeader({
   teamLabel,
-  teamHref,
   playerLabel,
-  playerHref,
 }: {
   teamLabel?: string;
-  teamHref?: string;
   playerLabel?: string;
-  playerHref?: string;
 }) {
   return (
     <header className="border-b-2 border-rule bg-ink">
@@ -34,15 +30,22 @@ export function SiteHeader({
             </span>
           </Link>
 
+          {/*
+           * Both slots always point at their directory. The label says where
+           * you are; clicking it takes you up a level. Pointing it at the
+           * current page instead made it a link that does nothing.
+           */}
           <nav className="display ml-auto flex min-w-0 gap-5 text-xs text-body sm:gap-8 sm:text-base">
             <Link
-              href={teamHref ?? "/teams"}
+              href="/teams"
+              title={teamLabel ? "Back to all teams" : undefined}
               className={`truncate hover:text-link ${teamLabel ? "text-link" : ""}`}
             >
               {teamLabel ?? "All Teams"}
             </Link>
             <Link
-              href={playerHref ?? "/players"}
+              href="/players"
+              title={playerLabel ? "Back to all players" : undefined}
               className={`truncate hover:text-link ${playerLabel ? "text-link" : ""}`}
             >
               {playerLabel ?? "All Players"}

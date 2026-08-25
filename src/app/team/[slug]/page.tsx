@@ -15,8 +15,7 @@ export default async function TeamPage({ params }: PageProps<"/team/[slug]">) {
 
   return (
     <WireShell
-      teamLabel={`${team.city} ${team.name}`}
-      teamHref={`/team/${team.slug}`}
+      teamLabel={`${team.city} ${team.name}`}
       teamSlug={team.slug}
     >
       <div className="mb-6 flex items-center gap-4 px-4 pt-8 sm:px-0">

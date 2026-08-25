@@ -175,26 +175,17 @@ async function RightRail() {
 export function WireShell({
   children,
   teamLabel,
-  teamHref,
   playerLabel,
-  playerHref,
   teamSlug,
 }: {
   children: React.ReactNode;
   teamLabel?: string;
-  teamHref?: string;
   playerLabel?: string;
-  playerHref?: string;
   teamSlug?: string;
 }) {
   return (
     <>
-      <SiteHeader
-        teamLabel={teamLabel}
-        teamHref={teamHref}
-        playerLabel={playerLabel}
-        playerHref={playerHref}
-      />
+      <SiteHeader teamLabel={teamLabel} playerLabel={playerLabel} />
       <div className="mx-auto grid max-w-[1280px] grid-cols-1 items-start px-0 sm:px-5 lg:grid-cols-[230px_minmax(0,1fr)] xl:grid-cols-[230px_minmax(0,1fr)_300px]">
         <LeftRail teamSlug={teamSlug} />
         <main className="min-h-screen">{children}</main>

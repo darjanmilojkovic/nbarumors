@@ -39,13 +39,7 @@ export default async function RumorPage({ params }: PageProps<"/rumor/[slug]">) 
       teamLabel={
         rumor.teams[0] ? `${rumor.teams[0].city} ${rumor.teams[0].name}` : undefined
       }
-      teamHref={rumor.teams[0] ? `/team/${rumor.teams[0].slug}` : undefined}
       playerLabel={rumor.players.find((p) => p.isPrimary)?.fullName}
-      playerHref={
-        rumor.players.find((p) => p.isPrimary)
-          ? `/player/${rumor.players.find((p) => p.isPrimary)!.slug}`
-          : undefined
-      }
     >
       <div className="border-x border-rule bg-surface">
         <div className="border-b border-rule px-4 py-3 sm:px-5">
