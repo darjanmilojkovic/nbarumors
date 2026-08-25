@@ -32,7 +32,8 @@ function RailHeading({ children }: { children: React.ReactNode }) {
 async function LeftRail({ teamSlug }: { teamSlug?: string }) {
   const [beats, teams, stats] = await Promise.all([
     beatCounts(),
-    activeTeams(),
+    // 5 across, 4 down.
+    activeTeams(20),
     wireStats(),
   ]);
 
@@ -62,13 +63,19 @@ async function LeftRail({ teamSlug }: { teamSlug?: string }) {
       </nav>
 
       <RailHeading>Most active</RailHeading>
-      <div className="mb-7 flex flex-wrap gap-1.5">
+      {/*
+       * A fixed 5-column grid rather than flex-wrap: every chip gets the same
+       * cell, so the block squares off and spans the rail's full width, in
+       * line with the counter card below it.
+       */}
+      <div className="mb-7 grid grid-cols-5 gap-1.5">
         {teams.map((t) => (
           <Link
             key={t.slug}
             href={`/team/${t.slug}`}
             aria-pressed={teamSlug === t.slug}
-            className={`rounded-sm border px-2 py-1 font-mono text-[11px] tracking-wider ${
+            title={`${t.abbreviation} · ${t.n} update${t.n === 1 ? "" : "s"}`}
+            className={`rounded-sm border py-1 text-center font-mono text-[11px] tracking-wide ${
               teamSlug === t.slug
                 ? "border-link bg-link font-bold text-white"
                 : "border-rule bg-surface text-body hover:border-link hover:text-white"
