@@ -61,5 +61,21 @@ body {
   a {
     color: inherit;
     text-decoration: none;
+    /*
+     * Ease into hover rather than snapping. Border and background are
+     * included so chips and tiles fade in step with their label instead of
+     * the text easing while the outline jumps.
+     */
+    transition:
+      color 160ms ease,
+      border-color 160ms ease,
+      background-color 160ms ease;
+  }
+
+  /* Respect users who ask for less motion. */
+  @media (prefers-reduced-motion: reduce) {
+    a {
+      transition: none;
+    }
   }
 }
