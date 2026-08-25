@@ -26,6 +26,13 @@ export type FeedRumor = {
   sourceCount: number;
   alsoReportedBy: string | null;
   chain: { outlet: string; headline: string; url: string; at: string }[];
+  sourceSlug: string;
+  contractValue: string | null;
+  contractYears: number | null;
+  outcome: string | null;
+  outcomeAt: Date | null;
+  maxProminence: number;
+  hotMentions: number;
   confidence: number;
   teams: {
     slug: string;
@@ -41,6 +48,8 @@ export type FeedRumor = {
     fullName: string;
     isPrimary: boolean;
     headshotUrl: string | null;
+    teamAbbrev: string | null;
+    pointsPerGame: number | null;
   }[];
 };
 
@@ -74,9 +83,13 @@ async function hydrate(rows: Awaited<ReturnType<typeof baseSelect>>): Promise<Fe
       slug: players.slug,
       fullName: players.fullName,
       headshotUrl: players.headshotUrl,
+      // Context beside the name: who they play for and how much they score.
+      teamAbbrev: teams.abbreviation,
+      pointsPerGame: players.pointsPerGame,
     })
     .from(rumorPlayers)
     .innerJoin(players, eq(players.id, rumorPlayers.playerId))
+    .leftJoin(teams, eq(teams.id, players.currentTeamId))
     .where(sql`${rumorPlayers.rumorId} in ${ids}`);
 
   return rows.map((r) => ({
@@ -102,6 +115,11 @@ const baseSelect = (extra?: SQL) =>
       confidence: rumors.confidence,
       reportedBy: rumors.reportedBy,
       sourceName: sources.name,
+      sourceSlug: sources.slug,
+      contractValue: rumors.contractValue,
+      contractYears: rumors.contractYears,
+      outcome: rumors.outcome,
+      outcomeAt: rumors.outcomeAt,
       sourceUrl: rumors.sourceUrl,
       publishedAt: rumors.publishedAt,
       imageUrl: playerImages.url,
@@ -127,6 +145,25 @@ const baseSelect = (extra?: SQL) =>
         ) order by rs.published_at), '[]'::json)
         from rumor_sources rs join sources s2 on s2.id = rs.source_id
         where rs.rumor_id = ${rumors.id}
+      )`,
+      /** Highest prominence among the players named — drives the hype badge. */
+      maxProminence: sql<number>`(
+        select coalesce(max(p.prominence), 0)::int
+        from rumor_players rp join players p on p.id = rp.player_id
+        where rp.rumor_id = ${rumors.id}
+      )`,
+      /**
+       * How many separate posts named this rumor's primary player in the last
+       * week — momentum around the player, independent of this one report.
+       */
+      hotMentions: sql<number>`(
+        select count(distinct r2.id)::int
+        from rumor_players rp
+        join rumor_players rp2 on rp2.player_id = rp.player_id
+        join rumors r2 on r2.id = rp2.rumor_id
+          and r2.is_published
+          and r2.published_at > now() - interval '7 days'
+        where rp.rumor_id = ${rumors.id} and rp.is_primary
       )`,
     })
     .from(rumors)

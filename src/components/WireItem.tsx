@@ -110,8 +110,46 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
   const hasNamedReporter =
     Boolean(rumor.reportedBy) && rumor.reportedBy !== rumor.sourceName;
 
+  /** Straight from the league's transaction log rather than a news report. */
+  const isOfficial = rumor.sourceSlug === "bbref-transactions";
+
+  const money =
+    rumor.contractValue || rumor.contractYears
+      ? [rumor.contractValue, rumor.contractYears ? `${rumor.contractYears}yr` : null]
+          .filter(Boolean)
+          .join(" · ")
+      : null;
+
+  const confirmedAfter =
+    rumor.outcome === "confirmed" && rumor.outcomeAt
+      ? Math.round(
+          (new Date(rumor.outcomeAt).getTime() - rumor.publishedAt.getTime()) /
+            864e5,
+        )
+      : null;
+
+  /** "PHX · 12.8 ppg" — turns dead space beside the meter into information. */
+  const primary = ordered.find((p) => p.isPrimary) ?? ordered[0];
+  const primaryContext = primary
+    ? [primary.teamAbbrev, primary.pointsPerGame ? `${primary.pointsPerGame} ppg` : null]
+        .filter(Boolean)
+        .join(" · ") || null
+    : null;
+
+  /*
+   * Rare by design. At >=80 the badge landed on 30% of page one, which is
+   * no signal at all; >=88 puts it on ~13% of the front page and 5% of the
+   * site, so it means something when it appears.
+   */
+  const isMarquee = rumor.maxProminence >= 88;
+
+  /*
+   * py-7 (28px) rather than 20px: body copy sets ~22px between lines, so
+   * tighter padding made the gap between two posts read as smaller than the
+   * gap between two lines within one.
+   */
   return (
-    <article className="border-b border-rule px-4 py-5 transition-colors hover:bg-surface-2 sm:px-5">
+    <article className="border-b border-rule px-4 py-7 transition-colors hover:bg-surface-2 sm:px-5">
       {/*
        * Explicit grid rather than a flex row. Byline and kicker sit in the
        * text column so they line up with the headline, while the portrait
@@ -159,8 +197,16 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
           <span className="font-mono text-[11px] text-muted">
             · {ago(rumor.publishedAt)}
           </span>
+          {isMarquee && (
+            <span
+              className="ml-auto rounded-sm bg-accent/10 px-2 py-0.5 font-mono text-[10px] font-bold tracking-widest text-accent uppercase"
+              title="Involves one of the league's most prominent players"
+            >
+              ★ Marquee
+            </span>
+          )}
           <span
-            className={`ml-auto inline-flex items-center gap-1.5 rounded-sm px-2 py-0.5 font-mono text-[10px] font-bold tracking-widest uppercase ${state.cls}`}
+            className={`inline-flex items-center gap-1.5 rounded-sm px-2 py-0.5 font-mono text-[10px] font-bold tracking-widest uppercase ${isMarquee ? "" : "ml-auto"} ${state.cls}`}
           >
             <span className="h-1.5 w-1.5 rounded-full bg-current" />
             {state.label}
@@ -233,7 +279,13 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
         </div>
 
         <div className="col-start-2 row-start-3 min-w-0">
-          <h2 className="display mb-1.5 text-lg leading-tight text-balance text-white sm:text-[22px]">
+          {/*
+           * text-pretty, not text-balance. Balance evens the length of every
+           * line, which on a two-line headline splits it down the middle and
+           * leaves the column looking half-used. Pretty fills each line and
+           * only guards against a single-word last line.
+           */}
+          <h2 className="display mb-1.5 text-lg leading-tight text-pretty text-white sm:text-[22px]">
             <Link href={`/rumor/${rumor.slug}`} className="hover:text-link">
               {rumor.headline}
             </Link>
@@ -241,33 +293,81 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
 
           <p className="max-w-[62ch] text-sm text-body">{rumor.body}</p>
 
-          {/* credibility */}
-          <div className="mt-3 flex flex-wrap items-center gap-2.5">
-            <span
-              className="flex gap-[3px]"
-              role="img"
-              aria-label={`Source strength ${bars} of 5`}
-              title="Source strength: how firm the report is, how many independent outlets carry it, and whether a reporter is credited."
-            >
-              {[1, 2, 3, 4, 5].map((i) => (
+          {/*
+           * One meta strip, and what it holds depends on the post. A source
+           * meter belongs on a rumor, where the question is "is this solid?".
+           * On an official transaction the answer is "yes, it happened", so
+           * the meter is noise and the money is the story.
+           */}
+          <div className="mt-3.5 flex flex-wrap items-center gap-x-3 gap-y-2">
+            {money && (
+              <span className="rounded-sm border border-rule bg-surface-2 px-2 py-0.5 font-mono text-[11px] font-bold text-body">
+                {money}
+              </span>
+            )}
+
+            {!isOfficial && (
+              <span className="flex items-center gap-2.5">
                 <span
-                  key={i}
-                  className={`block h-1 w-5 rounded-[1px] ${
-                    i <= bars
-                      ? bars >= 4
-                        ? "bg-accent"
-                        : "bg-heat"
-                      : "bg-rule"
-                  }`}
-                />
-              ))}
-            </span>
-            <span className="font-mono text-[10px] tracking-widest text-muted uppercase">
-              Source strength {bars}/5 ·{" "}
-              {rumor.sourceCount > 1
-                ? `${rumor.sourceCount} outlets`
-                : "single outlet"}
-            </span>
+                  className="flex gap-[3px]"
+                  role="img"
+                  aria-label={`Source strength ${bars} of 5`}
+                  title="Source strength: how firm the report is, how many independent outlets carry it, and whether a reporter is credited."
+                >
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <span
+                      key={i}
+                      className={`block h-1 w-5 rounded-[1px] ${
+                        i <= bars
+                          ? bars >= 4
+                            ? "bg-accent"
+                            : "bg-heat"
+                          : "bg-rule"
+                      }`}
+                    />
+                  ))}
+                </span>
+                <span className="font-mono text-[10px] tracking-widest text-muted uppercase">
+                  {rumor.sourceCount > 1
+                    ? `${rumor.sourceCount} outlets`
+                    : "single outlet"}
+                </span>
+              </span>
+            )}
+
+            {/* Checked against the official transaction log, not modelled. */}
+            {rumor.outcome === "confirmed" && (
+              <span
+                className="rounded-sm bg-confirmed/10 px-2 py-0.5 font-mono text-[10px] font-bold tracking-widest text-confirmed uppercase"
+                title="A matching move appears in the official transaction log"
+              >
+                ✓ Confirmed
+                {confirmedAfter !== null && confirmedAfter > 0
+                  ? ` ${confirmedAfter}d later`
+                  : ""}
+              </span>
+            )}
+            {rumor.outcome === "unrecorded" && (
+              <span
+                className="font-mono text-[10px] tracking-widest text-muted uppercase"
+                title="Nothing matching this has appeared in the transaction log yet. Our log covers one season and excludes waivers and two-way deals, so this is not proof it did not happen."
+              >
+                No transaction on record
+              </span>
+            )}
+
+            {/* Momentum around the player, independent of this one report. */}
+            {rumor.hotMentions >= 12 && (
+              <span className="font-mono text-[10px] tracking-widest text-accent uppercase">
+                ▲ {rumor.hotMentions} reports this week
+              </span>
+            )}
+
+            {primaryContext && (
+              <span className="font-mono text-[10px] tracking-widest text-muted uppercase">
+                {primaryContext}
+              </span>
+            )}
           </div>
 
           {/* corroboration chain — plain <details>, so it works without JS */}
