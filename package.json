@@ -19,7 +19,8 @@
     "sync:stats": "tsx src/scripts/sync-stats.ts",
     "sync:roster": "tsx src/scripts/sync-roster.ts",
     "dedupe": "tsx src/scripts/dedupe.ts",
-    "sync:headshots": "tsx src/scripts/sync-headshots.ts"
+    "sync:headshots": "tsx src/scripts/sync-headshots.ts",
+    "import:transactions": "tsx src/scripts/import-transactions.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

@@ -20,13 +20,15 @@ const CAT: Record<string, string> = {
  */
 const STATE: Record<string, { label: string; cls: string }> = {
   /*
-   * Unconfirmed states take the accent orange — the same orange as a filled
-   * credibility bar, so "not nailed down yet" reads as one colour. Blue is
-   * now reserved entirely for links and current-page state.
+   * Five stored states, three shown. "Rumor" and "reported" were separate
+   * chips in the same orange, which reads as an inconsistency rather than a
+   * distinction — and the difference between them already does real work in
+   * the source-strength meter, where reported floors at 2 bars and rumor at
+   * 1. Same for confirmed and completed, both green and both meaning done.
    */
   rumor: { label: "Developing", cls: "text-accent bg-accent/10" },
-  reported: { label: "Reported", cls: "text-accent bg-accent/10" },
-  confirmed: { label: "Confirmed", cls: "text-confirmed bg-confirmed/10" },
+  reported: { label: "Developing", cls: "text-accent bg-accent/10" },
+  confirmed: { label: "Done deal", cls: "text-confirmed bg-confirmed/10" },
   completed: { label: "Done deal", cls: "text-confirmed bg-confirmed/10" },
   debunked: { label: "Debunked", cls: "text-debunked bg-debunked/10" },
 };
