@@ -8,6 +8,7 @@ export type ProcessResult = {
   model: string;
   examined: number;
   published: number;
+  merged: number;
   held: number;
   rejected: number;
   errors: number;
@@ -41,6 +42,7 @@ export async function runExtraction(limit = 50): Promise<ProcessResult> {
   const sourceName = new Map(sourceRows.map((s) => [s.id, s.name]));
 
   let published = 0;
+  let merged = 0;
   let held = 0;
   let rejected = 0;
   let errors = 0;
@@ -55,6 +57,7 @@ export async function runExtraction(limit = 50): Promise<ProcessResult> {
       });
       const result = await publishExtraction(item, extraction);
       if (result.status === "published") published++;
+      else if (result.status === "merged") merged++;
       else if (result.status === "held") held++;
       else rejected++;
     } catch (err) {
@@ -75,6 +78,7 @@ export async function runExtraction(limit = 50): Promise<ProcessResult> {
     model: extractionModel(),
     examined: items.length,
     published,
+    merged,
     held,
     rejected,
     errors,

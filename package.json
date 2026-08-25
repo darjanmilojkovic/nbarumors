@@ -17,7 +17,8 @@
     "extract": "tsx src/scripts/extract.ts",
     "peek:rumors": "tsx src/scripts/peek-rumors.ts",
     "sync:stats": "tsx src/scripts/sync-stats.ts",
-    "sync:roster": "tsx src/scripts/sync-roster.ts"
+    "sync:roster": "tsx src/scripts/sync-roster.ts",
+    "dedupe": "tsx src/scripts/dedupe.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

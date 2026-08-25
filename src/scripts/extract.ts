@@ -10,6 +10,7 @@ async function main() {
   console.log(`\nmodel: ${r.model}`);
   console.log(`examined ${r.examined} items in ${(r.durationMs / 1000).toFixed(1)}s\n`);
   console.log(`  published: ${r.published}`);
+  console.log(`  merged into existing: ${r.merged}`);
   console.log(`  held (low confidence): ${r.held}`);
   console.log(`  rejected (not transfer news): ${r.rejected}`);
   console.log(`  errors: ${r.errors}\n`);

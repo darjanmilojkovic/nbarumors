@@ -5,6 +5,7 @@ import {
   playerImages,
   players,
   rumorPlayers,
+  rumorSources,
   rumorTeams,
   rumors,
   teams,
@@ -97,14 +98,118 @@ async function ensurePlayerImage(playerId: number, fullName: string) {
   }
 }
 
+/** How firm a report is; a later, firmer source upgrades the post. */
+const STATUS_RANK: Record<string, number> = {
+  rumor: 0,
+  reported: 1,
+  confirmed: 2,
+  completed: 3,
+  debunked: 4,
+};
+
+/** Events reported more than this long apart are treated as separate. */
+const MERGE_WINDOW_DAYS = 14;
+
+/**
+ * Find an existing post for the same event. Keyed on the model's canonical
+ * event key, which is why four outlets on one signing collapse while four
+ * different angles on one player's free agency stay separate.
+ */
+async function findExistingEvent(eventKey: string, publishedAt: Date) {
+  const key = eventKey.trim().toLowerCase();
+  if (!key) return null;
+
+  const since = new Date(publishedAt.getTime() - MERGE_WINDOW_DAYS * 86_400_000);
+  const until = new Date(publishedAt.getTime() + MERGE_WINDOW_DAYS * 86_400_000);
+
+  const [existing] = await db
+    .select({
+      id: rumors.id,
+      status: rumors.status,
+      confidence: rumors.confidence,
+      publishedAt: rumors.publishedAt,
+    })
+    .from(rumors)
+    .where(
+      and(
+        eq(rumors.eventKey, key),
+        sql`${rumors.publishedAt} between ${since} and ${until}`,
+      ),
+    )
+    .orderBy(sql`${rumors.publishedAt} asc`)
+    .limit(1);
+
+  return existing ?? null;
+}
+
+/** Attach this report to an existing post instead of creating a duplicate. */
+async function attachSource(
+  rumorId: number,
+  current: { status: string; confidence: number; publishedAt: Date },
+  item: {
+    id: number;
+    sourceId: number;
+    url: string;
+    title: string;
+    publisher: string | null;
+    publishedAt: Date;
+  },
+  extraction: Extraction,
+) {
+  await db
+    .insert(rumorSources)
+    .values({
+      rumorId,
+      sourceId: item.sourceId,
+      feedItemId: item.id,
+      sourceUrl: item.url,
+      publisher: item.publisher,
+      reportedBy: extraction.reportedBy?.slice(0, 128) ?? null,
+      headline: extraction.headline,
+      publishedAt: item.publishedAt,
+    })
+    .onConflictDoNothing({ target: rumorSources.feedItemId });
+
+  // Independent corroboration raises confidence and can firm up the status,
+  // but never walks a confirmed deal back to a rumor.
+  const status =
+    STATUS_RANK[extraction.status] > STATUS_RANK[current.status]
+      ? extraction.status
+      : (current.status as Extraction["status"]);
+
+  await db
+    .update(rumors)
+    .set({
+      status,
+      confidence: Math.min(1, Math.max(current.confidence, extraction.confidence) + 0.05),
+      // Keep the post surfacing while outlets are still picking it up.
+      publishedAt:
+        item.publishedAt > current.publishedAt ? item.publishedAt : current.publishedAt,
+    })
+    .where(eq(rumors.id, rumorId));
+
+  await db
+    .update(feedItems)
+    .set({ processedAt: new Date() })
+    .where(eq(feedItems.id, item.id));
+}
+
 export type PublishResult =
   | { status: "published"; rumorId: number }
+  | { status: "merged"; rumorId: number }
   | { status: "held"; rumorId: number }
   | { status: "rejected"; reason: string };
 
 /** Turn one extraction into a rumor row plus its team and player tags. */
 export async function publishExtraction(
-  item: { id: number; sourceId: number; url: string; publishedAt: Date },
+  item: {
+    id: number;
+    sourceId: number;
+    url: string;
+    title: string;
+    publisher: string | null;
+    publishedAt: Date;
+  },
   extraction: Extraction,
 ): Promise<PublishResult> {
   if (!extraction.isRumor || extraction.confidence < 0.35) {
@@ -116,12 +221,20 @@ export async function publishExtraction(
     return { status: "rejected", reason };
   }
 
+  // Same event, different outlet — attach rather than duplicate.
+  const existing = await findExistingEvent(extraction.eventKey, item.publishedAt);
+  if (existing) {
+    await attachSource(existing.id, existing, item, extraction);
+    return { status: "merged", rumorId: existing.id };
+  }
+
   const isPublished = extraction.confidence >= PUBLISH_THRESHOLD;
 
   const [rumor] = await db
     .insert(rumors)
     .values({
       slug: `${slugify(extraction.headline)}-${item.id}`,
+      eventKey: extraction.eventKey.trim().toLowerCase() || null,
       headline: extraction.headline,
       body: extraction.body,
       type: extraction.type,
@@ -145,6 +258,21 @@ export async function publishExtraction(
       .where(eq(feedItems.id, item.id));
     return { status: "rejected", reason: "already processed" };
   }
+
+  // The originating report is a source too, so the byline list is complete.
+  await db
+    .insert(rumorSources)
+    .values({
+      rumorId: rumor.id,
+      sourceId: item.sourceId,
+      feedItemId: item.id,
+      sourceUrl: item.url,
+      publisher: item.publisher,
+      reportedBy: extraction.reportedBy?.slice(0, 128) ?? null,
+      headline: extraction.headline,
+      publishedAt: item.publishedAt,
+    })
+    .onConflictDoNothing({ target: rumorSources.feedItemId });
 
   // Team tags — ignore abbreviations the model invented.
   const abbrevs = [...new Set(extraction.teams.map((t) => t.abbreviation))];

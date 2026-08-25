@@ -23,6 +23,8 @@ export type FeedRumor = {
   publishedAt: Date;
   imageUrl: string | null;
   imageAttribution: string | null;
+  sourceCount: number;
+  alsoReportedBy: string | null;
   teams: {
     slug: string;
     abbreviation: string;
@@ -101,6 +103,17 @@ const baseSelect = (extra?: SQL) =>
       publishedAt: rumors.publishedAt,
       imageUrl: playerImages.url,
       imageAttribution: playerImages.attribution,
+      /** Distinct outlets that reported this event — the corroboration count. */
+      sourceCount: sql<number>`(
+        select count(distinct s2.name)::int
+        from rumor_sources rs join sources s2 on s2.id = rs.source_id
+        where rs.rumor_id = ${rumors.id}
+      )`,
+      alsoReportedBy: sql<string | null>`(
+        select string_agg(distinct s2.name, ', ')
+        from rumor_sources rs join sources s2 on s2.id = rs.source_id
+        where rs.rumor_id = ${rumors.id}
+      )`,
     })
     .from(rumors)
     .innerJoin(sources, eq(sources.id, rumors.sourceId))

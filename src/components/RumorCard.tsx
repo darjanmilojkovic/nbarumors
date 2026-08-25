@@ -146,6 +146,16 @@ export function RumorCard({ rumor }: { rumor: FeedRumor }) {
           </div>
         )}
 
+        {rumor.sourceCount > 1 && (
+          /* Corroboration: how many outlets independently reported this. */
+          <p className="mt-3 text-[11px] text-muted">
+            <span className="font-semibold text-body">
+              {rumor.sourceCount} outlets
+            </span>{" "}
+            reporting — {rumor.alsoReportedBy}
+          </p>
+        )}
+
         <footer className="mt-4 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted sm:text-xs">
           <span>
             {TYPE_LABEL[rumor.type] ?? "Update"} @ {formatDate(rumor.publishedAt)}

@@ -22,6 +22,7 @@ export type Extraction = {
     | "other";
   status: "rumor" | "reported" | "confirmed" | "completed" | "debunked";
   confidence: number;
+  eventKey: string;
   headline: string;
   body: string;
   reportedBy: string | null;
@@ -73,6 +74,11 @@ const SCHEMA = {
     confidence: {
       type: "number",
       description: "0-1 confidence that this is a real, on-topic transfer story.",
+    },
+    eventKey: {
+      type: "string",
+      description:
+        "A canonical lowercase-hyphenated key identifying the SPECIFIC underlying event, so that separate outlets reporting the same event produce an identical key. Format: player-team-action-detail. Include the defining numbers when known (years, dollars). Examples: 'dillon-brooks-phx-extension-3yr-73m', 'lonnie-walker-den-signing-1yr'. CRITICAL: two stories about the same player are only the same event if they describe the same transaction. Distinct angles on one player's situation get distinct keys, e.g. 'lebron-suitors-ranked' vs 'lebron-gsw-interest-denied' vs 'lebron-phi-signing'.",
     },
     headline: {
       type: "string",
@@ -130,6 +136,7 @@ const SCHEMA = {
     "type",
     "status",
     "confidence",
+    "eventKey",
     "headline",
     "body",
     "reportedBy",

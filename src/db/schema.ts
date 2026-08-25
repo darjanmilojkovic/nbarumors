@@ -239,6 +239,13 @@ export const rumors = pgTable(
     feedItemId: integer("feed_item_id")
       .notNull()
       .references(() => feedItems.id),
+    /**
+     * Canonical identifier for the underlying event, e.g.
+     * "dillon-brooks-suns-extension-3yr-73m". Four outlets reporting the same
+     * signing share a key and collapse into one post; four different angles on
+     * the same player's free agency do not.
+     */
+    eventKey: varchar("event_key", { length: 160 }),
     sourceUrl: text("source_url").notNull(),
     /**
      * Card hero. Chosen at publish time from the primary player's images —
@@ -260,6 +267,37 @@ export const rumors = pgTable(
     uniqueIndex("rumors_feed_item_idx").on(t.feedItemId),
     index("rumors_feed_idx").on(t.isPublished, t.publishedAt),
     index("rumors_type_idx").on(t.type),
+  ],
+);
+
+/**
+ * Every outlet that reported a given rumor. The first one creates the rumor;
+ * later ones attach here instead of creating a duplicate post, which is what
+ * feeds the "also reported by" line and the corroboration count.
+ */
+export const rumorSources = pgTable(
+  "rumor_sources",
+  {
+    id: serial("id").primaryKey(),
+    rumorId: integer("rumor_id")
+      .notNull()
+      .references(() => rumors.id, { onDelete: "cascade" }),
+    sourceId: integer("source_id")
+      .notNull()
+      .references(() => sources.id),
+    /** One row per feed item, so re-processing can never double-count. */
+    feedItemId: integer("feed_item_id")
+      .notNull()
+      .references(() => feedItems.id),
+    sourceUrl: text("source_url").notNull(),
+    publisher: varchar("publisher", { length: 96 }),
+    reportedBy: varchar("reported_by", { length: 128 }),
+    headline: text("headline").notNull(),
+    publishedAt: timestamp("published_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    uniqueIndex("rumor_sources_feed_item_idx").on(t.feedItemId),
+    index("rumor_sources_rumor_idx").on(t.rumorId),
   ],
 );
 
