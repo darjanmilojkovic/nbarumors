@@ -146,19 +146,16 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
         {/*
          * Two arrangements of the same three things.
          *
-         * On a phone the badges take a full row of their own above the byline.
-         * Beside it there was only ever room for one at a time, so a post with
-         * both had them stacked in a narrow column, and the block was taller
-         * than the byline and kicker it sat next to. Given the whole width they
-         * sit side by side and the header reads top-to-bottom: what kind of
-         * story, then who reported it, then which teams.
+         * On a phone the badges take a full row of their own, below the byline
+         * and kicker. Beside the byline there was only ever room for one at a
+         * time, so a post carrying both stacked them into a narrow column that
+         * stood taller than the text it sat next to. Given the whole width they
+         * sit side by side on one line instead.
          *
          * From sm up they return to the right of the byline, where the width
-         * exists and a dedicated row would just be empty space. Either way the
-         * badges never sit in the row *above* the kicker — that was what pushed
-         * "EXTENSION · CLE" down the card by a varying amount.
+         * exists and a dedicated row would just be empty space.
          */}
-        <div className="col-start-2 mb-2 flex flex-col-reverse gap-1.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+        <div className="col-start-2 mb-2 flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
           <div className="min-w-0">
             <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
               {/*
