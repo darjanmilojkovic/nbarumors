@@ -21,10 +21,17 @@ export function SiteHeader({
       {/* Same outer padding and column template as WireShell, and the same
           inner padding as a WireItem, so the lockup lines up with the cards. */}
       <div className="mx-auto grid max-w-[1280px] grid-cols-1 px-0 sm:px-5 lg:grid-cols-[230px_minmax(0,1fr)] xl:grid-cols-[230px_minmax(0,1fr)_300px]">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-4 sm:px-5 lg:col-start-2">
+        {/*
+         * Two different shapes. On a phone there is no room for a lockup and
+         * two labels on one line, so the header stacks and centres: masthead
+         * on top, nav beneath it. From sm up it returns to a single row with
+         * the lockup left and the nav pushed right, which is what lines it up
+         * with the column of cards below.
+         */}
+        <div className="flex flex-col items-center gap-3 px-4 py-4 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-6 sm:gap-y-2 sm:px-5 lg:col-start-2">
           <Link href="/" className="group flex items-center gap-2.5">
-            <Logo className="h-8 w-8 text-body transition-colors group-hover:text-link sm:h-9 sm:w-9" />
-            <span className="display text-xl leading-none sm:text-2xl">
+            <Logo className="h-11 w-11 text-body transition-colors group-hover:text-link sm:h-9 sm:w-9" />
+            <span className="display text-3xl leading-none sm:text-2xl">
               <span className="text-white">NBA</span>
               <span className="text-accent">Rumors</span>
             </span>
@@ -35,7 +42,7 @@ export function SiteHeader({
            * you are; clicking it takes you up a level. Pointing it at the
            * current page instead made it a link that does nothing.
            */}
-          <nav className="display ml-auto flex min-w-0 gap-5 text-xs text-body sm:gap-8 sm:text-base">
+          <nav className="display flex w-full min-w-0 justify-center gap-6 text-sm text-body sm:ml-auto sm:w-auto sm:justify-end sm:gap-8 sm:text-base">
             <Link
               href="/teams"
               title={teamLabel ? "Back to all teams" : undefined}

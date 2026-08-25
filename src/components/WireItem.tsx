@@ -180,20 +180,32 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
           <span className="font-mono text-[11px] text-muted">
             · {ago(rumor.publishedAt)}
           </span>
-          {isMarquee && (
+          {/*
+           * The two badges are grouped rather than left as loose flex children,
+           * which is what let them wrap independently and land on separate
+           * lines at odd moments.
+           *
+           * On a phone they stack, right-aligned, one directly under the other
+           * — side by side there was no room left for the byline and the pair
+           * ended up marooned on their own line anyway. From sm up they sit in
+           * a row, where the width is there for it.
+           */}
+          <div className="ml-auto flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center sm:gap-1.5">
+            {isMarquee && (
+              <span
+                className="rounded-sm bg-accent/10 px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wider text-accent uppercase sm:px-2 sm:tracking-widest"
+                title="Involves one of the league's most prominent players"
+              >
+                ★ Marquee
+              </span>
+            )}
             <span
-              className="ml-auto rounded-sm bg-accent/10 px-2 py-0.5 font-mono text-[10px] font-bold tracking-widest text-accent uppercase"
-              title="Involves one of the league's most prominent players"
+              className={`inline-flex items-center gap-1.5 rounded-sm px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wider uppercase sm:px-2 sm:tracking-widest ${state.cls}`}
             >
-              ★ Marquee
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />
+              {state.label}
             </span>
-          )}
-          <span
-            className={`inline-flex items-center gap-1.5 rounded-sm px-2 py-0.5 font-mono text-[10px] font-bold tracking-widest uppercase ${isMarquee ? "" : "ml-auto"} ${state.cls}`}
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-current" />
-            {state.label}
-          </span>
+          </div>
         </div>
 
         <div className="col-start-2 mb-2 font-mono text-[10px] tracking-widest text-muted uppercase">
