@@ -48,8 +48,6 @@ export type FeedRumor = {
     fullName: string;
     isPrimary: boolean;
     headshotUrl: string | null;
-    teamAbbrev: string | null;
-    pointsPerGame: number | null;
   }[];
 };
 
@@ -83,13 +81,9 @@ async function hydrate(rows: Awaited<ReturnType<typeof baseSelect>>): Promise<Fe
       slug: players.slug,
       fullName: players.fullName,
       headshotUrl: players.headshotUrl,
-      // Context beside the name: who they play for and how much they score.
-      teamAbbrev: teams.abbreviation,
-      pointsPerGame: players.pointsPerGame,
     })
     .from(rumorPlayers)
     .innerJoin(players, eq(players.id, rumorPlayers.playerId))
-    .leftJoin(teams, eq(teams.id, players.currentTeamId))
     .where(sql`${rumorPlayers.rumorId} in ${ids}`);
 
   return rows.map((r) => ({

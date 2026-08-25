@@ -89,10 +89,8 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
         )
       : null;
 
-  const primary = ordered.find((p) => p.isPrimary) ?? ordered[0];
-
   /*
-   * "DAL → MIA · 14 ppg".
+   * "DAL → MIA", drawn only when the post names both ends of the move.
    *
    * The team code used to come from players.current_team_id — the roster
    * sync — which is a different fact than the one the post is reporting. On a
@@ -100,19 +98,18 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
    * player just left; on an unresolved trade rumor the roster is right, so it
    * showed the team they are still on. One chip, two opposite meanings, and
    * nothing to tell the reader which. Movement now comes from the rumor's own
-   * from/to roles, which are per-post and cannot go stale, and it is only
-   * drawn when the post actually names both ends.
+   * from/to roles, which are per-post and cannot go stale.
+   *
+   * A scoring average used to ride along here. It was the one number on the
+   * card that had nothing to do with the news — a stat line answers "how good
+   * is he", which is not the question a transfer story raises.
    */
   const movedFrom = rumor.teams.find((t) => t.role === "from");
   const movedTo = rumor.teams.find((t) => t.role === "to");
-  const move =
+  const primaryContext =
     movedFrom && movedTo
       ? `${movedFrom.abbreviation} → ${movedTo.abbreviation}`
       : null;
-  const primaryContext =
-    [move, primary?.pointsPerGame ? `${primary.pointsPerGame} ppg` : null]
-      .filter(Boolean)
-      .join(" · ") || null;
 
   /*
    * Rare by design. At >=80 the badge landed on 30% of page one, which is
