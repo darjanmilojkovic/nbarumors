@@ -95,6 +95,15 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
   const faces = ordered.slice(0, MAX_FACES);
   const extraFaces = Math.max(0, ordered.length - MAX_FACES);
 
+  /*
+   * Some rumors name no player at all — "Kings and Raptors talks collapsed" —
+   * and some name only players we have no photo for. Rather than a column of
+   * initials or a generic mark, fall back to the team logos, which identify
+   * the story just as well.
+   */
+  const hasAnyPhoto = ordered.some((p) => p.headshotUrl);
+  const logoTiles = !hasAnyPhoto ? rumor.teams.slice(0, MAX_FACES) : [];
+
   const bars = sourcingScore(rumor);
 
   return (
@@ -108,7 +117,25 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
          * from turning into a wall of faces.
          */}
         <div className="flex shrink-0 flex-col gap-2">
-          {faces.length > 0 ? (
+          {logoTiles.length > 0 ? (
+            logoTiles.map((t) => (
+              <Link
+                key={t.slug}
+                href={`/team/${t.slug}`}
+                title={`${t.city} ${t.name}`}
+                className="grid h-14 w-14 shrink-0 place-items-center rounded-sm border border-rule bg-surface-2"
+              >
+                <Image
+                  src={t.logoUrl}
+                  alt={`${t.city} ${t.name}`}
+                  width={56}
+                  height={56}
+                  className="h-9 w-9 object-contain"
+                  unoptimized
+                />
+              </Link>
+            ))
+          ) : faces.length > 0 ? (
             faces.map((p) => (
               <Link key={p.slug} href={`/player/${p.slug}`} title={p.fullName}>
                 {p.headshotUrl ? (
