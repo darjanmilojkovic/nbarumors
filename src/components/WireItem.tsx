@@ -265,7 +265,7 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
                     unoptimized
                   />
                 ) : (
-                  <span className="display grid h-14 w-14 shrink-0 place-items-center rounded-sm border border-rule bg-surface-2 text-sm text-body">
+                  <span className="font-semibold grid h-14 w-14 shrink-0 place-items-center rounded-sm border border-rule bg-surface-2 text-sm text-body">
                     {initials(p.fullName)}
                   </span>
                 )}
@@ -273,7 +273,7 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
             ))
           ) : (
             <Link href={`/rumor/${rumor.slug}`}>
-              <span className="display grid h-14 w-14 shrink-0 place-items-center rounded-sm border border-rule bg-surface-2 text-sm text-body">
+              <span className="font-semibold grid h-14 w-14 shrink-0 place-items-center rounded-sm border border-rule bg-surface-2 text-sm text-body">
                 NBA
               </span>
             </Link>
@@ -297,13 +297,20 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
            * each line to the edge, which is what a headline should do; the
            * occasional one-word last line is the cheaper price.
            */}
-          <h2 className="display mb-1.5 text-lg leading-tight text-white sm:text-[22px]">
+          <h2 className="display mb-2 text-xl text-white sm:text-[26px]">
             <Link href={`/rumor/${rumor.slug}`} className="hover:text-link">
               {rumor.headline}
             </Link>
           </h2>
 
-          <p className="max-w-[62ch] text-sm text-body">{rumor.body}</p>
+          {/*
+           * 15.5px on 28px — a 1.8 ratio, following the reference. It looks
+           * unreasonably loose written down and is the main reason that page
+           * reads as easily as it does at a glance.
+           */}
+          <p className="max-w-[62ch] text-[15.5px] leading-7 text-body">
+            {rumor.body}
+          </p>
 
           {/*
            * One meta strip, and every chip in it is conditional — a post that

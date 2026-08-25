@@ -19,7 +19,7 @@ export default async function TeamsPage() {
         { label: "Western Conference", list: west },
       ].map((group) => (
         <section key={group.label} className="mb-8">
-          <h2 className="display mb-3 text-sm text-muted">{group.label}</h2>
+          <h2 className="label mb-3 text-xs text-muted">{group.label}</h2>
           <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {group.list.map((t) => (
               <li key={t.slug}>

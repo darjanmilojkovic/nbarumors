@@ -23,7 +23,7 @@ const BEAT_LABEL: Record<string, string> = {
 
 function RailHeading({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="display mb-3 text-[11px] font-bold tracking-[0.13em] text-muted">
+    <h2 className="label mb-3 text-[11px] text-muted">
       {children}
     </h2>
   );
@@ -97,7 +97,7 @@ async function RightRail() {
     <aside className="sticky top-4 hidden border-l border-rule py-6 pl-5 xl:block">
       <section className="mb-5 overflow-hidden rounded-sm border border-rule bg-surface">
         <div className="flex items-baseline justify-between border-b border-rule px-3.5 py-2.5">
-          <h3 className="display text-xs font-bold tracking-[0.12em]">
+          <h3 className="label text-xs">
             Most mentioned
           </h3>
           <span className="font-mono text-[10px] text-muted">7d</span>
@@ -138,7 +138,7 @@ async function RightRail() {
 
       <section className="mb-5 overflow-hidden rounded-sm border border-rule bg-surface">
         <div className="flex items-baseline justify-between border-b border-rule px-3.5 py-2.5">
-          <h3 className="display text-xs font-bold tracking-[0.12em]">Done deals</h3>
+          <h3 className="label text-xs">Done deals</h3>
           <span className="font-mono text-[10px] text-muted">Latest</span>
         </div>
         {done.map((d) => (

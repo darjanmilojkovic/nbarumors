@@ -31,7 +31,7 @@ export default async function PlayerPage({ params }: PageProps<"/player/[slug]">
         ) : (
           /* 213 of 582 rostered players have no NBA headshot; initials keep
              the lockup the same shape rather than collapsing it. */
-          <span className="display grid h-12 w-12 shrink-0 place-items-center rounded-sm border border-rule bg-surface-2 text-base text-body sm:h-16 sm:w-16">
+          <span className="font-semibold grid h-12 w-12 shrink-0 place-items-center rounded-sm border border-rule bg-surface-2 text-base text-body sm:h-16 sm:w-16">
             {player.fullName
               .split(" ")
               .map((w) => w[0])

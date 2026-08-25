@@ -40,6 +40,19 @@
   --color-marquee: #e3b23c;
 
   --font-mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+
+  /*
+   * Two families, split by job: serif carries anything editorial — headlines,
+   * page titles, the wordmark — and sans carries anything functional, which is
+   * bylines, navigation, labels and buttons.
+   *
+   * Mono is kept, against the reference, for data: timestamps, team codes,
+   * money and status. Those are readings rather than prose, and the tabular
+   * feel is what makes this look like a wire rather than a magazine.
+   */
+  --font-serif: var(--font-serif-loaded), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-sans-loaded), ui-sans-serif, system-ui, "Segoe UI",
+    sans-serif;
 }
 
 html {
@@ -49,16 +62,42 @@ html {
 }
 
 body {
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--font-sans);
   /* Never let a wide element scroll the page sideways on mobile. */
   overflow-x: hidden;
 }
 
-/* Condensed, slightly wide display face for headings, echoing the mock-up. */
-.display {
-  font-family: "Futura", "Jost", ui-sans-serif, system-ui, sans-serif;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+/*
+ * Both in @layer base, for the reason spelled out below: unlayered rules beat
+ * Tailwind's layered utilities regardless of specificity. Left unlayered,
+ * `.display { font-weight: 700 }` silently swallowed `font-semibold` on the
+ * wordmark — the class won and the utility did nothing.
+ */
+@layer base {
+  /*
+   * Editorial type. Serif, bold, sentence case, and deliberately untracked —
+   * letter-spacing on a bold serif at heading sizes only makes it look loose.
+   * Line-height 1.25 matches the reference and is tight enough that a two-line
+   * headline still reads as one object.
+   */
+  .display {
+    font-family: var(--font-serif);
+    font-weight: 700;
+    letter-spacing: normal;
+    line-height: 1.25;
+  }
+
+  /*
+   * Functional type. Small uppercase sans for navigation and section labels —
+   * the one place uppercase still earns its keep, because at 11-14px it reads
+   * as a signpost rather than as shouting.
+   */
+  .label {
+    font-family: var(--font-sans);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
 }
 
 /*

@@ -42,7 +42,7 @@ export function SiteHeader({
            * you are; clicking it takes you up a level. Pointing it at the
            * current page instead made it a link that does nothing.
            */}
-          <nav className="display flex w-full min-w-0 justify-center gap-6 text-sm text-body sm:ml-auto sm:w-auto sm:justify-end sm:gap-8 sm:text-base">
+          <nav className="label flex w-full min-w-0 justify-center gap-6 text-sm text-body sm:ml-auto sm:w-auto sm:justify-end sm:gap-8 sm:text-base">
             <Link
               href="/teams"
               title={teamLabel ? "Back to all teams" : undefined}

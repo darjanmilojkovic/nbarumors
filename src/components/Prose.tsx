@@ -16,7 +16,7 @@ export function Prose({
           Last updated {updated}
         </p>
       )}
-      <div className="max-w-[68ch] space-y-4 text-sm leading-relaxed text-body [&_a]:text-link [&_a:hover]:underline [&_h2]:display [&_h2]:mt-8 [&_h2]:mb-2 [&_h2]:text-base [&_h2]:text-white [&_li]:ml-5 [&_li]:list-disc [&_strong]:text-white">
+      <div className="max-w-[68ch] space-y-4 text-[15.5px] leading-7 text-body [&_a]:text-link [&_a:hover]:underline [&_h2]:mt-8 [&_h2]:mb-2 [&_h2]:font-serif [&_h2]:text-lg [&_h2]:font-bold [&_h2]:text-white [&_li]:ml-5 [&_li]:list-disc [&_strong]:text-white">
         {children}
       </div>
     </div>

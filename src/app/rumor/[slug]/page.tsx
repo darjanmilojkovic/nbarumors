@@ -55,7 +55,7 @@ export default async function RumorPage({ params }: PageProps<"/rumor/[slug]">) 
 
         {related.length > 0 && (
           <section>
-            <h2 className="display border-b border-rule px-4 py-3 text-[11px] font-bold tracking-[0.13em] text-muted sm:px-5">
+            <h2 className="label border-b border-rule px-4 py-3 text-[11px] text-muted sm:px-5">
               Related rumors
             </h2>
             {related.map((r) => (
