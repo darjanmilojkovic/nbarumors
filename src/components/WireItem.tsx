@@ -211,7 +211,7 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
           <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center sm:gap-1.5">
             {isMarquee && (
               <span
-                className="rounded-sm bg-accent/10 px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wider text-accent uppercase sm:px-2 sm:tracking-widest"
+                className="bg-marquee/10 text-marquee rounded-sm px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wider uppercase sm:px-2 sm:tracking-widest"
                 title="Involves one of the league's most prominent players"
               >
                 ★ Marquee

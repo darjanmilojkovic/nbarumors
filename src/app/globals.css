@@ -29,6 +29,16 @@
   --color-debunked: #e06062;
   --color-heat: #8a4a1e;
 
+  /*
+   * Marquee gold. It sits next to the Developing chip constantly, and both
+   * being orange made them read as one control split in two. Gold keeps the
+   * warm family the accent established while being plainly a different thing
+   * — 1.5:1 against the accent, enough to separate at a glance.
+   *
+   * 7.4:1 on the tinted chip ground, comfortably past AA for the 10px text.
+   */
+  --color-marquee: #e3b23c;
+
   --font-mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
 }
 
