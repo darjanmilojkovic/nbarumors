@@ -47,8 +47,8 @@ export default async function RumorPage({ params }: PageProps<"/rumor/[slug]">) 
           : undefined
       }
     >
-      <div className="border-x border-line bg-tint">
-        <div className="border-b border-line px-4 py-3 sm:px-5">
+      <div className="border-x border-rule bg-surface">
+        <div className="border-b border-rule px-4 py-3 sm:px-5">
           <Link
             href="/"
             className="font-mono text-[11px] tracking-wider text-muted uppercase hover:text-accent"
@@ -61,7 +61,7 @@ export default async function RumorPage({ params }: PageProps<"/rumor/[slug]">) 
 
         {related.length > 0 && (
           <section>
-            <h2 className="display border-b border-line px-4 py-3 text-[11px] font-bold tracking-[0.13em] text-muted sm:px-5">
+            <h2 className="display border-b border-rule px-4 py-3 text-[11px] font-bold tracking-[0.13em] text-muted sm:px-5">
               Related in the rumor mill
             </h2>
             {related.map((r) => (

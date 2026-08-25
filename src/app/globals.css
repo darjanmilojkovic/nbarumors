@@ -1,51 +1,43 @@
 @import "tailwindcss";
 
 /*
- * Paper edition. White ground, ruled rather than panelled: separation comes
- * from hairlines and space, not filled boxes. The accent is the dark-desk
- * orange pulled down to #B4560F so it holds contrast against white.
+ * Palette taken from the reference mock-up: near-black page, slightly lifted
+ * card, hairline rules. Committed to a single dark look on purpose — that is
+ * the design, not a theme preference.
  */
 @theme {
-  --color-ground: #ffffff;
-  --color-tint: #fafaf9;
-  --color-tint-2: #f4f2ef;
-  --color-line: #e6e3de;
-  --color-line-2: #d5d1ca;
+  --color-ink: #0d0d0d;
+  --color-surface: #1a1a1a;
+  --color-surface-2: #202020;
+  --color-rule: #3a3a3a;
+  --color-body: #e8e8e8;
+  --color-muted: #9a9a9a;
+  --color-accent: #e07a2f;
 
-  --color-ink: #15140f;
-  --color-ink-2: #3a362e;
-  --color-muted: #77716a;
-
-  --color-accent: #b4560f;
-  --color-accent-soft: #fbf0e6;
-
-  --color-confirmed: #0f7a55;
-  --color-developing: #2a63b8;
-  --color-debunked: #c0342f;
-  --color-heat: #d98a4a;
+  /* State colours sit beside the accent rather than competing with it. */
+  --color-confirmed: #3fbe86;
+  --color-developing: #5e9ad8;
+  --color-debunked: #e06062;
+  --color-heat: #8a4a1e;
 
   --font-mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
 }
 
 html {
-  background: var(--color-ground);
-  color: var(--color-ink);
+  background: var(--color-ink);
+  color: var(--color-body);
   -webkit-text-size-adjust: 100%;
 }
 
 body {
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  font-size: 15.5px;
-  line-height: 1.6;
-  -webkit-font-smoothing: antialiased;
   /* Never let a wide element scroll the page sideways on mobile. */
   overflow-x: hidden;
 }
 
-/* Condensed display face for mastheads and ledes. */
+/* Condensed, slightly wide display face for headings, echoing the mock-up. */
 .display {
-  font-family: "Futura", "Jost", "Century Gothic", "Avenir Next", ui-sans-serif,
-    system-ui, sans-serif;
+  font-family: "Futura", "Jost", ui-sans-serif, system-ui, sans-serif;
   letter-spacing: 0.02em;
   text-transform: uppercase;
 }
@@ -53,18 +45,4 @@ body {
 a {
   color: inherit;
   text-decoration: none;
-}
-
-:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
-  border-radius: 3px;
-}
-
-/* The beats bar and chip rows scroll horizontally without a visible bar. */
-.no-scrollbar {
-  scrollbar-width: none;
-}
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
 }

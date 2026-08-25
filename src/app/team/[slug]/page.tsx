@@ -29,7 +29,7 @@ export default async function TeamPage({ params }: PageProps<"/team/[slug]">) {
           unoptimized
         />
         <div>
-          <h1 className="display text-2xl text-ink sm:text-3xl">
+          <h1 className="display text-2xl text-white sm:text-3xl">
             {team.city} {team.name}
           </h1>
           <p className="text-xs text-muted">

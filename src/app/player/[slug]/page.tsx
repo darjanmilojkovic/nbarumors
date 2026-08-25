@@ -18,7 +18,7 @@ export default async function PlayerPage({ params }: PageProps<"/player/[slug]">
       playerHref={`/player/${player.slug}`}
     >
       <div className="mb-6 px-4 sm:px-0">
-        <h1 className="display text-2xl text-ink sm:text-3xl">{player.fullName}</h1>
+        <h1 className="display text-2xl text-white sm:text-3xl">{player.fullName}</h1>
         <p className="text-xs text-muted">
           {rumors.length} update{rumors.length === 1 ? "" : "s"}
         </p>

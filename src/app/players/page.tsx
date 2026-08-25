@@ -11,14 +11,14 @@ export default async function PlayersPage() {
   return (
     <WireShell>
       <div className="px-4 sm:px-0">
-      <h1 className="display mb-6 text-2xl text-ink sm:text-3xl">All Players</h1>
+      <h1 className="display mb-6 text-2xl text-white sm:text-3xl">All Players</h1>
 
       <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
         {players.map((p) => (
           <li key={p.slug}>
             <Link
               href={`/player/${p.slug}`}
-              className="flex items-center gap-2 rounded-sm bg-tint px-2 py-2 hover:bg-tint-2 sm:gap-3 sm:px-3"
+              className="flex items-center gap-2 rounded-sm bg-surface px-2 py-2 hover:bg-surface-2 sm:gap-3 sm:px-3"
             >
               {p.headshotUrl ? (
                 <Image
@@ -26,14 +26,14 @@ export default async function PlayersPage() {
                   alt=""
                   width={64}
                   height={47}
-                  className="h-10 w-10 shrink-0 rounded-full bg-tint-2 object-cover object-top"
+                  className="h-10 w-10 shrink-0 rounded-full bg-surface-2 object-cover object-top"
                   unoptimized
                 />
               ) : (
                 // No NBA id yet — a name we only know from a rumor.
                 <span
                   aria-hidden
-                  className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-tint-2 text-xs text-muted"
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-surface-2 text-xs text-muted"
                 >
                   {p.fullName
                     .split(" ")

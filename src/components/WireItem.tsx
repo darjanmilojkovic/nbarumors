@@ -19,11 +19,11 @@ const CAT: Record<string, string> = {
  * actually needs to know is "is this real yet".
  */
 const STATE: Record<string, { label: string; cls: string }> = {
-  rumor: { label: "Developing", cls: "text-developing bg-[#F0F5FC]" },
-  reported: { label: "Reported", cls: "text-developing bg-[#F0F5FC]" },
-  confirmed: { label: "Confirmed", cls: "text-confirmed bg-[#EDF7F2]" },
-  completed: { label: "Done deal", cls: "text-confirmed bg-[#EDF7F2]" },
-  debunked: { label: "Debunked", cls: "text-debunked bg-[#FCF0EF]" },
+  rumor: { label: "Developing", cls: "text-developing bg-developing/10" },
+  reported: { label: "Reported", cls: "text-developing bg-developing/10" },
+  confirmed: { label: "Confirmed", cls: "text-confirmed bg-confirmed/10" },
+  completed: { label: "Done deal", cls: "text-confirmed bg-confirmed/10" },
+  debunked: { label: "Debunked", cls: "text-debunked bg-debunked/10" },
 };
 
 /** "4m", "3h", "2d" — wire cadence, not a formatted date. */
@@ -62,38 +62,18 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
   const bars = Math.max(1, Math.min(5, Math.round(rumor.confidence * 5)));
 
   return (
-    <article className="border-t border-line py-6 first:border-t-0">
-      {/* byline */}
-      <div className="mb-3 flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-        <span className="text-[14px] font-semibold">
-          {rumor.reportedBy && rumor.reportedBy !== rumor.sourceName
-            ? rumor.reportedBy
-            : rumor.sourceName}
-        </span>
-        <span className="font-mono text-[11px] text-muted">
-          {rumor.reportedBy && rumor.reportedBy !== rumor.sourceName
-            ? `${rumor.sourceName} · `
-            : ""}
-          {ago(rumor.publishedAt)}
-        </span>
-        <span
-          className={`ml-auto inline-flex items-center gap-1.5 rounded-sm border border-current px-2.5 py-1 font-mono text-[10px] font-bold tracking-[0.12em] uppercase ${state.cls}`}
-        >
-          <span className="h-1.5 w-1.5 rounded-full bg-current" />
-          {state.label}
-        </span>
-      </div>
-
-      <div className="flex gap-4">
+    <article className="border-b border-rule px-4 py-5 transition-colors hover:bg-surface-2 sm:px-5">
+      <div className="flex gap-3 sm:gap-4">
         {/*
-         * Every player named in the rumor, stacked vertically. Uniform tiles
-         * with an even gap keep the column aligned regardless of how many
-         * there are; capped at three so a roundup naming eight doesn't turn
-         * into a wall of faces.
+         * A trade names several players, so show each of them — stacked
+         * vertically in the gutter, primary first. Uniform 56px tiles with an
+         * even gap keep the column aligned regardless of how many there are,
+         * and the cap at three stops a rumor roundup mentioning eight names
+         * from turning into a wall of faces.
          */}
-        {faces.length > 0 && (
-          <div className="hidden shrink-0 flex-col gap-2 sm:flex">
-            {faces.map((p) => (
+        <div className="flex shrink-0 flex-col gap-2">
+          {faces.length > 0 ? (
+            faces.map((p) => (
               <Link key={p.slug} href={`/player/${p.slug}`} title={p.fullName}>
                 {p.headshotUrl ? (
                   <Image
@@ -101,41 +81,68 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
                     alt={p.fullName}
                     width={128}
                     height={94}
-                    className="h-14 w-14 shrink-0 rounded-sm border border-line bg-tint-2 object-cover object-top"
+                    className="h-14 w-14 shrink-0 rounded-sm border border-rule bg-surface-2 object-cover object-top"
                     unoptimized
                   />
                 ) : (
-                  <span className="display grid h-14 w-14 shrink-0 place-items-center rounded-sm border border-line bg-tint-2 text-sm text-ink-2">
+                  <span className="display grid h-14 w-14 shrink-0 place-items-center rounded-sm border border-rule bg-surface-2 text-sm text-body">
                     {initials(p.fullName)}
                   </span>
                 )}
               </Link>
-            ))}
-            {extraFaces > 0 && (
-              <span className="grid h-14 w-14 shrink-0 place-items-center rounded-sm border border-line bg-tint-2 font-mono text-[11px] text-muted">
-                +{extraFaces}
+            ))
+          ) : (
+            <Link href={`/rumor/${rumor.slug}`}>
+              <span className="display grid h-14 w-14 shrink-0 place-items-center rounded-sm border border-rule bg-surface-2 text-sm text-body">
+                NBA
               </span>
-            )}
-          </div>
-        )}
+            </Link>
+          )}
+          {extraFaces > 0 && (
+            <span className="grid h-14 w-14 shrink-0 place-items-center rounded-sm border border-rule bg-surface-2 font-mono text-[11px] text-muted">
+              +{extraFaces}
+            </span>
+          )}
+        </div>
 
         <div className="min-w-0 flex-1">
-          <div className="mb-1.5 font-mono text-[10px] tracking-[0.16em] text-muted uppercase">
+          {/* byline row */}
+          <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="text-sm font-semibold">
+              {rumor.reportedBy && rumor.reportedBy !== rumor.sourceName
+                ? rumor.reportedBy
+                : rumor.sourceName}
+            </span>
+            <span className="font-mono text-[11px] text-muted">
+              {rumor.reportedBy && rumor.reportedBy !== rumor.sourceName
+                ? `· ${rumor.sourceName} `
+                : ""}
+              · {ago(rumor.publishedAt)}
+            </span>
+            <span
+              className={`ml-auto inline-flex items-center gap-1.5 rounded-sm px-2 py-0.5 font-mono text-[10px] font-bold tracking-widest uppercase ${state.cls}`}
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-current" />
+              {state.label}
+            </span>
+          </div>
+
+          <div className="font-mono text-[10px] tracking-widest text-muted uppercase">
             {CAT[rumor.type] ?? "Update"}
             {rumor.teams.length > 0 &&
               ` · ${rumor.teams.map((t) => t.abbreviation).join(" / ")}`}
           </div>
 
-          <h2 className="display mb-2.5 max-w-[30ch] text-[22px] leading-[1.15] text-balance sm:text-[29px]">
+          <h2 className="display my-1.5 text-lg leading-tight text-balance text-white sm:text-[22px]">
             <Link href={`/rumor/${rumor.slug}`} className="hover:text-accent">
               {rumor.headline}
             </Link>
           </h2>
 
-          <p className="mb-4 max-w-[64ch] text-ink-2">{rumor.body}</p>
+          <p className="max-w-[62ch] text-sm text-body">{rumor.body}</p>
 
           {/* credibility */}
-          <div className="mb-3.5 flex flex-wrap items-center gap-3">
+          <div className="mt-3 flex flex-wrap items-center gap-2.5">
             <span
               className="flex gap-[3px]"
               role="img"
@@ -144,17 +151,13 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
               {[1, 2, 3, 4, 5].map((i) => (
                 <span
                   key={i}
-                  className={`block h-[5px] w-[22px] rounded-[1px] border ${
-                    i <= bars
-                      ? bars >= 4
-                        ? "border-accent bg-accent"
-                        : "border-heat bg-heat"
-                      : "border-line bg-tint-2"
+                  className={`block h-1 w-5 rounded-[1px] ${
+                    i <= bars ? (bars >= 4 ? "bg-accent" : "bg-heat") : "bg-rule"
                   }`}
                 />
               ))}
             </span>
-            <span className="font-mono text-[10.5px] tracking-[0.09em] text-muted uppercase">
+            <span className="font-mono text-[10px] tracking-widest text-muted uppercase">
               {rumor.sourceCount > 1
                 ? `${rumor.sourceCount} outlets · corroborated`
                 : "Single outlet"}
@@ -163,24 +166,21 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
 
           {/* corroboration chain — plain <details>, so it works without JS */}
           {rumor.chain.length > 1 && (
-            <details className="mb-3.5">
-              <summary className="inline-block cursor-pointer border-b border-current font-mono text-[10.5px] tracking-[0.1em] text-accent uppercase marker:content-['']">
-                Corroboration chain ({rumor.chain.length})
+            <details className="mt-3 group">
+              <summary className="cursor-pointer font-mono text-[11px] tracking-wider text-accent uppercase marker:content-['']">
+                + Corroboration chain ({rumor.chain.length})
               </summary>
-              <div className="mt-3 flex flex-col gap-2.5 rounded-sm border border-line bg-tint px-4 py-3.5">
+              <div className="mt-2 flex flex-col gap-2 border-l-2 border-rule pl-3">
                 {rumor.chain.map((c, i) => (
-                  <div
-                    key={i}
-                    className="flex flex-col gap-0.5 text-[13.5px] text-ink-2 sm:flex-row sm:items-baseline sm:gap-2.5"
-                  >
-                    <span className="font-mono text-[10.5px] whitespace-nowrap text-muted sm:min-w-[118px]">
+                  <div key={i} className="flex flex-wrap items-baseline gap-2">
+                    <span className="font-mono text-[11px] whitespace-nowrap text-muted">
                       {c.outlet} · {ago(new Date(c.at))}
                     </span>
                     <a
                       href={c.url}
                       target="_blank"
                       rel="noopener noreferrer nofollow"
-                      className="hover:text-accent"
+                      className="text-[13px] text-body hover:text-accent"
                     >
                       {c.headline}
                     </a>
@@ -191,12 +191,12 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
           )}
 
           {rumor.players.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
+            <div className="mt-3 flex flex-wrap gap-1.5">
               {rumor.players.map((p) => (
                 <Link
                   key={p.slug}
                   href={`/player/${p.slug}`}
-                  className="rounded-full border border-line-2 px-2.5 py-0.5 font-mono text-[11px] text-muted hover:border-accent hover:text-accent"
+                  className="rounded-full bg-surface-2 px-2.5 py-0.5 font-mono text-[11px] text-muted hover:text-accent"
                 >
                   {p.fullName}
                 </Link>
