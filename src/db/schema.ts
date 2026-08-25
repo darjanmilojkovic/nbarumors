@@ -246,6 +246,21 @@ export const rumors = pgTable(
      * the same player's free agency do not.
      */
     eventKey: varchar("event_key", { length: 160 }),
+    /** Headline money, when the report states it. "$73M", "$3.3M". */
+    contractValue: varchar("contract_value", { length: 24 }),
+    contractYears: integer("contract_years"),
+    /**
+     * Outcome verification. A rumor is checked against the official
+     * transaction log: `confirmed` when a matching transaction landed after
+     * it, `unrecorded` when enough time passed with nothing on record.
+     *
+     * "unrecorded" deliberately does not say "never happened" — our log
+     * covers one season and excludes waivers and two-ways, so absence of a
+     * record is not proof of absence.
+     */
+    outcome: varchar("outcome", { length: 16 }),
+    outcomeRumorId: integer("outcome_rumor_id"),
+    outcomeAt: timestamp("outcome_at", { withTimezone: true }),
     sourceUrl: text("source_url").notNull(),
     /**
      * Card hero. Chosen at publish time from the primary player's images —

@@ -19,6 +19,15 @@ import { eq, sql } from "drizzle-orm";
 const isPaperwork = (text: string) =>
   /\bwaived\b|\btwo-way\b|\bconverted\b|\bexhibit\b|\bsummer league\b/i.test(text);
 
+/**
+ * Multi-team trades render with team names we cannot recover, leaving text
+ * like "In a 5-team trade, the traded and to the ;". Feeding that to
+ * extraction produces a confidently-worded post about nothing, so drop it.
+ */
+const isMangled = (text: string) =>
+  /\bthe traded\b|\bto the ;|\band to the\b|\bthe ; /i.test(text) ||
+  text.replace(/[^a-z ]/gi, "").split(/\s+/).filter((w) => w.length > 2).length < 4;
+
 async function main() {
   const dryRun = process.argv.includes("--dry");
   const all = process.argv.includes("--all");
@@ -27,10 +36,20 @@ async function main() {
   const { feedItems, sources } = await import("@/db/schema");
   const { fetchTransactions } = await import("@/lib/transactions");
 
-  const tx = await fetchTransactions(2026);
-  const kept = all ? tx : tx.filter((t) => !isPaperwork(t.text));
+  /*
+   * Basketball-Reference files a transaction under the season it belongs to,
+   * so summer moves land in the NEXT season's log. Verification needs both:
+   * the 2026 log stops at July 9, while the reports we ingest are August.
+   */
+  const seasonArg = process.argv.find((a) => /^\d{4}$/.test(a));
+  const season = seasonArg ? Number(seasonArg) : 2026;
+  const tx = await fetchTransactions(season);
+  console.log(`season ${season}`);
+  const usable = tx.filter((t) => !isMangled(t.text));
+  const kept = all ? usable : usable.filter((t) => !isPaperwork(t.text));
+  const dropped = tx.length - usable.length;
   console.log(
-    `parsed ${tx.length} transactions · importing ${kept.length}` +
+    `parsed ${tx.length} transactions · ${dropped} unparseable · importing ${kept.length}` +
       `${all ? " (all)" : " (trades and signings; paperwork skipped)"}`,
   );
 
@@ -41,8 +60,7 @@ async function main() {
       slug: "bbref-transactions",
       name: "Basketball-Reference",
       homepageUrl: "https://www.basketball-reference.com/",
-      feedUrl:
-        "https://www.basketball-reference.com/leagues/NBA_2026_transactions.html",
+      feedUrl: `https://www.basketball-reference.com/leagues/NBA_${season}_transactions.html`,
       kind: "archive",
       // Not a feed — imported on demand, never polled by cron.
       enabled: false,
@@ -78,9 +96,9 @@ async function main() {
     // Synthetic per-transaction URL; the hash is what the dedupe index sees,
     // so re-running the import can never double-insert.
     const fingerprint = createHash("sha256")
-      .update(`bbref|${t.date.toISOString().slice(0, 10)}|${t.text}`)
+      .update(`bbref|${season}|${t.date.toISOString().slice(0, 10)}|${t.text}`)
       .digest("hex");
-    const url = `https://www.basketball-reference.com/leagues/NBA_2026_transactions.html#${fingerprint.slice(0, 16)}`;
+    const url = `https://www.basketball-reference.com/leagues/NBA_${season}_transactions.html#${fingerprint.slice(0, 16)}`;
 
     const rows = await db
       .insert(feedItems)

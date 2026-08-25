@@ -10,10 +10,10 @@ import {
 } from "@/lib/queries";
 
 const BEAT_LABEL: Record<string, string> = {
-  trade: "Trade Machine",
-  signing: "Signings",
+  trade: "Trade Rumors",
+  signing: "Contract Signings",
   free_agency: "Free Agency",
-  extension: "Extensions",
+  extension: "Contract Extensions",
   buyout: "Buyout Market",
   waiver: "Waivers",
   draft: "Draft",
@@ -45,7 +45,7 @@ async function LeftRail({ teamSlug }: { teamSlug?: string }) {
           href="/"
           className="flex items-center justify-between rounded-sm px-3 py-2 text-sm text-body hover:bg-surface hover:text-white"
         >
-          All Rumors
+          All Updates
           <span className="font-mono text-[11px] text-muted">
             {stats?.rumorCount ?? 0}
           </span>
@@ -86,21 +86,6 @@ async function LeftRail({ teamSlug }: { teamSlug?: string }) {
         ))}
       </div>
 
-      {/* Real counters, in place of the concept's invented cap sheet. */}
-      <div className="rounded-sm border border-rule bg-surface p-3.5">
-        <div className="font-mono text-[10px] tracking-[0.16em] text-muted uppercase">
-          Tracking now
-        </div>
-        <div className="display my-1 text-4xl leading-none tabular-nums">
-          {stats?.rumorCount ?? 0}
-          <i className="text-accent not-italic">·</i>
-        </div>
-        <div className="text-xs text-muted">
-          {stats?.corroborated ?? 0} corroborated · {stats?.playerCount ?? 0} players
-          <br />
-          {stats?.outletCount ?? 0} outlets monitored
-        </div>
-      </div>
     </aside>
   );
 }

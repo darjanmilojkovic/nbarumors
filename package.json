@@ -20,7 +20,9 @@
     "sync:roster": "tsx src/scripts/sync-roster.ts",
     "dedupe": "tsx src/scripts/dedupe.ts",
     "sync:headshots": "tsx src/scripts/sync-headshots.ts",
-    "import:transactions": "tsx src/scripts/import-transactions.ts"
+    "import:transactions": "tsx src/scripts/import-transactions.ts",
+    "backfill:contracts": "tsx src/scripts/backfill-contracts.ts",
+    "verify:outcomes": "tsx src/scripts/verify-outcomes.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

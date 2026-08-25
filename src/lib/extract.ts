@@ -23,6 +23,8 @@ export type Extraction = {
   status: "rumor" | "reported" | "confirmed" | "completed" | "debunked";
   confidence: number;
   eventKey: string;
+  contractValue: string | null;
+  contractYears: number | null;
   headline: string;
   body: string;
   reportedBy: string | null;
@@ -79,6 +81,16 @@ const SCHEMA = {
       type: "string",
       description:
         "A canonical lowercase-hyphenated key identifying the SPECIFIC underlying event, so that separate outlets reporting the same event produce an identical key. Format: player-team-action-detail. Include the defining numbers when known (years, dollars). Examples: 'dillon-brooks-phx-extension-3yr-73m', 'lonnie-walker-den-signing-1yr'. CRITICAL: two stories about the same player are only the same event if they describe the same transaction. Distinct angles on one player's situation get distinct keys, e.g. 'lebron-suitors-ranked' vs 'lebron-gsw-interest-denied' vs 'lebron-phi-signing'.",
+    },
+    contractValue: {
+      type: ["string", "null"],
+      description:
+        "Total contract value ONLY if the report states one, normalized as a short string like '$73M' or '$3.3M'. Null when no figure is given. Never estimate or infer a number.",
+    },
+    contractYears: {
+      type: ["integer", "null"],
+      description:
+        "Contract length in years ONLY if stated. Null otherwise. Never estimate.",
     },
     headline: {
       type: "string",
@@ -137,6 +149,8 @@ const SCHEMA = {
     "status",
     "confidence",
     "eventKey",
+    "contractValue",
+    "contractYears",
     "headline",
     "body",
     "reportedBy",

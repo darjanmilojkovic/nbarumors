@@ -235,6 +235,8 @@ export async function publishExtraction(
     .values({
       slug: `${slugify(extraction.headline)}-${item.id}`,
       eventKey: extraction.eventKey.trim().toLowerCase() || null,
+      contractValue: extraction.contractValue?.slice(0, 24) ?? null,
+      contractYears: extraction.contractYears ?? null,
       headline: extraction.headline,
       body: extraction.body,
       type: extraction.type,

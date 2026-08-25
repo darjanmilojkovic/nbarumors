@@ -110,6 +110,37 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
 
   return (
     <article className="border-b border-rule px-4 py-5 transition-colors hover:bg-surface-2 sm:px-5">
+      {/*
+       * Byline and kicker run full width above the columns, so the portrait
+       * gutter starts level with the headline rather than with the outlet
+       * name — the faces belong to the story, not to the byline.
+       */}
+      <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="text-sm font-semibold">
+          {rumor.reportedBy && rumor.reportedBy !== rumor.sourceName
+            ? rumor.reportedBy
+            : rumor.sourceName}
+        </span>
+        <span className="font-mono text-[11px] text-muted">
+          {rumor.reportedBy && rumor.reportedBy !== rumor.sourceName
+            ? `· ${rumor.sourceName} `
+            : ""}
+          · {ago(rumor.publishedAt)}
+        </span>
+        <span
+          className={`ml-auto inline-flex items-center gap-1.5 rounded-sm px-2 py-0.5 font-mono text-[10px] font-bold tracking-widest uppercase ${state.cls}`}
+        >
+          <span className="h-1.5 w-1.5 rounded-full bg-current" />
+          {state.label}
+        </span>
+      </div>
+
+      <div className="mb-2 font-mono text-[10px] tracking-widest text-muted uppercase">
+        {CAT[rumor.type] ?? "Update"}
+        {rumor.teams.length > 0 &&
+          ` · ${rumor.teams.map((t) => t.abbreviation).join(" / ")}`}
+      </div>
+
       <div className="flex gap-3 sm:gap-4">
         {/*
          * A trade names several players, so show each of them — stacked
@@ -171,34 +202,7 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
         </div>
 
         <div className="min-w-0 flex-1">
-          {/* byline row */}
-          <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="text-sm font-semibold">
-              {rumor.reportedBy && rumor.reportedBy !== rumor.sourceName
-                ? rumor.reportedBy
-                : rumor.sourceName}
-            </span>
-            <span className="font-mono text-[11px] text-muted">
-              {rumor.reportedBy && rumor.reportedBy !== rumor.sourceName
-                ? `· ${rumor.sourceName} `
-                : ""}
-              · {ago(rumor.publishedAt)}
-            </span>
-            <span
-              className={`ml-auto inline-flex items-center gap-1.5 rounded-sm px-2 py-0.5 font-mono text-[10px] font-bold tracking-widest uppercase ${state.cls}`}
-            >
-              <span className="h-1.5 w-1.5 rounded-full bg-current" />
-              {state.label}
-            </span>
-          </div>
-
-          <div className="font-mono text-[10px] tracking-widest text-muted uppercase">
-            {CAT[rumor.type] ?? "Update"}
-            {rumor.teams.length > 0 &&
-              ` · ${rumor.teams.map((t) => t.abbreviation).join(" / ")}`}
-          </div>
-
-          <h2 className="display my-1.5 text-lg leading-tight text-balance text-white sm:text-[22px]">
+          <h2 className="display mb-1.5 text-lg leading-tight text-balance text-white sm:text-[22px]">
             <Link href={`/rumor/${rumor.slug}`} className="hover:text-link">
               {rumor.headline}
             </Link>
