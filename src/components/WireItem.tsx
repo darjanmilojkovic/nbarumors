@@ -144,14 +144,21 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
        */}
       <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 sm:gap-x-4">
         {/*
-         * Byline and kicker are one block, with the badges beside them rather
-         * than above them. When the badges stacked they made the byline row
-         * taller, which shoved the kicker — "EXTENSION · CLE" — down the card
-         * and left an uneven gap that changed depending on how many badges a
-         * post happened to earn. Side by side, the badge column grows into its
-         * own space and the kicker stays put.
+         * Two arrangements of the same three things.
+         *
+         * On a phone the badges take a full row of their own above the byline.
+         * Beside it there was only ever room for one at a time, so a post with
+         * both had them stacked in a narrow column, and the block was taller
+         * than the byline and kicker it sat next to. Given the whole width they
+         * sit side by side and the header reads top-to-bottom: what kind of
+         * story, then who reported it, then which teams.
+         *
+         * From sm up they return to the right of the byline, where the width
+         * exists and a dedicated row would just be empty space. Either way the
+         * badges never sit in the row *above* the kicker — that was what pushed
+         * "EXTENSION · CLE" down the card by a varying amount.
          */}
-        <div className="col-start-2 mb-2 flex items-start justify-between gap-3">
+        <div className="col-start-2 mb-2 flex flex-col-reverse gap-1.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
           <div className="min-w-0">
             <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
               {/*
@@ -203,12 +210,10 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
           </div>
 
           {/*
-           * The two badges are grouped rather than left as loose flex children,
-           * which is what let them wrap independently and land on separate
-           * lines at odd moments. On a phone they stack, right-aligned; from
-           * sm up they sit in a row, where the width is there for it.
+           * Grouped rather than left as loose flex children, which is what let
+           * them wrap independently and land on separate lines at odd moments.
            */}
-          <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center sm:gap-1.5">
+          <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end sm:gap-1.5">
             {isMarquee && (
               <span
                 className="bg-marquee/10 text-marquee rounded-sm px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wider uppercase sm:px-2 sm:tracking-widest"
