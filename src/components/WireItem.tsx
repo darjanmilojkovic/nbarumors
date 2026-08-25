@@ -377,11 +377,22 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
             </div>
           )}
 
-          {/* corroboration chain — plain <details>, so it works without JS */}
+          {/*
+           * Plain <details>, so it works without JS.
+           *
+           * The count says "reports", not "corroboration". The chain holds one
+           * row per article while the badge above counts distinct outlets, so
+           * three separate Yahoo pieces made this read "Corroboration chain
+           * (4)" directly beneath "2 outlets". Both numbers were right and the
+           * labels made them look like a contradiction — corroboration means
+           * independent confirmation, and three articles from one masthead are
+           * not independent of each other. Naming both quantities settles it.
+           */}
           {rumor.chain.length > 1 && (
             <details className="mt-3 group">
               <summary className="cursor-pointer font-mono text-[11px] tracking-wider text-link uppercase marker:content-[''] hover:text-link/80">
-                + Corroboration chain ({rumor.chain.length})
+                + {rumor.chain.length} reports
+                {rumor.sourceCount > 1 && ` from ${rumor.sourceCount} outlets`}
               </summary>
               <div className="mt-2 flex flex-col gap-2 border-l-2 border-rule pl-3">
                 {rumor.chain.map((c, i) => (
