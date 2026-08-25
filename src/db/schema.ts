@@ -92,6 +92,14 @@ export const players = pgTable(
     position: varchar("position", { length: 8 }),
     currentTeamId: integer("current_team_id").references(() => teams.id),
     /**
+     * 0-100 editorial weight, from season scoring stats plus all-time standing.
+     * Drives feed ranking so a LeBron rumor outranks a fringe roster move.
+     */
+    prominence: integer("prominence").notNull().default(0),
+    /** Season points per game at last sync, kept for debugging the score. */
+    pointsPerGame: real("points_per_game"),
+    statsSyncedAt: timestamp("stats_synced_at", { withTimezone: true }),
+    /**
      * NBA's player id. Deterministically builds the CDN headshot URL, so we
      * keep it here as a fast path; richer imagery lives in `player_images`.
      */

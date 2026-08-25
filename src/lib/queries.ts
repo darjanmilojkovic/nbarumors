@@ -91,7 +91,23 @@ const baseSelect = (extra?: SQL) =>
     .innerJoin(sources, eq(sources.id, rumors.sourceId))
     .leftJoin(playerImages, eq(playerImages.id, rumors.imageId))
     .where(extra ? and(eq(rumors.isPublished, true), extra) : eq(rumors.isPublished, true))
-    .orderBy(desc(rumors.publishedAt));
+    /*
+     * Rank = the most prominent player named, decayed by age. At 1.2 points
+     * an hour, a LeBron rumor (≈89) outranks a fringe signing (≈5) for about
+     * three days, then recency takes over — so the feed stays current without
+     * burying the story everyone actually came for.
+     */
+    .orderBy(
+      sql`(
+        coalesce((
+          select max(p.prominence) from rumor_players rp
+          join players p on p.id = rp.player_id
+          where rp.rumor_id = ${rumors.id}
+        ), 0)
+        - extract(epoch from (now() - ${rumors.publishedAt})) / 3600.0 * 1.2
+      ) desc`,
+      desc(rumors.publishedAt),
+    );
 
 export async function latestRumors(limit = 30) {
   return hydrate(await baseSelect().limit(limit));
@@ -113,6 +129,19 @@ export async function rumorsForPlayer(playerSlug: string, limit = 30) {
     .innerJoin(players, eq(players.id, rumorPlayers.playerId))
     .where(eq(players.slug, playerSlug));
   return hydrate(await baseSelect(sql`${rumors.id} in ${ids}`).limit(limit));
+}
+
+/** Most prominent first, then alphabetical for the long tail. */
+export async function allPlayers() {
+  return db
+    .select({
+      slug: players.slug,
+      fullName: players.fullName,
+      headshotUrl: players.headshotUrl,
+      prominence: players.prominence,
+    })
+    .from(players)
+    .orderBy(desc(players.prominence), players.fullName);
 }
 
 export async function allTeams() {

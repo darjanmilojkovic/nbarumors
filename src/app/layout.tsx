@@ -28,8 +28,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <Link href="/teams" className="hover:text-accent">
                 All Teams
               </Link>
-              <Link href="/" className="hover:text-accent">
-                All Updates
+              <Link href="/players" className="hover:text-accent">
+                All Players
               </Link>
             </nav>
           </div>

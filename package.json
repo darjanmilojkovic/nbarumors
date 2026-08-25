@@ -15,7 +15,8 @@
     "ingest": "tsx src/scripts/ingest.ts",
     "peek": "tsx src/scripts/peek.ts",
     "extract": "tsx src/scripts/extract.ts",
-    "peek:rumors": "tsx src/scripts/peek-rumors.ts"
+    "peek:rumors": "tsx src/scripts/peek-rumors.ts",
+    "sync:stats": "tsx src/scripts/sync-stats.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

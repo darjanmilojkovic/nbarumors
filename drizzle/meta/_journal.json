@@ -15,6 +15,13 @@
       "when": 1786021387513,
       "tag": "0001_cool_vulture",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787646736196,
+      "tag": "0002_next_young_avengers",
+      "breakpoints": true
     }
   ]
 }
