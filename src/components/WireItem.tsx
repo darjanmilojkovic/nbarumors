@@ -121,12 +121,24 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
    */
   const isMarquee = rumor.maxProminence >= 88;
 
+  /*
+   * Momentum around the player, not this report — how many posts in the last
+   * seven days name them. The query returns 0 on posts older than that window,
+   * so a month-old piece can no longer claim "13 reports this week".
+   *
+   * Six rather than twelve. Only 47 posts are published in a typical week, so
+   * twelve was reachable by exactly one player and the badge had quietly become
+   * a Klay Thompson badge. At six it also catches the second and third biggest
+   * stories while staying rare enough to mean something.
+   */
+  const isHot = rumor.hotMentions >= 6;
+
   const hasMeta =
     Boolean(money) ||
     rumor.sourceCount > 1 ||
     rumor.outcome === "confirmed" ||
     rumor.outcome === "unrecorded" ||
-    rumor.hotMentions >= 12 ||
+    isHot ||
     Boolean(primaryContext);
 
   /*
@@ -365,7 +377,7 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
               )}
 
               {/* Momentum around the player, independent of this one report. */}
-              {rumor.hotMentions >= 12 && (
+              {isHot && (
                 <span className="font-mono text-[10px] tracking-widest text-accent uppercase">
                   ▲ {rumor.hotMentions} reports this week
                 </span>

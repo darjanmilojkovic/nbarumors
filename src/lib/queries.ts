@@ -149,15 +149,23 @@ const baseSelect = (extra?: SQL) =>
       /**
        * How many separate posts named this rumor's primary player in the last
        * week — momentum around the player, independent of this one report.
+       *
+       * Zero for posts older than that window. The number describes right now,
+       * so on a piece from four weeks ago "13 reports this week" asserted
+       * something untrue about itself. Gating it here rather than in the
+       * component keeps render pure — Date.now() during render is impure and
+       * gives unstable results across re-renders.
        */
       hotMentions: sql<number>`(
-        select count(distinct r2.id)::int
-        from rumor_players rp
-        join rumor_players rp2 on rp2.player_id = rp.player_id
-        join rumors r2 on r2.id = rp2.rumor_id
-          and r2.is_published
-          and r2.published_at > now() - interval '7 days'
-        where rp.rumor_id = ${rumors.id} and rp.is_primary
+        case when ${rumors.publishedAt} > now() - interval '7 days' then (
+          select count(distinct r2.id)::int
+          from rumor_players rp
+          join rumor_players rp2 on rp2.player_id = rp.player_id
+          join rumors r2 on r2.id = rp2.rumor_id
+            and r2.is_published
+            and r2.published_at > now() - interval '7 days'
+          where rp.rumor_id = ${rumors.id} and rp.is_primary
+        ) else 0 end
       )`,
     })
     .from(rumors)
