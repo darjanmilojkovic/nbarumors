@@ -32,13 +32,13 @@ export function SiteHeader({
         <nav className="display ml-auto flex min-w-0 gap-5 text-xs text-body sm:gap-8 sm:text-base">
           <Link
             href={teamHref ?? "/teams"}
-            className={`truncate hover:text-accent ${teamLabel ? "text-accent" : ""}`}
+            className={`truncate hover:text-link ${teamLabel ? "text-link" : ""}`}
           >
             {teamLabel ?? "All Teams"}
           </Link>
           <Link
             href={playerHref ?? "/players"}
-            className={`truncate hover:text-accent ${playerLabel ? "text-accent" : ""}`}
+            className={`truncate hover:text-link ${playerLabel ? "text-link" : ""}`}
           >
             {playerLabel ?? "All Players"}
           </Link>

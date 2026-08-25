@@ -66,7 +66,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
                 aria-current={tab === t.key ? "page" : undefined}
                 className={`display flex-1 border-b-2 py-3 text-center text-xs tracking-widest ${
                   tab === t.key
-                    ? "border-accent text-white"
+                    ? "border-link text-link"
                     : "border-transparent text-muted hover:bg-surface-2 hover:text-white"
                 }`}
               >
@@ -84,7 +84,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
                 aria-pressed={cat === c.key}
                 className={`shrink-0 rounded-full border px-2.5 py-1 font-mono text-[11px] tracking-wider uppercase ${
                   cat === c.key
-                    ? "border-accent bg-accent/10 text-accent"
+                    ? "border-link bg-link/10 text-link"
                     : "border-rule text-muted hover:border-body hover:text-white"
                 }`}
               >
@@ -96,14 +96,14 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
 
         {rumors.length === 0 ? (
           <p className="px-4 py-16 text-center text-sm text-muted">
-            Nothing in the rumor mill matches that filter.
+            No rumors match that filter.
           </p>
         ) : (
           rumors.map((r) => <WireItem key={r.id} rumor={r} />)
         )}
 
         <p className="px-4 py-8 text-center font-mono text-[11px] tracking-widest text-muted uppercase">
-          — End of the rumor mill —
+          — End of the feed —
         </p>
       </div>
     </WireShell>

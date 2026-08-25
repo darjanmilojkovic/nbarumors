@@ -19,8 +19,13 @@ const CAT: Record<string, string> = {
  * actually needs to know is "is this real yet".
  */
 const STATE: Record<string, { label: string; cls: string }> = {
-  rumor: { label: "Developing", cls: "text-developing bg-developing/10" },
-  reported: { label: "Reported", cls: "text-developing bg-developing/10" },
+  /*
+   * Unconfirmed states take the accent orange — the same orange as a filled
+   * credibility bar, so "not nailed down yet" reads as one colour. Blue is
+   * now reserved entirely for links and current-page state.
+   */
+  rumor: { label: "Developing", cls: "text-accent bg-accent/10" },
+  reported: { label: "Reported", cls: "text-accent bg-accent/10" },
   confirmed: { label: "Confirmed", cls: "text-confirmed bg-confirmed/10" },
   completed: { label: "Done deal", cls: "text-confirmed bg-confirmed/10" },
   debunked: { label: "Debunked", cls: "text-debunked bg-debunked/10" },
@@ -134,7 +139,7 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
           </div>
 
           <h2 className="display my-1.5 text-lg leading-tight text-balance text-white sm:text-[22px]">
-            <Link href={`/rumor/${rumor.slug}`} className="hover:text-accent">
+            <Link href={`/rumor/${rumor.slug}`} className="hover:text-link">
               {rumor.headline}
             </Link>
           </h2>
@@ -167,7 +172,7 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
           {/* corroboration chain — plain <details>, so it works without JS */}
           {rumor.chain.length > 1 && (
             <details className="mt-3 group">
-              <summary className="cursor-pointer font-mono text-[11px] tracking-wider text-accent uppercase marker:content-['']">
+              <summary className="cursor-pointer font-mono text-[11px] tracking-wider text-link uppercase marker:content-[''] hover:text-link/80">
                 + Corroboration chain ({rumor.chain.length})
               </summary>
               <div className="mt-2 flex flex-col gap-2 border-l-2 border-rule pl-3">
@@ -180,7 +185,7 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
                       href={c.url}
                       target="_blank"
                       rel="noopener noreferrer nofollow"
-                      className="text-[13px] text-body hover:text-accent"
+                      className="text-[13px] text-body hover:text-link"
                     >
                       {c.headline}
                     </a>
@@ -196,7 +201,7 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
                 <Link
                   key={p.slug}
                   href={`/player/${p.slug}`}
-                  className="rounded-full bg-surface-2 px-2.5 py-0.5 font-mono text-[11px] text-muted hover:text-accent"
+                  className="rounded-full bg-surface-2 px-2.5 py-0.5 font-mono text-[11px] text-muted hover:text-link"
                 >
                   {p.fullName}
                 </Link>

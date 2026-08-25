@@ -13,6 +13,15 @@
   --color-body: #e8e8e8;
   --color-muted: #9a9a9a;
   --color-accent: #e07a2f;
+  /*
+   * Links: hover and current-page. Same blue as the "Developing" state chip,
+   * so one blue means one thing across the interface. Kept separate from the
+   * accent so orange stays reserved for signal (credibility bars, the mark).
+   *
+   * Deliberately the lighter blue: #006BB6 only reaches ~3.4:1 against the
+   * near-black ground, which fails AA for body-size text.
+   */
+  --color-link: #5e9ad8;
 
   /* State colours sit beside the accent rather than competing with it. */
   --color-confirmed: #3fbe86;
@@ -42,7 +51,15 @@ body {
   text-transform: uppercase;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+/*
+ * Must live in @layer base. Unlayered CSS outranks Tailwind's layered
+ * utilities no matter the specificity, so an unlayered `a { color: inherit }`
+ * silently defeats every text-* colour class on every link — including hover
+ * states.
+ */
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 }

@@ -44,7 +44,7 @@ async function LeftRail({ teamSlug }: { teamSlug?: string }) {
           href="/"
           className="flex items-center justify-between rounded-sm px-3 py-2 text-sm text-body hover:bg-surface hover:text-white"
         >
-          Rumor Mill
+          All Rumors
           <span className="font-mono text-[11px] text-muted">
             {stats?.rumorCount ?? 0}
           </span>
@@ -70,8 +70,8 @@ async function LeftRail({ teamSlug }: { teamSlug?: string }) {
             aria-pressed={teamSlug === t.slug}
             className={`rounded-sm border px-2 py-1 font-mono text-[11px] tracking-wider ${
               teamSlug === t.slug
-                ? "border-accent bg-accent text-ink font-bold"
-                : "border-rule bg-surface text-body hover:border-accent hover:text-white"
+                ? "border-link bg-link font-bold text-white"
+                : "border-rule bg-surface text-body hover:border-link hover:text-white"
             }`}
           >
             {t.abbreviation}
@@ -82,7 +82,7 @@ async function LeftRail({ teamSlug }: { teamSlug?: string }) {
       {/* Real counters, in place of the concept's invented cap sheet. */}
       <div className="rounded-sm border border-rule bg-surface p-3.5">
         <div className="font-mono text-[10px] tracking-[0.16em] text-muted uppercase">
-          In the mill
+          Tracking now
         </div>
         <div className="display my-1 text-4xl leading-none tabular-nums">
           {stats?.rumorCount ?? 0}
