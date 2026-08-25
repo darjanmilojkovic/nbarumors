@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { WireShell } from "@/components/WireShell";
 import { WireItem } from "@/components/WireItem";
-import { latestRumors } from "@/lib/queries";
+import { latestRumors, type FeedRumor } from "@/lib/queries";
 
 export const revalidate = 300;
 
@@ -21,6 +21,34 @@ const CHIPS = [
   { key: "waiver", label: "Waivers" },
   { key: "draft", label: "Draft" },
 ] as const;
+
+/**
+ * "Top" means biggest story, not best-sourced one.
+ *
+ * It used to sort on sourceCount then confidence, but 186 of 200 posts carry
+ * exactly one outlet, so the tab was really "the 14 corroborated posts, then
+ * everything else by a confidence score that clusters at 0.9-1.0". That put a
+ * Dillon Brooks extension above LeBron-to-Philadelphia, and a Lonnie Walker
+ * signing — prominence 0 — at number two.
+ *
+ * The weights, in order of how much work they do:
+ * - prominence (0-100) is the base: who the story is about.
+ * - hotMentions x3 is the strongest signal we have that something is THE
+ *   story of the week. 13 separate posts about Klay Thompson in seven days
+ *   is the site telling us where the attention is, and it was being ignored.
+ * - corroboration is a bonus, not the sort key. One extra outlet is worth 12
+ *   points, roughly a tier of prominence, so a well-sourced mid-tier story
+ *   can still beat a thin star rumor without steamrolling the ranking.
+ * - confidence breaks ties; its range is too narrow to do more.
+ *
+ * Recency is deliberately absent — the Live tab is the chronological view,
+ * and duplicating it here would leave no tab that surfaces the big stories.
+ */
+const topScore = (r: FeedRumor) =>
+  r.maxProminence +
+  r.hotMentions * 3 +
+  (r.sourceCount - 1) * 12 +
+  r.confidence * 10;
 
 const href = (tab: string, cat: string) => {
   const p = new URLSearchParams();
@@ -45,9 +73,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
       (r) => r.status === "confirmed" || r.status === "completed",
     );
   } else if (tab === "top") {
-    rumors = [...rumors].sort(
-      (a, b) => b.sourceCount - a.sourceCount || b.confidence - a.confidence,
-    );
+    rumors = [...rumors].sort((a, b) => topScore(b) - topScore(a));
   }
   rumors = rumors.slice(0, 40);
 
