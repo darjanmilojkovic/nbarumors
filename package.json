@@ -22,7 +22,8 @@
     "sync:headshots": "tsx src/scripts/sync-headshots.ts",
     "import:transactions": "tsx src/scripts/import-transactions.ts",
     "backfill:contracts": "tsx src/scripts/backfill-contracts.ts",
-    "verify:outcomes": "tsx src/scripts/verify-outcomes.ts"
+    "verify:outcomes": "tsx src/scripts/verify-outcomes.ts",
+    "fix:headlines": "tsx src/scripts/strip-headline-prefix.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

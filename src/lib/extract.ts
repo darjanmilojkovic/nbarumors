@@ -95,7 +95,7 @@ const SCHEMA = {
     headline: {
       type: "string",
       description:
-        "An original headline in your own words, under 80 characters. Do NOT copy the source headline.",
+        "An original headline in your own words, under 80 characters. Do NOT copy the source headline. Never begin with a wire label such as 'Report:', 'Rumor:', 'Update:', 'Breaking:' or 'Sources:' — every item here reports someone else's work and the byline already names the outlet. Start with the substance.",
     },
     body: {
       type: "string",

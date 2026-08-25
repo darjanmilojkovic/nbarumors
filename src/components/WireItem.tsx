@@ -41,41 +41,6 @@ function ago(d: Date) {
   return `${Math.round(mins / 1440)}d`;
 }
 
-/**
- * Sourcing strength, 1-5.
- *
- * Deliberately NOT the model's `confidence`: that field answers "is this
- * genuinely a transfer story", which is a filtering question, not a
- * trustworthiness one — and since anything under 0.6 is held back, it could
- * never render below 3 bars anyway. This scores what a reader actually wants
- * beside "N outlets": how firm the report is and how many independent
- * newsrooms carry it.
- */
-function sourcingScore(rumor: FeedRumor): number {
-  // A denial is its own signal; the red chip carries it, so the meter stays low.
-  if (rumor.status === "debunked") return 1;
-
-  /*
-   * Status sets the floor. A single outlet reporting a real signing is
-   * ordinary, sound journalism and should not read as barely-sourced, so
-   * "reported" starts at 2 and a done deal starts at 3.
-   */
-  let score =
-    rumor.status === "confirmed" || rumor.status === "completed"
-      ? 3
-      : rumor.status === "reported"
-        ? 2
-        : 1;
-
-  // Independent corroboration, worth at most two bars.
-  score += Math.min(2, Math.max(0, rumor.sourceCount - 1));
-
-  // A credited insider beats an unattributed aggregator post.
-  if (rumor.reportedBy && rumor.reportedBy !== rumor.sourceName) score += 1;
-
-  return Math.max(1, Math.min(5, score));
-}
-
 const initials = (name: string) =>
   name
     .split(" ")
@@ -106,12 +71,8 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
   const hasAnyPhoto = ordered.some((p) => p.headshotUrl);
   const logoTiles = !hasAnyPhoto ? rumor.teams.slice(0, MAX_FACES) : [];
 
-  const bars = sourcingScore(rumor);
   const hasNamedReporter =
     Boolean(rumor.reportedBy) && rumor.reportedBy !== rumor.sourceName;
-
-  /** Straight from the league's transaction log rather than a news report. */
-  const isOfficial = rumor.sourceSlug === "bbref-transactions";
 
   const money =
     rumor.contractValue || rumor.contractYears
@@ -128,12 +89,14 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
         )
       : null;
 
-  /** "PHX · 12.8 ppg" — turns dead space beside the meter into information. */
+  /*
+   * "PHX · 12.8 ppg". Only shown when we actually have a scoring average —
+   * without one it degraded to a bare team code, which the kicker two lines
+   * above already prints.
+   */
   const primary = ordered.find((p) => p.isPrimary) ?? ordered[0];
-  const primaryContext = primary
-    ? [primary.teamAbbrev, primary.pointsPerGame ? `${primary.pointsPerGame} ppg` : null]
-        .filter(Boolean)
-        .join(" · ") || null
+  const primaryContext = primary?.pointsPerGame
+    ? [primary.teamAbbrev, `${primary.pointsPerGame} ppg`].filter(Boolean).join(" · ")
     : null;
 
   /*
@@ -142,6 +105,14 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
    * site, so it means something when it appears.
    */
   const isMarquee = rumor.maxProminence >= 88;
+
+  const hasMeta =
+    Boolean(money) ||
+    rumor.sourceCount > 1 ||
+    rumor.outcome === "confirmed" ||
+    rumor.outcome === "unrecorded" ||
+    rumor.hotMentions >= 12 ||
+    Boolean(primaryContext);
 
   /*
    * py-7 (28px) rather than 20px: body copy sets ~22px between lines, so
@@ -294,11 +265,11 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
           <p className="max-w-[62ch] text-sm text-body">{rumor.body}</p>
 
           {/*
-           * One meta strip, and what it holds depends on the post. A source
-           * meter belongs on a rumor, where the question is "is this solid?".
-           * On an official transaction the answer is "yes, it happened", so
-           * the meter is noise and the money is the story.
+           * One meta strip, and every chip in it is conditional — a post that
+           * has earned none of them shows none, and the strip itself does not
+           * render, so it costs no vertical space.
            */}
+          {hasMeta && (
           <div className="mt-3.5 flex flex-wrap items-center gap-x-3 gap-y-2">
             {money && (
               <span className="rounded-sm border border-rule bg-surface-2 px-2 py-0.5 font-mono text-[11px] font-bold text-body">
@@ -306,32 +277,19 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
               </span>
             )}
 
-            {!isOfficial && (
-              <span className="flex items-center gap-2.5">
-                <span
-                  className="flex gap-[3px]"
-                  role="img"
-                  aria-label={`Source strength ${bars} of 5`}
-                  title="Source strength: how firm the report is, how many independent outlets carry it, and whether a reporter is credited."
-                >
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <span
-                      key={i}
-                      className={`block h-1 w-5 rounded-[1px] ${
-                        i <= bars
-                          ? bars >= 4
-                            ? "bg-accent"
-                            : "bg-heat"
-                          : "bg-rule"
-                      }`}
-                    />
-                  ))}
-                </span>
-                <span className="font-mono text-[10px] tracking-widest text-muted uppercase">
-                  {rumor.sourceCount > 1
-                    ? `${rumor.sourceCount} outlets`
-                    : "single outlet"}
-                </span>
+            {/*
+             * Corroboration is shown only when it exists. 13 posts of ~500
+             * carry more than one outlet, so "single outlet" appeared on 97%
+             * of the site — a label that never varies is wallpaper, not
+             * information. Absence now reads as an ordinary single-source
+             * report, and the badge means something when it appears.
+             */}
+            {rumor.sourceCount > 1 && (
+              <span
+                className="rounded-sm border border-rule bg-surface-2 px-2 py-0.5 font-mono text-[10px] font-bold tracking-widest text-body uppercase"
+                title={`Independently reported by ${rumor.alsoReportedBy}`}
+              >
+                {rumor.sourceCount} outlets
               </span>
             )}
 
@@ -369,6 +327,7 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
               </span>
             )}
           </div>
+          )}
 
           {/* corroboration chain — plain <details>, so it works without JS */}
           {rumor.chain.length > 1 && (
