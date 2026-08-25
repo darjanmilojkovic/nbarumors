@@ -76,7 +76,10 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
 
   const money =
     rumor.contractValue || rumor.contractYears
-      ? [rumor.contractValue, rumor.contractYears ? `${rumor.contractYears}yr` : null]
+      ? [
+          rumor.contractValue,
+          rumor.contractYears ? `${rumor.contractYears}yr` : null,
+        ]
           .filter(Boolean)
           .join(" · ")
       : null;
@@ -136,61 +139,76 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
       {/*
        * Explicit grid rather than a flex row. Byline and kicker sit in the
        * text column so they line up with the headline, while the portrait
-       * gutter is placed on row 3 — level with the headline, because the
+       * gutter is placed on row 2 — level with the headline, because the
        * faces belong to the story rather than to the byline.
        */}
       <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 sm:gap-x-4">
-        <div className="col-start-2 mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-          {/*
-           * The outlet name is the way back to the original article. Every
-           * summary here is our words about someone else's reporting, so the
-           * link out has to be somewhere obvious rather than absent.
-           */}
-          {hasNamedReporter ? (
-            /*
-             * When a reporter is credited, the byline is theirs and the link
-             * hangs off their name — that is whose work it is. The outlet
-             * stays as plain context beside it.
-             */
-            <>
-              <a
-                href={rumor.sourceUrl}
-                target="_blank"
-                rel="noopener noreferrer nofollow"
-                title={`Read ${rumor.reportedBy}'s report at ${rumor.sourceName}`}
-                className="text-sm font-semibold hover:text-link"
-              >
-                {rumor.reportedBy} ↗
-              </a>
+        {/*
+         * Byline and kicker are one block, with the badges beside them rather
+         * than above them. When the badges stacked they made the byline row
+         * taller, which shoved the kicker — "EXTENSION · CLE" — down the card
+         * and left an uneven gap that changed depending on how many badges a
+         * post happened to earn. Side by side, the badge column grows into its
+         * own space and the kicker stays put.
+         */}
+        <div className="col-start-2 mb-2 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+              {/*
+               * The outlet name is the way back to the original article. Every
+               * summary here is our words about someone else's reporting, so the
+               * link out has to be somewhere obvious rather than absent.
+               */}
+              {hasNamedReporter ? (
+                /*
+                 * When a reporter is credited, the byline is theirs and the link
+                 * hangs off their name — that is whose work it is. The outlet
+                 * stays as plain context beside it.
+                 */
+                <>
+                  <a
+                    href={rumor.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer nofollow"
+                    title={`Read ${rumor.reportedBy}'s report at ${rumor.sourceName}`}
+                    className="text-sm font-semibold hover:text-link"
+                  >
+                    {rumor.reportedBy} ↗
+                  </a>
+                  <span className="font-mono text-[11px] text-muted">
+                    · {rumor.sourceName}
+                  </span>
+                </>
+              ) : (
+                <a
+                  href={rumor.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  title={`Read the original at ${rumor.sourceName}`}
+                  className="text-sm font-semibold hover:text-link"
+                >
+                  {rumor.sourceName} ↗
+                </a>
+              )}
               <span className="font-mono text-[11px] text-muted">
-                · {rumor.sourceName}
+                · {ago(rumor.publishedAt)}
               </span>
-            </>
-          ) : (
-            <a
-              href={rumor.sourceUrl}
-              target="_blank"
-              rel="noopener noreferrer nofollow"
-              title={`Read the original at ${rumor.sourceName}`}
-              className="text-sm font-semibold hover:text-link"
-            >
-              {rumor.sourceName} ↗
-            </a>
-          )}
-          <span className="font-mono text-[11px] text-muted">
-            · {ago(rumor.publishedAt)}
-          </span>
+            </div>
+
+            <div className="font-mono text-[10px] tracking-widest text-muted uppercase">
+              {CAT[rumor.type] ?? "Update"}
+              {rumor.teams.length > 0 &&
+                ` · ${rumor.teams.map((t) => t.abbreviation).join(" / ")}`}
+            </div>
+          </div>
+
           {/*
            * The two badges are grouped rather than left as loose flex children,
            * which is what let them wrap independently and land on separate
-           * lines at odd moments.
-           *
-           * On a phone they stack, right-aligned, one directly under the other
-           * — side by side there was no room left for the byline and the pair
-           * ended up marooned on their own line anyway. From sm up they sit in
-           * a row, where the width is there for it.
+           * lines at odd moments. On a phone they stack, right-aligned; from
+           * sm up they sit in a row, where the width is there for it.
            */}
-          <div className="ml-auto flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center sm:gap-1.5">
+          <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center sm:gap-1.5">
             {isMarquee && (
               <span
                 className="rounded-sm bg-accent/10 px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wider text-accent uppercase sm:px-2 sm:tracking-widest"
@@ -208,12 +226,6 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
           </div>
         </div>
 
-        <div className="col-start-2 mb-2 font-mono text-[10px] tracking-widest text-muted uppercase">
-          {CAT[rumor.type] ?? "Update"}
-          {rumor.teams.length > 0 &&
-            ` · ${rumor.teams.map((t) => t.abbreviation).join(" / ")}`}
-        </div>
-
         {/*
          * A trade names several players, so show each of them — stacked
          * vertically in the gutter, primary first. Uniform 56px tiles with an
@@ -221,7 +233,7 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
          * and the cap at three stops a rumor roundup mentioning eight names
          * from turning into a wall of faces.
          */}
-        <div className="col-start-1 row-start-3 flex shrink-0 flex-col gap-2">
+        <div className="col-start-1 row-start-2 flex shrink-0 flex-col gap-2">
           {logoTiles.length > 0 ? (
             logoTiles.map((t) => (
               <Link
@@ -273,7 +285,7 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
           )}
         </div>
 
-        <div className="col-start-2 row-start-3 min-w-0">
+        <div className="col-start-2 row-start-2 min-w-0">
           {/*
            * Plain greedy wrapping — neither balance nor pretty.
            *
@@ -299,63 +311,63 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
            * render, so it costs no vertical space.
            */}
           {hasMeta && (
-          <div className="mt-3.5 flex flex-wrap items-center gap-x-3 gap-y-2">
-            {money && (
-              <span className="rounded-sm border border-rule bg-surface-2 px-2 py-0.5 font-mono text-[11px] font-bold text-body">
-                {money}
-              </span>
-            )}
+            <div className="mt-3.5 flex flex-wrap items-center gap-x-3 gap-y-2">
+              {money && (
+                <span className="rounded-sm border border-rule bg-surface-2 px-2 py-0.5 font-mono text-[11px] font-bold text-body">
+                  {money}
+                </span>
+              )}
 
-            {/*
-             * Corroboration is shown only when it exists. 13 posts of ~500
-             * carry more than one outlet, so "single outlet" appeared on 97%
-             * of the site — a label that never varies is wallpaper, not
-             * information. Absence now reads as an ordinary single-source
-             * report, and the badge means something when it appears.
-             */}
-            {rumor.sourceCount > 1 && (
-              <span
-                className="rounded-sm border border-rule bg-surface-2 px-2 py-0.5 font-mono text-[10px] font-bold tracking-widest text-body uppercase"
-                title={`Independently reported by ${rumor.alsoReportedBy}`}
-              >
-                {rumor.sourceCount} outlets
-              </span>
-            )}
+              {/*
+               * Corroboration is shown only when it exists. 13 posts of ~500
+               * carry more than one outlet, so "single outlet" appeared on 97%
+               * of the site — a label that never varies is wallpaper, not
+               * information. Absence now reads as an ordinary single-source
+               * report, and the badge means something when it appears.
+               */}
+              {rumor.sourceCount > 1 && (
+                <span
+                  className="rounded-sm border border-rule bg-surface-2 px-2 py-0.5 font-mono text-[10px] font-bold tracking-widest text-body uppercase"
+                  title={`Independently reported by ${rumor.alsoReportedBy}`}
+                >
+                  {rumor.sourceCount} outlets
+                </span>
+              )}
 
-            {/* Checked against the official transaction log, not modelled. */}
-            {rumor.outcome === "confirmed" && (
-              <span
-                className="rounded-sm bg-confirmed/10 px-2 py-0.5 font-mono text-[10px] font-bold tracking-widest text-confirmed uppercase"
-                title="A matching move appears in the official transaction log"
-              >
-                ✓ Confirmed
-                {confirmedAfter !== null && confirmedAfter > 0
-                  ? ` ${confirmedAfter}d later`
-                  : ""}
-              </span>
-            )}
-            {rumor.outcome === "unrecorded" && (
-              <span
-                className="font-mono text-[10px] tracking-widest text-muted uppercase"
-                title="Nothing matching this has appeared in the transaction log yet. Our log covers one season and excludes waivers and two-way deals, so this is not proof it did not happen."
-              >
-                No transaction on record
-              </span>
-            )}
+              {/* Checked against the official transaction log, not modelled. */}
+              {rumor.outcome === "confirmed" && (
+                <span
+                  className="rounded-sm bg-confirmed/10 px-2 py-0.5 font-mono text-[10px] font-bold tracking-widest text-confirmed uppercase"
+                  title="A matching move appears in the official transaction log"
+                >
+                  ✓ Confirmed
+                  {confirmedAfter !== null && confirmedAfter > 0
+                    ? ` ${confirmedAfter}d later`
+                    : ""}
+                </span>
+              )}
+              {rumor.outcome === "unrecorded" && (
+                <span
+                  className="font-mono text-[10px] tracking-widest text-muted uppercase"
+                  title="Nothing matching this has appeared in the transaction log yet. Our log covers one season and excludes waivers and two-way deals, so this is not proof it did not happen."
+                >
+                  No transaction on record
+                </span>
+              )}
 
-            {/* Momentum around the player, independent of this one report. */}
-            {rumor.hotMentions >= 12 && (
-              <span className="font-mono text-[10px] tracking-widest text-accent uppercase">
-                ▲ {rumor.hotMentions} reports this week
-              </span>
-            )}
+              {/* Momentum around the player, independent of this one report. */}
+              {rumor.hotMentions >= 12 && (
+                <span className="font-mono text-[10px] tracking-widest text-accent uppercase">
+                  ▲ {rumor.hotMentions} reports this week
+                </span>
+              )}
 
-            {primaryContext && (
-              <span className="font-mono text-[10px] tracking-widest text-muted uppercase">
-                {primaryContext}
-              </span>
-            )}
-          </div>
+              {primaryContext && (
+                <span className="font-mono text-[10px] tracking-widest text-muted uppercase">
+                  {primaryContext}
+                </span>
+              )}
+            </div>
           )}
 
           {/* corroboration chain — plain <details>, so it works without JS */}
