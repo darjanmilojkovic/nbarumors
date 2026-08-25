@@ -182,8 +182,8 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
             <span
               className="flex gap-[3px]"
               role="img"
-              aria-label={`Sourcing strength ${bars} of 5`}
-              title="Sourcing strength: how firm the report is, how many independent outlets carry it, and whether a reporter is credited."
+              aria-label={`Source strength ${bars} of 5`}
+              title="Source strength: how firm the report is, how many independent outlets carry it, and whether a reporter is credited."
             >
               {[1, 2, 3, 4, 5].map((i) => (
                 <span
@@ -195,7 +195,7 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
               ))}
             </span>
             <span className="font-mono text-[10px] tracking-widest text-muted uppercase">
-              Sourcing {bars}/5 ·{" "}
+              Source strength {bars}/5 ·{" "}
               {rumor.sourceCount > 1
                 ? `${rumor.sourceCount} outlets`
                 : "single outlet"}
