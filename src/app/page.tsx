@@ -1,13 +1,13 @@
 import Link from "next/link";
-import { WireShell } from "@/components/WireShell";
 import { WireItem } from "@/components/WireItem";
+import { WireShell } from "@/components/WireShell";
 import { latestRumors } from "@/lib/queries";
 
 export const revalidate = 300;
 
-const TABS = [
-  { key: "live", label: "Live" },
-  { key: "top", label: "Top" },
+const SORTS = [
+  { key: "live", label: "Latest" },
+  { key: "top", label: "Credible" },
   { key: "confirmed", label: "Confirmed" },
 ] as const;
 
@@ -52,60 +52,55 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   rumors = rumors.slice(0, 40);
 
   return (
-    <WireShell>
+    <WireShell activeBeat={cat || undefined}>
       <h1 className="sr-only">Latest NBA trade rumors and signings</h1>
 
-      <div className="border-x border-rule bg-surface sm:mx-0">
-        {/* tabs */}
-        <div className="sticky top-0 z-10 border-b border-rule bg-surface/95 backdrop-blur">
-          <div className="flex">
-            {TABS.map((t) => (
-              <Link
-                key={t.key}
-                href={href(t.key, cat)}
-                aria-current={tab === t.key ? "page" : undefined}
-                className={`display flex-1 border-b-2 py-3 text-center text-xs tracking-widest ${
-                  tab === t.key
-                    ? "border-accent text-white"
-                    : "border-transparent text-muted hover:bg-surface-2 hover:text-white"
-                }`}
-              >
-                {t.label}
-              </Link>
-            ))}
-          </div>
-
-          {/* category chips — horizontally scrollable on mobile */}
-          <div className="flex gap-1.5 overflow-x-auto px-3 py-2.5">
-            {CHIPS.map((c) => (
-              <Link
-                key={c.key || "all"}
-                href={href(tab, c.key)}
-                aria-pressed={cat === c.key}
-                className={`shrink-0 rounded-full border px-2.5 py-1 font-mono text-[11px] tracking-wider uppercase ${
-                  cat === c.key
-                    ? "border-accent bg-accent/10 text-accent"
-                    : "border-rule text-muted hover:border-body hover:text-white"
-                }`}
-              >
-                {c.label}
-              </Link>
-            ))}
-          </div>
+      {/* filters */}
+      <div className="flex flex-wrap items-center gap-2.5 pt-5 pb-4">
+        <div className="no-scrollbar flex gap-2 overflow-x-auto">
+          {CHIPS.map((c) => (
+            <Link
+              key={c.key || "all"}
+              href={href(tab, c.key)}
+              aria-pressed={cat === c.key}
+              className={`shrink-0 rounded-full border px-3 py-1.5 font-mono text-[11px] tracking-[0.08em] uppercase ${
+                cat === c.key
+                  ? "border-accent bg-accent-soft text-accent"
+                  : "border-line-2 text-muted hover:border-ink-2 hover:text-ink"
+              }`}
+            >
+              {c.label}
+            </Link>
+          ))}
         </div>
 
-        {rumors.length === 0 ? (
-          <p className="px-4 py-16 text-center text-sm text-muted">
-            Nothing in the rumor mill matches that filter.
-          </p>
-        ) : (
-          rumors.map((r) => <WireItem key={r.id} rumor={r} />)
-        )}
-
-        <p className="px-4 py-8 text-center font-mono text-[11px] tracking-widest text-muted uppercase">
-          — End of the rumor mill —
-        </p>
+        <div className="ml-auto flex gap-0.5 rounded-sm border border-line-2 p-0.5">
+          {SORTS.map((s) => (
+            <Link
+              key={s.key}
+              href={href(s.key, cat)}
+              aria-selected={tab === s.key}
+              className={`rounded-[1px] px-2.5 py-1.5 font-mono text-[10.5px] tracking-[0.1em] uppercase ${
+                tab === s.key ? "bg-ink text-ground" : "text-muted hover:text-ink"
+              }`}
+            >
+              {s.label}
+            </Link>
+          ))}
+        </div>
       </div>
+
+      {rumors.length === 0 ? (
+        <p className="py-14 text-center text-muted">
+          Nothing in the rumor mill matches that filter.
+        </p>
+      ) : (
+        rumors.map((r) => <WireItem key={r.id} rumor={r} />)
+      )}
+
+      <p className="border-t border-line pt-7 pb-2 text-center font-mono text-[10.5px] tracking-[0.16em] text-muted uppercase">
+        — End of the rumor mill —
+      </p>
     </WireShell>
   );
 }

@@ -13,7 +13,7 @@ export default async function TeamsPage() {
   return (
     <WireShell>
       <div className="px-4 sm:px-0">
-      <h1 className="display mb-6 text-2xl text-white sm:text-3xl">All Teams</h1>
+      <h1 className="display mb-6 text-2xl text-ink sm:text-3xl">All Teams</h1>
       {[
         { label: "Eastern Conference", list: east },
         { label: "Western Conference", list: west },
@@ -25,7 +25,7 @@ export default async function TeamsPage() {
               <li key={t.slug}>
                 <Link
                   href={`/team/${t.slug}`}
-                  className="flex items-center gap-3 rounded-sm bg-surface px-3 py-2 hover:bg-surface-2"
+                  className="flex items-center gap-3 rounded-sm bg-tint px-3 py-2 hover:bg-tint-2"
                 >
                   <Image
                     src={t.logoUrl}
