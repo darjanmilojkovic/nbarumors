@@ -263,12 +263,17 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
 
         <div className="col-start-2 row-start-3 min-w-0">
           {/*
-           * text-pretty, not text-balance. Balance evens the length of every
-           * line, which on a two-line headline splits it down the middle and
-           * leaves the column looking half-used. Pretty fills each line and
-           * only guards against a single-word last line.
+           * Plain greedy wrapping — neither balance nor pretty.
+           *
+           * Both of those reflow the whole headline to tidy the last line, and
+           * they buy that by leaving the earlier lines short. On "Rivals Keep
+           * Watching Kyrie Irving's Dallas Situation" at a 560px column,
+           * text-pretty broke before DALLAS and left 86px of line one empty,
+           * purely to avoid SITUATION sitting alone. Greedy wrapping fills
+           * each line to the edge, which is what a headline should do; the
+           * occasional one-word last line is the cheaper price.
            */}
-          <h2 className="display mb-1.5 text-lg leading-tight text-pretty text-white sm:text-[22px]">
+          <h2 className="display mb-1.5 text-lg leading-tight text-white sm:text-[22px]">
             <Link href={`/rumor/${rumor.slug}`} className="hover:text-link">
               {rumor.headline}
             </Link>

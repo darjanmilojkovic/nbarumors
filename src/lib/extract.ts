@@ -134,7 +134,7 @@ const SCHEMA = {
             type: "string",
             enum: ["to", "from", "mentioned"],
             description:
-              "to = acquiring the player, from = losing the player, mentioned = otherwise involved.",
+              "to = the team the player is joining or being acquired by. from = the team the player is leaving, for ANY reason — traded away, waived, bought out, cleared waivers from, or simply the team they played for last season before signing elsewhere. Record 'from' on signings, buyouts and waivers, not only on trades: if the item says a player signed with Miami after a Dallas buyout, Dallas is 'from' and Miami is 'to'. mentioned = a team otherwise involved, such as a rival also pursuing the player. Only omit 'from' when the item genuinely gives no indication of where the player is coming from.",
           },
         },
         required: ["abbreviation", "role"],
