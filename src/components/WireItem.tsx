@@ -89,15 +89,30 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
         )
       : null;
 
-  /*
-   * "PHX · 12.8 ppg". Only shown when we actually have a scoring average —
-   * without one it degraded to a bare team code, which the kicker two lines
-   * above already prints.
-   */
   const primary = ordered.find((p) => p.isPrimary) ?? ordered[0];
-  const primaryContext = primary?.pointsPerGame
-    ? [primary.teamAbbrev, `${primary.pointsPerGame} ppg`].filter(Boolean).join(" · ")
-    : null;
+
+  /*
+   * "DAL → MIA · 14 ppg".
+   *
+   * The team code used to come from players.current_team_id — the roster
+   * sync — which is a different fact than the one the post is reporting. On a
+   * completed signing the roster lags the news, so it showed the team the
+   * player just left; on an unresolved trade rumor the roster is right, so it
+   * showed the team they are still on. One chip, two opposite meanings, and
+   * nothing to tell the reader which. Movement now comes from the rumor's own
+   * from/to roles, which are per-post and cannot go stale, and it is only
+   * drawn when the post actually names both ends.
+   */
+  const movedFrom = rumor.teams.find((t) => t.role === "from");
+  const movedTo = rumor.teams.find((t) => t.role === "to");
+  const move =
+    movedFrom && movedTo
+      ? `${movedFrom.abbreviation} → ${movedTo.abbreviation}`
+      : null;
+  const primaryContext =
+    [move, primary?.pointsPerGame ? `${primary.pointsPerGame} ppg` : null]
+      .filter(Boolean)
+      .join(" · ") || null;
 
   /*
    * Rare by design. At >=80 the badge landed on 30% of page one, which is
