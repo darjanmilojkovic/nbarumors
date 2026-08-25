@@ -70,15 +70,18 @@ export function RumorCard({ rumor }: { rumor: FeedRumor }) {
 
         {rumor.imageUrl && (
           <figure className="mt-4">
-            {/* Remote heights vary; cap it and let the image letterbox. */}
-            <Image
-              src={rumor.imageUrl}
-              alt={rumor.players[0]?.fullName ?? rumor.headline}
-              width={1200}
-              height={700}
-              className="max-h-[420px] w-full rounded-sm object-cover"
-              unoptimized
-            />
+            {/* Same target as the headline — the whole image is the link. */}
+            <Link href={`/rumor/${rumor.slug}`} className="block">
+              {/* Remote heights vary; cap it and let the image letterbox. */}
+              <Image
+                src={rumor.imageUrl}
+                alt={rumor.players[0]?.fullName ?? rumor.headline}
+                width={1200}
+                height={700}
+                className="max-h-[420px] w-full rounded-sm object-cover transition-opacity hover:opacity-90"
+                unoptimized
+              />
+            </Link>
             {rumor.imageAttribution && (
               <figcaption className="mt-1 text-[10px] text-muted">
                 Photo: {rumor.imageAttribution}

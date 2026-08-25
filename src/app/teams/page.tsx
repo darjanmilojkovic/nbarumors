@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { SiteHeader } from "@/components/SiteHeader";
 import { allTeams } from "@/lib/queries";
 
 export const revalidate = 3600;
@@ -10,7 +11,9 @@ export default async function TeamsPage() {
   const west = teams.filter((t) => t.conference === "West");
 
   return (
-    <div className="px-4 sm:px-0">
+    <>
+      <SiteHeader />
+      <div className="px-4 sm:px-0">
       <h1 className="display mb-6 text-2xl text-white sm:text-3xl">All Teams</h1>
       {[
         { label: "Eastern Conference", list: east },
@@ -42,6 +45,7 @@ export default async function TeamsPage() {
           </ul>
         </section>
       ))}
-    </div>
+      </div>
+    </>
   );
 }

@@ -1,4 +1,5 @@
 import { RumorCard } from "@/components/RumorCard";
+import { SiteHeader } from "@/components/SiteHeader";
 import { latestRumors } from "@/lib/queries";
 
 /** Rebuild on a 5-minute cadence so cron-ingested rumors appear on their own. */
@@ -9,6 +10,7 @@ export default async function HomePage() {
 
   return (
     <>
+      <SiteHeader />
       <h1 className="sr-only">Latest NBA trade rumors and signings</h1>
       {rumors.length === 0 ? (
         <p className="px-4 text-muted sm:px-0">

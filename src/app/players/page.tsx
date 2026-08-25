@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { SiteHeader } from "@/components/SiteHeader";
 import { allPlayers } from "@/lib/queries";
 
 export const revalidate = 3600;
@@ -8,11 +9,10 @@ export default async function PlayersPage() {
   const players = await allPlayers();
 
   return (
-    <div className="px-4 sm:px-0">
-      <h1 className="display mb-1 text-2xl text-white sm:text-3xl">All Players</h1>
-      <p className="mb-6 text-xs text-muted">
-        {players.length} players, ranked by prominence
-      </p>
+    <>
+      <SiteHeader />
+      <div className="px-4 sm:px-0">
+      <h1 className="display mb-6 text-2xl text-white sm:text-3xl">All Players</h1>
 
       <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
         {players.map((p) => (
@@ -50,6 +50,7 @@ export default async function PlayersPage() {
           </li>
         ))}
       </ul>
-    </div>
+      </div>
+    </>
   );
 }

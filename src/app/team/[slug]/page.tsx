@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { RumorCard } from "@/components/RumorCard";
+import { SiteHeader } from "@/components/SiteHeader";
 import { rumorsForTeam, teamBySlug } from "@/lib/queries";
 
 export const revalidate = 300;
@@ -14,6 +15,10 @@ export default async function TeamPage({ params }: PageProps<"/team/[slug]">) {
 
   return (
     <>
+      <SiteHeader
+        teamLabel={`${team.city} ${team.name}`}
+        teamHref={`/team/${team.slug}`}
+      />
       <div className="mb-6 flex items-center gap-4 px-4 sm:px-0">
         <Image
           src={team.logoUrl}

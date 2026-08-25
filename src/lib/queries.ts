@@ -131,7 +131,7 @@ export async function rumorsForPlayer(playerSlug: string, limit = 30) {
   return hydrate(await baseSelect(sql`${rumors.id} in ${ids}`).limit(limit));
 }
 
-/** Most prominent first, then alphabetical for the long tail. */
+/** Alphabetical by first name — how people scan a roster list. */
 export async function allPlayers() {
   return db
     .select({
@@ -141,7 +141,7 @@ export async function allPlayers() {
       prominence: players.prominence,
     })
     .from(players)
-    .orderBy(desc(players.prominence), players.fullName);
+    .orderBy(players.fullName);
 }
 
 export async function allTeams() {
