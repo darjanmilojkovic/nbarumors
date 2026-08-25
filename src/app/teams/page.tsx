@@ -12,7 +12,7 @@ export default async function TeamsPage() {
 
   return (
     <WireShell>
-      <div className="px-4 sm:px-0">
+      <div className="px-4 pt-8 sm:px-0">
       <h1 className="display mb-6 text-2xl text-white sm:text-3xl">All Teams</h1>
       {[
         { label: "Eastern Conference", list: east },

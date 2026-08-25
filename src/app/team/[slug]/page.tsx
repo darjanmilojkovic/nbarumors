@@ -19,7 +19,7 @@ export default async function TeamPage({ params }: PageProps<"/team/[slug]">) {
       teamHref={`/team/${team.slug}`}
       teamSlug={team.slug}
     >
-      <div className="mb-6 flex items-center gap-4 px-4 sm:px-0">
+      <div className="mb-6 flex items-center gap-4 px-4 pt-8 sm:px-0">
         <Image
           src={team.logoUrl}
           alt=""
