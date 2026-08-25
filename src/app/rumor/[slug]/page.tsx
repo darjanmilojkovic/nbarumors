@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { rumors } from "@/db/schema";
-import { RumorCard } from "@/components/RumorCard";
+import { WireItem } from "@/components/WireItem";
 import { latestRumors } from "@/lib/queries";
 
 export const revalidate = 300;
@@ -22,5 +22,5 @@ export default async function RumorPage({ params }: PageProps<"/rumor/[slug]">) 
   const rumor = feed.find((r) => r.id === row.id);
   if (!rumor) notFound();
 
-  return <RumorCard rumor={rumor} />;
+  return <WireItem rumor={rumor} />;
 }

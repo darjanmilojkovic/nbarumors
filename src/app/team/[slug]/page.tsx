@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { RumorCard } from "@/components/RumorCard";
+import { WireItem } from "@/components/WireItem";
 import { SiteHeader } from "@/components/SiteHeader";
 import { rumorsForTeam, teamBySlug } from "@/lib/queries";
 
@@ -41,7 +41,7 @@ export default async function TeamPage({ params }: PageProps<"/team/[slug]">) {
       {rumors.length === 0 ? (
         <p className="px-4 text-muted sm:px-0">No rumors for this team yet.</p>
       ) : (
-        rumors.map((r) => <RumorCard key={r.id} rumor={r} />)
+        rumors.map((r) => <WireItem key={r.id} rumor={r} />)
       )}
     </>
   );

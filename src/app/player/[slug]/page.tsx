@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { RumorCard } from "@/components/RumorCard";
+import { WireItem } from "@/components/WireItem";
 import { SiteHeader } from "@/components/SiteHeader";
 import { playerBySlug, rumorsForPlayer } from "@/lib/queries";
 
@@ -25,7 +25,7 @@ export default async function PlayerPage({ params }: PageProps<"/player/[slug]">
         </p>
       </div>
       {rumors.map((r) => (
-        <RumorCard key={r.id} rumor={r} />
+        <WireItem key={r.id} rumor={r} />
       ))}
     </>
   );

@@ -13,6 +13,14 @@
   --color-body: #e8e8e8;
   --color-muted: #9a9a9a;
   --color-accent: #e07a2f;
+
+  /* State colours sit beside the accent rather than competing with it. */
+  --color-confirmed: #3fbe86;
+  --color-developing: #5e9ad8;
+  --color-debunked: #e06062;
+  --color-heat: #8a4a1e;
+
+  --font-mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
 }
 
 html {

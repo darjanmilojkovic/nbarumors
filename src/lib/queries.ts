@@ -25,6 +25,8 @@ export type FeedRumor = {
   imageAttribution: string | null;
   sourceCount: number;
   alsoReportedBy: string | null;
+  chain: { outlet: string; headline: string; url: string; at: string }[];
+  confidence: number;
   teams: {
     slug: string;
     abbreviation: string;
@@ -97,6 +99,7 @@ const baseSelect = (extra?: SQL) =>
       body: rumors.body,
       type: rumors.type,
       status: rumors.status,
+      confidence: rumors.confidence,
       reportedBy: rumors.reportedBy,
       sourceName: sources.name,
       sourceUrl: rumors.sourceUrl,
@@ -111,6 +114,17 @@ const baseSelect = (extra?: SQL) =>
       )`,
       alsoReportedBy: sql<string | null>`(
         select string_agg(distinct s2.name, ', ')
+        from rumor_sources rs join sources s2 on s2.id = rs.source_id
+        where rs.rumor_id = ${rumors.id}
+      )`,
+      /** The corroboration chain: who reported what, oldest first. */
+      chain: sql<
+        { outlet: string; headline: string; url: string; at: string }[]
+      >`(
+        select coalesce(json_agg(json_build_object(
+          'outlet', s2.name, 'headline', rs.headline,
+          'url', rs.source_url, 'at', rs.published_at
+        ) order by rs.published_at), '[]'::json)
         from rumor_sources rs join sources s2 on s2.id = rs.source_id
         where rs.rumor_id = ${rumors.id}
       )`,

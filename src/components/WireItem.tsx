@@ -1,0 +1,181 @@
+import Image from "next/image";
+import Link from "next/link";
+import type { FeedRumor } from "@/lib/queries";
+
+const CAT: Record<string, string> = {
+  trade: "Trade",
+  signing: "Signing",
+  free_agency: "Free agency",
+  buyout: "Buyout",
+  extension: "Extension",
+  waiver: "Waiver",
+  draft: "Draft",
+  injury_impact: "Injury",
+  other: "Update",
+};
+
+/**
+ * The five report states collapse to three visual states — what a reader
+ * actually needs to know is "is this real yet".
+ */
+const STATE: Record<string, { label: string; cls: string }> = {
+  rumor: { label: "Developing", cls: "text-developing bg-developing/10" },
+  reported: { label: "Reported", cls: "text-developing bg-developing/10" },
+  confirmed: { label: "Confirmed", cls: "text-confirmed bg-confirmed/10" },
+  completed: { label: "Done deal", cls: "text-confirmed bg-confirmed/10" },
+  debunked: { label: "Debunked", cls: "text-debunked bg-debunked/10" },
+};
+
+/** "4m", "3h", "2d" — wire cadence, not a formatted date. */
+function ago(d: Date) {
+  const mins = Math.max(0, Math.round((Date.now() - d.getTime()) / 60000));
+  if (mins < 60) return `${mins}m`;
+  if (mins < 1440) return `${Math.round(mins / 60)}h`;
+  return `${Math.round(mins / 1440)}d`;
+}
+
+const initials = (name: string) =>
+  name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+export function WireItem({ rumor }: { rumor: FeedRumor }) {
+  const state = STATE[rumor.status] ?? STATE.rumor;
+  const primary = rumor.players.find((p) => p.isPrimary) ?? rumor.players[0];
+
+  /*
+   * Credibility bars are the model's confidence, raised by each independent
+   * outlet that corroborated — not an invented score.
+   */
+  const bars = Math.max(1, Math.min(5, Math.round(rumor.confidence * 5)));
+
+  return (
+    <article className="border-b border-rule px-4 py-5 transition-colors hover:bg-surface-2 sm:px-5">
+      <div className="flex gap-3 sm:gap-4">
+        {/* Player cutout where we have one, monogram where we don't. */}
+        <Link
+          href={primary ? `/player/${primary.slug}` : `/rumor/${rumor.slug}`}
+          className="shrink-0"
+        >
+          {primary?.headshotUrl ? (
+            <Image
+              src={primary.headshotUrl}
+              alt={primary.fullName}
+              width={128}
+              height={94}
+              className="h-12 w-12 rounded-sm border border-rule bg-surface-2 object-cover object-top sm:h-14 sm:w-14"
+              unoptimized
+            />
+          ) : (
+            <span className="display grid h-12 w-12 place-items-center rounded-sm border border-rule bg-surface-2 text-sm text-body sm:h-14 sm:w-14">
+              {primary ? initials(primary.fullName) : "NBA"}
+            </span>
+          )}
+        </Link>
+
+        <div className="min-w-0 flex-1">
+          {/* byline row */}
+          <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="text-sm font-semibold">
+              {rumor.reportedBy && rumor.reportedBy !== rumor.sourceName
+                ? rumor.reportedBy
+                : rumor.sourceName}
+            </span>
+            <span className="font-mono text-[11px] text-muted">
+              {rumor.reportedBy && rumor.reportedBy !== rumor.sourceName
+                ? `· ${rumor.sourceName} `
+                : ""}
+              · {ago(rumor.publishedAt)}
+            </span>
+            <span
+              className={`ml-auto inline-flex items-center gap-1.5 rounded-sm px-2 py-0.5 font-mono text-[10px] font-bold tracking-widest uppercase ${state.cls}`}
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-current" />
+              {state.label}
+            </span>
+          </div>
+
+          <div className="font-mono text-[10px] tracking-widest text-muted uppercase">
+            {CAT[rumor.type] ?? "Update"}
+            {rumor.teams.length > 0 &&
+              ` · ${rumor.teams.map((t) => t.abbreviation).join(" / ")}`}
+          </div>
+
+          <h2 className="display my-1.5 text-lg leading-tight text-balance text-white sm:text-[22px]">
+            <Link href={`/rumor/${rumor.slug}`} className="hover:text-accent">
+              {rumor.headline}
+            </Link>
+          </h2>
+
+          <p className="max-w-[62ch] text-sm text-body">{rumor.body}</p>
+
+          {/* credibility */}
+          <div className="mt-3 flex flex-wrap items-center gap-2.5">
+            <span
+              className="flex gap-[3px]"
+              role="img"
+              aria-label={`Credibility ${bars} of 5`}
+            >
+              {[1, 2, 3, 4, 5].map((i) => (
+                <span
+                  key={i}
+                  className={`block h-1 w-5 rounded-[1px] ${
+                    i <= bars ? (bars >= 4 ? "bg-accent" : "bg-heat") : "bg-rule"
+                  }`}
+                />
+              ))}
+            </span>
+            <span className="font-mono text-[10px] tracking-widest text-muted uppercase">
+              {rumor.sourceCount > 1
+                ? `${rumor.sourceCount} outlets · corroborated`
+                : "Single outlet"}
+            </span>
+          </div>
+
+          {/* corroboration chain — plain <details>, so it works without JS */}
+          {rumor.chain.length > 1 && (
+            <details className="mt-3 group">
+              <summary className="cursor-pointer font-mono text-[11px] tracking-wider text-accent uppercase marker:content-['']">
+                + Corroboration chain ({rumor.chain.length})
+              </summary>
+              <div className="mt-2 flex flex-col gap-2 border-l-2 border-rule pl-3">
+                {rumor.chain.map((c, i) => (
+                  <div key={i} className="flex flex-wrap items-baseline gap-2">
+                    <span className="font-mono text-[11px] whitespace-nowrap text-muted">
+                      {c.outlet} · {ago(new Date(c.at))}
+                    </span>
+                    <a
+                      href={c.url}
+                      target="_blank"
+                      rel="noopener noreferrer nofollow"
+                      className="text-[13px] text-body hover:text-accent"
+                    >
+                      {c.headline}
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+
+          {rumor.players.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {rumor.players.map((p) => (
+                <Link
+                  key={p.slug}
+                  href={`/player/${p.slug}`}
+                  className="rounded-full bg-surface-2 px-2.5 py-0.5 font-mono text-[11px] text-muted hover:text-accent"
+                >
+                  {p.fullName}
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </article>
+  );
+}
