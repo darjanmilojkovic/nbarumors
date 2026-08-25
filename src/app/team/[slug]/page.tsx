@@ -38,11 +38,16 @@ export default async function TeamPage({ params }: PageProps<"/team/[slug]">) {
           </p>
         </div>
       </div>
-      {rumors.length === 0 ? (
-        <p className="px-4 text-muted sm:px-0">No rumors for this team yet.</p>
-      ) : (
-        rumors.map((r) => <WireItem key={r.id} rumor={r} />)
-      )}
+      {/* Same panel the feed uses, so the column is ruled on all four sides. */}
+      <div className="border-x border-rule bg-surface">
+        {rumors.length === 0 ? (
+          <p className="px-4 py-16 text-center text-sm text-muted">
+            No rumors for this team yet.
+          </p>
+        ) : (
+          rumors.map((r) => <WireItem key={r.id} rumor={r} />)
+        )}
+      </div>
     </WireShell>
   );
 }
