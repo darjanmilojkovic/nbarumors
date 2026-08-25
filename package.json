@@ -23,7 +23,9 @@
     "import:transactions": "tsx src/scripts/import-transactions.ts",
     "backfill:contracts": "tsx src/scripts/backfill-contracts.ts",
     "verify:outcomes": "tsx src/scripts/verify-outcomes.ts",
-    "fix:headlines": "tsx src/scripts/strip-headline-prefix.ts"
+    "fix:headlines": "tsx src/scripts/strip-headline-prefix.ts",
+    "fix:case": "tsx src/scripts/sentence-case-headlines.ts",
+    "backfill:from": "tsx src/scripts/backfill-from-team.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

@@ -90,7 +90,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
                 key={t.key}
                 href={href(t.key, cat)}
                 aria-current={tab === t.key ? "page" : undefined}
-                className={`display flex-1 border-b-2 py-3 text-center text-xs tracking-widest ${
+                className={`flex-1 border-b-2 py-3 text-center font-mono text-[11px] tracking-wider uppercase ${
                   tab === t.key
                     ? "border-link text-link"
                     : "border-transparent text-muted hover:bg-surface-2 hover:text-white"
@@ -102,7 +102,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
           </div>
 
           {/* category chips — horizontally scrollable on mobile */}
-          <div className="flex gap-1.5 overflow-x-auto px-3 py-2.5">
+          <div className="flex gap-1.5 overflow-x-auto px-3 py-2.5 sm:justify-center">
             {CHIPS.map((c) => (
               <Link
                 key={c.key || "all"}

@@ -31,7 +31,7 @@ export function SiteHeader({
         <div className="flex flex-col items-center gap-3 px-4 py-4 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-6 sm:gap-y-2 sm:px-5 lg:col-start-2">
           <Link href="/" className="group flex items-center gap-2.5">
             <Logo className="h-11 w-11 text-body transition-colors group-hover:text-link sm:h-9 sm:w-9" />
-            <span className="display text-3xl leading-none font-semibold sm:text-2xl">
+            <span className="label text-3xl leading-none font-semibold sm:text-2xl">
               <span className="text-white">NBA</span>
               <span className="text-accent">Rumors</span>
             </span>
