@@ -1,6 +1,6 @@
 import { config } from "dotenv";
 config({ path: ".env.local" });
-import { eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
 /**
  * Pull every NBA roster and mark those players active.
