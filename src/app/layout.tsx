@@ -12,9 +12,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en">
       <body>
-        <main className="mx-auto max-w-4xl px-0 py-6 sm:px-6 sm:py-10">{children}</main>
+        {/* Pages supply their own <main> via WireShell. */}
+        {children}
 
-        <footer className="mx-auto max-w-4xl px-4 pt-4 pb-10 text-xs text-muted sm:px-6">
+        <footer className="mx-auto max-w-[1280px] px-4 pt-4 pb-10 text-xs text-muted sm:px-6">
           <p>
             Rumors are summarized in our own words from public reporting, with a link
             to the original source. Team logos and marks belong to their respective

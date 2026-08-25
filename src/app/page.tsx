@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { SiteHeader } from "@/components/SiteHeader";
+import { WireShell } from "@/components/WireShell";
 import { WireItem } from "@/components/WireItem";
 import { latestRumors } from "@/lib/queries";
 
@@ -52,8 +52,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   rumors = rumors.slice(0, 40);
 
   return (
-    <>
-      <SiteHeader />
+    <WireShell>
       <h1 className="sr-only">Latest NBA trade rumors and signings</h1>
 
       <div className="border-x border-rule bg-surface sm:mx-0">
@@ -97,16 +96,16 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
 
         {rumors.length === 0 ? (
           <p className="px-4 py-16 text-center text-sm text-muted">
-            Nothing on the wire matches that filter.
+            Nothing in the rumor mill matches that filter.
           </p>
         ) : (
           rumors.map((r) => <WireItem key={r.id} rumor={r} />)
         )}
 
         <p className="px-4 py-8 text-center font-mono text-[11px] tracking-widest text-muted uppercase">
-          — End of the wire —
+          — End of the rumor mill —
         </p>
       </div>
-    </>
+    </WireShell>
   );
 }

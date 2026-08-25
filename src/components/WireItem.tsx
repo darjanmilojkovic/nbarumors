@@ -44,7 +44,16 @@ const initials = (name: string) =>
 
 export function WireItem({ rumor }: { rumor: FeedRumor }) {
   const state = STATE[rumor.status] ?? STATE.rumor;
-  const primary = rumor.players.find((p) => p.isPrimary) ?? rumor.players[0];
+
+  // Primary player leads, then anyone we have a photo for, then the rest.
+  const ordered = [...rumor.players].sort(
+    (a, b) =>
+      Number(b.isPrimary) - Number(a.isPrimary) ||
+      Number(Boolean(b.headshotUrl)) - Number(Boolean(a.headshotUrl)),
+  );
+  const MAX_FACES = 3;
+  const faces = ordered.slice(0, MAX_FACES);
+  const extraFaces = Math.max(0, ordered.length - MAX_FACES);
 
   /*
    * Credibility bars are the model's confidence, raised by each independent
@@ -55,26 +64,46 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
   return (
     <article className="border-b border-rule px-4 py-5 transition-colors hover:bg-surface-2 sm:px-5">
       <div className="flex gap-3 sm:gap-4">
-        {/* Player cutout where we have one, monogram where we don't. */}
-        <Link
-          href={primary ? `/player/${primary.slug}` : `/rumor/${rumor.slug}`}
-          className="shrink-0"
-        >
-          {primary?.headshotUrl ? (
-            <Image
-              src={primary.headshotUrl}
-              alt={primary.fullName}
-              width={128}
-              height={94}
-              className="h-12 w-12 rounded-sm border border-rule bg-surface-2 object-cover object-top sm:h-14 sm:w-14"
-              unoptimized
-            />
+        {/*
+         * A trade names several players, so show each of them — stacked
+         * vertically in the gutter, primary first. Uniform 56px tiles with an
+         * even gap keep the column aligned regardless of how many there are,
+         * and the cap at three stops a rumor roundup mentioning eight names
+         * from turning into a wall of faces.
+         */}
+        <div className="flex shrink-0 flex-col gap-2">
+          {faces.length > 0 ? (
+            faces.map((p) => (
+              <Link key={p.slug} href={`/player/${p.slug}`} title={p.fullName}>
+                {p.headshotUrl ? (
+                  <Image
+                    src={p.headshotUrl}
+                    alt={p.fullName}
+                    width={128}
+                    height={94}
+                    className="h-14 w-14 shrink-0 rounded-sm border border-rule bg-surface-2 object-cover object-top"
+                    unoptimized
+                  />
+                ) : (
+                  <span className="display grid h-14 w-14 shrink-0 place-items-center rounded-sm border border-rule bg-surface-2 text-sm text-body">
+                    {initials(p.fullName)}
+                  </span>
+                )}
+              </Link>
+            ))
           ) : (
-            <span className="display grid h-12 w-12 place-items-center rounded-sm border border-rule bg-surface-2 text-sm text-body sm:h-14 sm:w-14">
-              {primary ? initials(primary.fullName) : "NBA"}
+            <Link href={`/rumor/${rumor.slug}`}>
+              <span className="display grid h-14 w-14 shrink-0 place-items-center rounded-sm border border-rule bg-surface-2 text-sm text-body">
+                NBA
+              </span>
+            </Link>
+          )}
+          {extraFaces > 0 && (
+            <span className="grid h-14 w-14 shrink-0 place-items-center rounded-sm border border-rule bg-surface-2 font-mono text-[11px] text-muted">
+              +{extraFaces}
             </span>
           )}
-        </Link>
+        </div>
 
         <div className="min-w-0 flex-1">
           {/* byline row */}

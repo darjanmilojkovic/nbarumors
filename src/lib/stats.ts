@@ -33,10 +33,13 @@ export type SeasonStat = {
  * right shape for prominence: a player who never qualified is, by definition,
  * not prominent this season.
  */
-export async function fetchSeasonLeaders(season: string): Promise<SeasonStat[]> {
+export async function fetchSeasonLeaders(
+  season: string,
+  statCategory = "PTS",
+): Promise<SeasonStat[]> {
   const url =
     `https://stats.nba.com/stats/leagueLeaders?LeagueID=00&PerMode=PerGame` +
-    `&Scope=S&Season=${season}&SeasonType=Regular%20Season&StatCategory=PTS`;
+    `&Scope=S&Season=${season}&SeasonType=Regular%20Season&StatCategory=${statCategory}`;
 
   const res = await fetch(url, { headers: NBA_HEADERS });
   if (!res.ok) throw new Error(`nba stats ${season}: HTTP ${res.status}`);
@@ -135,6 +138,39 @@ export function prominenceScore(
   }
 
   return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+/**
+ * NBA player ids for as much of the league as we can reach.
+ *
+ * Each leaderboard only lists players who qualified in that category, so a
+ * low-scoring rebounder is missing from PTS but present in REB. Union across
+ * categories and recent seasons to recover ids — and therefore headshots —
+ * for players the scoring list alone never covers.
+ */
+export async function fetchPlayerIds(
+  seasons = ["2025-26", "2024-25", "2023-24"],
+  categories = ["PTS", "REB", "AST", "MIN", "BLK", "STL"],
+  onProgress?: (label: string, found: number) => void,
+): Promise<Map<string, { nbaPlayerId: string; name: string }>> {
+  const ids = new Map<string, { nbaPlayerId: string; name: string }>();
+
+  for (const season of seasons) {
+    for (const category of categories) {
+      try {
+        const rows = await fetchSeasonLeaders(season, category);
+        for (const r of rows) {
+          const key = nameKey(r.name);
+          if (!ids.has(key)) ids.set(key, { nbaPlayerId: r.nbaPlayerId, name: r.name });
+        }
+        onProgress?.(`${season}/${category}`, ids.size);
+      } catch {
+        onProgress?.(`${season}/${category}:ERR`, ids.size);
+      }
+      await new Promise((r) => setTimeout(r, 250));
+    }
+  }
+  return ids;
 }
 
 /** NBA CDN headshot, available once we know the player's NBA id. */

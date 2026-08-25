@@ -18,7 +18,8 @@
     "peek:rumors": "tsx src/scripts/peek-rumors.ts",
     "sync:stats": "tsx src/scripts/sync-stats.ts",
     "sync:roster": "tsx src/scripts/sync-roster.ts",
-    "dedupe": "tsx src/scripts/dedupe.ts"
+    "dedupe": "tsx src/scripts/dedupe.ts",
+    "sync:headshots": "tsx src/scripts/sync-headshots.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

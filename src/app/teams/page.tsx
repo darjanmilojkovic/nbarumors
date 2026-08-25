@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { SiteHeader } from "@/components/SiteHeader";
+import { WireShell } from "@/components/WireShell";
 import { allTeams } from "@/lib/queries";
 
 export const revalidate = 3600;
@@ -11,8 +11,7 @@ export default async function TeamsPage() {
   const west = teams.filter((t) => t.conference === "West");
 
   return (
-    <>
-      <SiteHeader />
+    <WireShell>
       <div className="px-4 sm:px-0">
       <h1 className="display mb-6 text-2xl text-white sm:text-3xl">All Teams</h1>
       {[
@@ -46,6 +45,6 @@ export default async function TeamsPage() {
         </section>
       ))}
       </div>
-    </>
+    </WireShell>
   );
 }

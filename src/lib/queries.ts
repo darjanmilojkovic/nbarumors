@@ -191,6 +191,98 @@ export async function allPlayers() {
     .orderBy(players.fullName);
 }
 
+/** Counts per rumor type — the left rail's "Beats" list. */
+export async function beatCounts() {
+  return db
+    .select({ type: rumors.type, n: sql<number>`count(*)::int` })
+    .from(rumors)
+    .where(eq(rumors.isPublished, true))
+    .groupBy(rumors.type)
+    .orderBy(sql`count(*) desc`);
+}
+
+/** Teams with the most activity, for the left rail's team filter. */
+export async function activeTeams(limit = 12) {
+  return db
+    .select({
+      slug: teams.slug,
+      abbreviation: teams.abbreviation,
+      n: sql<number>`count(*)::int`,
+    })
+    .from(rumorTeams)
+    .innerJoin(teams, eq(teams.id, rumorTeams.teamId))
+    .innerJoin(
+      rumors,
+      sql`${rumors.id} = ${rumorTeams.rumorId} and ${rumors.isPublished}`,
+    )
+    .groupBy(teams.slug, teams.abbreviation)
+    .orderBy(sql`count(*) desc`)
+    .limit(limit);
+}
+
+/**
+ * Most-talked-about players over the last week. This replaces the concept's
+ * "Insider Board", which needed hit-rate data we do not have.
+ */
+export async function mostMentioned(limit = 6) {
+  return db
+    .select({
+      slug: players.slug,
+      fullName: players.fullName,
+      headshotUrl: players.headshotUrl,
+      prominence: players.prominence,
+      mentions: sql<number>`count(*)::int`,
+      lastAt: sql<string>`max(${rumors.publishedAt})`,
+    })
+    .from(rumorPlayers)
+    .innerJoin(players, eq(players.id, rumorPlayers.playerId))
+    .innerJoin(
+      rumors,
+      sql`${rumors.id} = ${rumorPlayers.rumorId} and ${rumors.isPublished}`,
+    )
+    .where(sql`${rumors.publishedAt} > now() - interval '7 days'`)
+    .groupBy(players.slug, players.fullName, players.headshotUrl, players.prominence)
+    .orderBy(sql`count(*) desc, max(${rumors.publishedAt}) desc`)
+    .limit(limit);
+}
+
+/** Genuinely completed moves — the ticker, without inventing transactions. */
+export async function recentlyDone(limit = 8) {
+  return db
+    .select({
+      slug: rumors.slug,
+      headline: rumors.headline,
+      type: rumors.type,
+    })
+    .from(rumors)
+    .where(
+      and(
+        eq(rumors.isPublished, true),
+        sql`${rumors.status} in ('completed','confirmed')`,
+      ),
+    )
+    .orderBy(desc(rumors.publishedAt))
+    .limit(limit);
+}
+
+/** Honest counters for the left rail, in place of a fake cap sheet. */
+export async function wireStats() {
+  const [row] = await db
+    .select({
+      rumorCount: sql<number>`(select count(*)::int from rumors where is_published)`,
+      outletCount: sql<number>`(select count(distinct name)::int from sources where enabled)`,
+      playerCount: sql<number>`(select count(distinct player_id)::int from rumor_players)`,
+      corroborated: sql<number>`(
+        select count(*)::int from (
+          select r.id from rumors r join rumor_sources rs on rs.rumor_id = r.id
+          where r.is_published group by r.id having count(distinct rs.source_id) > 1
+        ) t)`,
+    })
+    .from(sources)
+    .limit(1);
+  return row;
+}
+
 export async function allTeams() {
   return db.select().from(teams).orderBy(teams.conference, teams.city);
 }

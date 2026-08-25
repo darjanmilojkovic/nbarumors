@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { WireItem } from "@/components/WireItem";
-import { SiteHeader } from "@/components/SiteHeader";
+import { WireShell } from "@/components/WireShell";
 import { rumorsForTeam, teamBySlug } from "@/lib/queries";
 
 export const revalidate = 300;
@@ -14,11 +14,11 @@ export default async function TeamPage({ params }: PageProps<"/team/[slug]">) {
   const rumors = await rumorsForTeam(slug);
 
   return (
-    <>
-      <SiteHeader
-        teamLabel={`${team.city} ${team.name}`}
-        teamHref={`/team/${team.slug}`}
-      />
+    <WireShell
+      teamLabel={`${team.city} ${team.name}`}
+      teamHref={`/team/${team.slug}`}
+      teamSlug={team.slug}
+    >
       <div className="mb-6 flex items-center gap-4 px-4 sm:px-0">
         <Image
           src={team.logoUrl}
@@ -43,6 +43,6 @@ export default async function TeamPage({ params }: PageProps<"/team/[slug]">) {
       ) : (
         rumors.map((r) => <WireItem key={r.id} rumor={r} />)
       )}
-    </>
+    </WireShell>
   );
 }

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { WireItem } from "@/components/WireItem";
-import { SiteHeader } from "@/components/SiteHeader";
+import { WireShell } from "@/components/WireShell";
 import { playerBySlug, rumorsForPlayer } from "@/lib/queries";
 
 export const revalidate = 300;
@@ -13,11 +13,10 @@ export default async function PlayerPage({ params }: PageProps<"/player/[slug]">
   const rumors = await rumorsForPlayer(slug);
 
   return (
-    <>
-      <SiteHeader
-        playerLabel={player.fullName}
-        playerHref={`/player/${player.slug}`}
-      />
+    <WireShell
+      playerLabel={player.fullName}
+      playerHref={`/player/${player.slug}`}
+    >
       <div className="mb-6 px-4 sm:px-0">
         <h1 className="display text-2xl text-white sm:text-3xl">{player.fullName}</h1>
         <p className="text-xs text-muted">
@@ -27,6 +26,6 @@ export default async function PlayerPage({ params }: PageProps<"/player/[slug]">
       {rumors.map((r) => (
         <WireItem key={r.id} rumor={r} />
       ))}
-    </>
+    </WireShell>
   );
 }
