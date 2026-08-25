@@ -39,6 +39,41 @@ function ago(d: Date) {
   return `${Math.round(mins / 1440)}d`;
 }
 
+/**
+ * Sourcing strength, 1-5.
+ *
+ * Deliberately NOT the model's `confidence`: that field answers "is this
+ * genuinely a transfer story", which is a filtering question, not a
+ * trustworthiness one — and since anything under 0.6 is held back, it could
+ * never render below 3 bars anyway. This scores what a reader actually wants
+ * beside "N outlets": how firm the report is and how many independent
+ * newsrooms carry it.
+ */
+function sourcingScore(rumor: FeedRumor): number {
+  // A denial is its own signal; the red chip carries it, so the meter stays low.
+  if (rumor.status === "debunked") return 1;
+
+  /*
+   * Status sets the floor. A single outlet reporting a real signing is
+   * ordinary, sound journalism and should not read as barely-sourced, so
+   * "reported" starts at 2 and a done deal starts at 3.
+   */
+  let score =
+    rumor.status === "confirmed" || rumor.status === "completed"
+      ? 3
+      : rumor.status === "reported"
+        ? 2
+        : 1;
+
+  // Independent corroboration, worth at most two bars.
+  score += Math.min(2, Math.max(0, rumor.sourceCount - 1));
+
+  // A credited insider beats an unattributed aggregator post.
+  if (rumor.reportedBy && rumor.reportedBy !== rumor.sourceName) score += 1;
+
+  return Math.max(1, Math.min(5, score));
+}
+
 const initials = (name: string) =>
   name
     .split(" ")
@@ -60,11 +95,7 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
   const faces = ordered.slice(0, MAX_FACES);
   const extraFaces = Math.max(0, ordered.length - MAX_FACES);
 
-  /*
-   * Credibility bars are the model's confidence, raised by each independent
-   * outlet that corroborated — not an invented score.
-   */
-  const bars = Math.max(1, Math.min(5, Math.round(rumor.confidence * 5)));
+  const bars = sourcingScore(rumor);
 
   return (
     <article className="border-b border-rule px-4 py-5 transition-colors hover:bg-surface-2 sm:px-5">
@@ -151,7 +182,8 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
             <span
               className="flex gap-[3px]"
               role="img"
-              aria-label={`Credibility ${bars} of 5`}
+              aria-label={`Sourcing strength ${bars} of 5`}
+              title="Sourcing strength: how firm the report is, how many independent outlets carry it, and whether a reporter is credited."
             >
               {[1, 2, 3, 4, 5].map((i) => (
                 <span
@@ -163,9 +195,10 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
               ))}
             </span>
             <span className="font-mono text-[10px] tracking-widest text-muted uppercase">
+              Sourcing {bars}/5 ·{" "}
               {rumor.sourceCount > 1
-                ? `${rumor.sourceCount} outlets · corroborated`
-                : "Single outlet"}
+                ? `${rumor.sourceCount} outlets`
+                : "single outlet"}
             </span>
           </div>
 
