@@ -31,6 +31,25 @@ function formatDate(d: Date) {
 }
 
 export function RumorCard({ rumor }: { rumor: FeedRumor }) {
+  /*
+   * Prefer the official headshot: it is the same crop for every player, so
+   * cards stay consistent and faces never get cut off. The Commons action
+   * photo is the fallback for players with no NBA id yet.
+   */
+  const primary = rumor.players.find((p) => p.isPrimary) ?? rumor.players[0];
+  const hero: { kind: "headshot" | "action"; url: string } | null =
+    primary?.headshotUrl
+      ? { kind: "headshot", url: primary.headshotUrl }
+      : rumor.imageUrl
+        ? { kind: "action", url: rumor.imageUrl }
+        : null;
+
+  // Colour the field from the acquiring team where we know it.
+  const accent =
+    rumor.teams.find((t) => t.role === "to")?.primaryColor ??
+    rumor.teams[0]?.primaryColor ??
+    "#e07a2f";
+
   return (
     <article className="mb-8 bg-surface sm:mb-10">
       {/* Header: logos + headline wrap together on narrow screens. */}
@@ -68,21 +87,44 @@ export function RumorCard({ rumor }: { rumor: FeedRumor }) {
           {rumor.body}
         </p>
 
-        {rumor.imageUrl && (
+        {hero && (
           <figure className="mt-4">
             {/* Same target as the headline — the whole image is the link. */}
             <Link href={`/rumor/${rumor.slug}`} className="block">
-              {/* Remote heights vary; cap it and let the image letterbox. */}
-              <Image
-                src={rumor.imageUrl}
-                alt={rumor.players[0]?.fullName ?? rumor.headline}
-                width={1200}
-                height={700}
-                className="max-h-[420px] w-full rounded-sm object-cover transition-opacity hover:opacity-90"
-                unoptimized
-              />
+              {hero.kind === "headshot" ? (
+                /*
+                 * Official NBA cutout on the team's colour. Identical framing
+                 * for every player, so nothing is cropped through a face the
+                 * way a random action photo is.
+                 */
+                <div
+                  className="relative flex h-52 items-end justify-center overflow-hidden rounded-sm sm:h-64"
+                  style={{
+                    background: `radial-gradient(circle at 50% 120%, ${accent}cc 0%, ${accent}55 45%, #14141400 75%), #141414`,
+                  }}
+                >
+                  <Image
+                    src={hero.url}
+                    alt={rumor.players.find((p) => p.isPrimary)?.fullName ?? rumor.headline}
+                    width={1040}
+                    height={760}
+                    className="h-full w-auto object-contain object-bottom transition-transform duration-300 hover:scale-[1.03]"
+                    unoptimized
+                  />
+                </div>
+              ) : (
+                /* Action photo — anchor to the top so heads survive the crop. */
+                <Image
+                  src={hero.url}
+                  alt={rumor.players[0]?.fullName ?? rumor.headline}
+                  width={1200}
+                  height={700}
+                  className="max-h-[420px] w-full rounded-sm object-cover object-top transition-opacity hover:opacity-90"
+                  unoptimized
+                />
+              )}
             </Link>
-            {rumor.imageAttribution && (
+            {hero.kind === "action" && rumor.imageAttribution && (
               <figcaption className="mt-1 text-[10px] text-muted">
                 Photo: {rumor.imageAttribution}
               </figcaption>

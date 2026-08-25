@@ -23,8 +23,21 @@ export type FeedRumor = {
   publishedAt: Date;
   imageUrl: string | null;
   imageAttribution: string | null;
-  teams: { slug: string; abbreviation: string; city: string; name: string; logoUrl: string; role: string }[];
-  players: { slug: string; fullName: string; isPrimary: boolean }[];
+  teams: {
+    slug: string;
+    abbreviation: string;
+    city: string;
+    name: string;
+    logoUrl: string;
+    primaryColor: string;
+    role: string;
+  }[];
+  players: {
+    slug: string;
+    fullName: string;
+    isPrimary: boolean;
+    headshotUrl: string | null;
+  }[];
 };
 
 /**
@@ -44,6 +57,7 @@ async function hydrate(rows: Awaited<ReturnType<typeof baseSelect>>): Promise<Fe
       city: teams.city,
       name: teams.name,
       logoUrl: teams.logoUrl,
+      primaryColor: teams.primaryColor,
     })
     .from(rumorTeams)
     .innerJoin(teams, eq(teams.id, rumorTeams.teamId))
@@ -55,6 +69,7 @@ async function hydrate(rows: Awaited<ReturnType<typeof baseSelect>>): Promise<Fe
       isPrimary: rumorPlayers.isPrimary,
       slug: players.slug,
       fullName: players.fullName,
+      headshotUrl: players.headshotUrl,
     })
     .from(rumorPlayers)
     .innerJoin(players, eq(players.id, rumorPlayers.playerId))
@@ -131,7 +146,11 @@ export async function rumorsForPlayer(playerSlug: string, limit = 30) {
   return hydrate(await baseSelect(sql`${rumors.id} in ${ids}`).limit(limit));
 }
 
-/** Alphabetical by first name — how people scan a roster list. */
+/**
+ * Everyone on an NBA roster this season, alphabetical by first name.
+ * Inactive names — retired players and others that only ever showed up in a
+ * rumor — are excluded from the directory but keep their own pages.
+ */
 export async function allPlayers() {
   return db
     .select({
@@ -141,6 +160,7 @@ export async function allPlayers() {
       prominence: players.prominence,
     })
     .from(players)
+    .where(eq(players.isActive, true))
     .orderBy(players.fullName);
 }
 

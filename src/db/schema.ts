@@ -96,6 +96,12 @@ export const players = pgTable(
      * Drives feed ranking so a LeBron rumor outranks a fringe roster move.
      */
     prominence: integer("prominence").notNull().default(0),
+    /**
+     * On an NBA roster this season. False for names that only ever appeared
+     * in a rumor (retired players, international signings, front-office staff
+     * the extraction mistook for a player).
+     */
+    isActive: boolean("is_active").notNull().default(false),
     /** Season points per game at last sync, kept for debugging the score. */
     pointsPerGame: real("points_per_game"),
     statsSyncedAt: timestamp("stats_synced_at", { withTimezone: true }),
