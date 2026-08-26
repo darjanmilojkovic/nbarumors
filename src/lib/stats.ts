@@ -59,9 +59,20 @@ export async function fetchBrefSeason(season: string): Promise<SeasonStat[]> {
   if (!res.ok) throw new Error(`bref ${season}: HTTP ${res.status}`);
   const html = await res.text();
 
+  /*
+   * Read to the end of the cell and strip any markup, rather than taking the
+   * text immediately after ">".
+   *
+   * Basketball-Reference bolds whoever led the league in a category:
+   *   data-stat="pts_per_g" ><strong>33.1</strong></td>
+   * A regex stopping at the first "<" captured an empty string there, so every
+   * category leader in every season parsed as zero — the bug silently erased
+   * exactly the players it mattered most to get right. Joel Embiid led scoring
+   * in 2021-22 and 2022-23 and was recorded with 0 points in both.
+   */
   const stat = (row: string, name: string) => {
-    const m = row.match(new RegExp(`data-stat="${name}"[^>]*>([^<]*)<`));
-    return m ? Number(m[1]) : NaN;
+    const m = row.match(new RegExp(`data-stat="${name}"[^>]*>(.*?)</td>`, "s"));
+    return m ? Number(m[1].replace(/<[^>]*>/g, "").trim()) : NaN;
   };
 
   const best = new Map<string, SeasonStat>();
