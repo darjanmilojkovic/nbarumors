@@ -25,6 +25,15 @@ import { useEffect, useRef, useState } from "react";
  */
 const RESTORE_WINDOW_MS = 700;
 
+/**
+ * How far down the page the masthead is held in place regardless of gesture.
+ *
+ * About one screen on a phone. Below this the reader is still at the top of
+ * the feed, where the logo and the way home belong on screen; past it they are
+ * reading, and 110px of a 812px screen is worth reclaiming.
+ */
+const HOLD_UNTIL_PX = 600;
+
 export function StickyMasthead({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const [shown, setShown] = useState(true);
@@ -77,13 +86,20 @@ export function StickyMasthead({ children }: { children: React.ReactNode }) {
       }
 
       /*
-       * Near the top it is always visible, checked before the threshold below.
-       * Hiding it here is what leaves the hole: there is nothing above the
-       * masthead for it to slide behind, so the space it vacates just shows
-       * through. iOS rubber-banding also drives scrollY negative, which this
-       * covers.
+       * Near the top it stays, whatever the gesture.
+       *
+       * Eight pixels was too literal a reading of "at the top": the masthead
+       * vanished on the first flick, while the filter tabs below it stayed
+       * pinned, so the two halves of one header behaved differently before the
+       * reader had gone anywhere. Holding it for roughly a screen means the
+       * top of the feed is read with the masthead in place, and it only starts
+       * retracting once you are plainly down in the wire.
+       *
+       * This also covers what the old check was for: hiding it at the very top
+       * leaves a hole, because there is nothing above the masthead for it to
+       * slide behind, and iOS rubber-banding drives scrollY negative.
        */
-      if (y < 8) {
+      if (y < HOLD_UNTIL_PX) {
         last = y;
         return apply(true);
       }
