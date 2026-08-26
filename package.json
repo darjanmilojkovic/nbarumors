@@ -29,7 +29,8 @@
     "merge:events": "tsx src/scripts/merge-similar-events.ts",
     "fix:status": "tsx src/scripts/reclassify-status.ts",
     "sync:ids": "tsx src/scripts/sync-ids-wikidata.ts",
-    "fix:bodies": "tsx src/scripts/rewrite-bodies.ts"
+    "fix:bodies": "tsx src/scripts/rewrite-bodies.ts",
+    "fix:openings": "tsx src/scripts/fix-outlet-openings.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
