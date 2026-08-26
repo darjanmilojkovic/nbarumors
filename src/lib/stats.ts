@@ -147,16 +147,15 @@ export function productionScore(seasons: SeasonStat[]): number {
    * players the weighted line runs: median 11.5, p90 26.3, p97 37.1, p99 40.7,
    * and a maximum of 51.1 (Giannis).
    *
-   * The first attempt saturated at 38, which is the 97th percentile — so the
-   * entire top 3% of the league flattened to the same score and eighteen
-   * players tied on 100. Saturating just above the observed maximum keeps the
-   * best players separable from each other, which is the whole point at the
-   * top of the scale.
+   * Saturating at 40 — the 99th percentile — is deliberate. To a reader,
+   * Jokic and Curry are both simply "superstar"; splitting hairs between 100
+   * and 93 is a distinction the site never needs to draw. So the top tier is
+   * flat by design and every established star lands at the ceiling.
    *
-   * Longevity is worth less than it was, for the same reason: at 18 points it
-   * was lifting every six-season veteran into the same band as the stars.
+   * That compression is why the Marquee badge keys off the ceiling itself
+   * rather than an arbitrary cut-off — see WireItem.
    */
-  const core = 88 * Math.min(1, production / 52);
+  const core = 88 * Math.min(1, production / 40);
   const longevity = 12 * Math.min(1, seasons.length / 6);
 
   return Math.max(0, Math.min(100, Math.round(core + longevity)));

@@ -115,11 +115,18 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
       : null;
 
   /*
-   * Rare by design. At >=80 the badge landed on 30% of page one, which is
-   * no signal at all; >=88 puts it on ~13% of the front page and 5% of the
-   * site, so it means something when it appears.
+   * The ceiling tier, not a score threshold.
+   *
+   * Prominence deliberately saturates: to a reader Jokic and Curry are both
+   * simply "superstar", so every established star lands at 100 and the top of
+   * the scale is flat. That makes a fixed cut-off useless — the old >=88 rule
+   * would now fire on a quarter of the site, and a badge that common stops
+   * being a signal, which is how the source-strength meter died.
+   *
+   * Keyed to the ceiling instead, it marks the eleven players at the top of
+   * the league and lands on 6.7% of posts — about where it was before.
    */
-  const isMarquee = rumor.maxProminence >= 88;
+  const isMarquee = rumor.maxProminence >= 100;
 
   /*
    * Momentum around the player, not this report — how many posts in the last
