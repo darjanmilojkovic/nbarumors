@@ -57,6 +57,18 @@ export type FeedRumor = {
  * One query for the cards plus two for the tags, then stitched in memory —
  * cheaper than a triple join that fans out rows per tag.
  */
+/**
+ * The teams a move actually involves come before the ones a report merely
+ * name-checks, and "from" leads "to" so a trade reads in its own direction.
+ *
+ * Only "from" used to be ranked, which left "to" and "mentioned" tied and let
+ * the row order out of Postgres decide. A Josh Hart extension therefore read
+ * "BOS / NYK / PHX": Boston and Phoenix appeared because the report cites
+ * Derrick White and Dillon Brooks as salary comparables, and Boston happens to
+ * be team 1 in the table. Hart's actual team came second, in a post about him.
+ */
+const TEAM_ROLE_ORDER: Record<string, number> = { from: 0, to: 1, mentioned: 2 };
+
 async function hydrate(rows: Awaited<ReturnType<typeof baseSelect>>): Promise<FeedRumor[]> {
   if (rows.length === 0) return [];
   const ids = rows.map((r) => r.id);
@@ -107,8 +119,7 @@ async function hydrate(rows: Awaited<ReturnType<typeof baseSelect>>): Promise<Fe
       hotMentions: r.hotMentions > 0 ? (stories.get(primary?.playerId ?? -1) ?? 0) : 0,
       teams: teamRows
         .filter((t) => t.rumorId === r.id)
-        // "from" before "to" so the card reads like the trade direction.
-        .sort((a, b) => (a.role === "from" ? -1 : b.role === "from" ? 1 : 0)),
+        .sort((a, b) => TEAM_ROLE_ORDER[a.role] - TEAM_ROLE_ORDER[b.role]),
       players: mine,
     };
   });

@@ -138,6 +138,18 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
       : null;
 
   /*
+   * The kicker names the teams in the move, not every team the report happens
+   * to mention. A Josh Hart extension listed "BOS / NYK / PHX" because the
+   * piece cites Derrick White and Dillon Brooks as comparables, which reads as
+   * a three-team story rather than one Knick's contract.
+   *
+   * Posts with nothing but mentioned teams — "both the Lakers and the Heat are
+   * interested" — still show them, because there the interest IS the news.
+   */
+  const involved = rumor.teams.filter((t) => t.role !== "mentioned");
+  const kickerTeams = (involved.length > 0 ? involved : rumor.teams).slice(0, 3);
+
+  /*
    * The star tier — 37 players, from Jokic and Giannis down to Wembanyama,
    * Zion, Brunson, Sengun and Butler.
    *
@@ -245,8 +257,8 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
 
             <div className="font-mono text-[10px] tracking-widest text-muted uppercase">
               {CAT[rumor.type] ?? "Update"}
-              {rumor.teams.length > 0 &&
-                ` · ${rumor.teams.map((t) => t.abbreviation).join(" / ")}`}
+              {kickerTeams.length > 0 &&
+                ` · ${kickerTeams.map((t) => t.abbreviation).join(" / ")}`}
             </div>
           </div>
 
