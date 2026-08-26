@@ -10,6 +10,7 @@ import {
   rumors,
   teams,
 } from "@/db/schema";
+import { isSameEvent } from "@/lib/event-key";
 import type { Extraction } from "@/lib/extract";
 import { findCommonsImages, preferLandscape } from "@/lib/images";
 
@@ -122,22 +123,31 @@ async function findExistingEvent(eventKey: string, publishedAt: Date) {
   const since = new Date(publishedAt.getTime() - MERGE_WINDOW_DAYS * 86_400_000);
   const until = new Date(publishedAt.getTime() + MERGE_WINDOW_DAYS * 86_400_000);
 
-  const [existing] = await db
+  /*
+   * Every key in the window, compared in memory rather than matched in SQL.
+   *
+   * Exact equality missed two outlets that described one event in slightly
+   * different words — "duren-kuminga-mathurin-free-agency-market-roundup" and
+   * "duren-kuminga-mathurin-remaining-free-agents-roundup", filed two minutes
+   * apart, became two posts. The window holds tens of rows, so scanning it is
+   * cheaper than the duplicate it prevents.
+   */
+  const candidates = await db
     .select({
       id: rumors.id,
       status: rumors.status,
       confidence: rumors.confidence,
       publishedAt: rumors.publishedAt,
+      eventKey: rumors.eventKey,
     })
     .from(rumors)
-    .where(
-      and(
-        eq(rumors.eventKey, key),
-        sql`${rumors.publishedAt} between ${since} and ${until}`,
-      ),
-    )
-    .orderBy(sql`${rumors.publishedAt} asc`)
-    .limit(1);
+    .where(sql`${rumors.publishedAt} between ${since} and ${until}`)
+    .orderBy(sql`${rumors.publishedAt} asc`);
+
+  // Earliest match wins, so a story always collapses onto its first report.
+  const existing = candidates.find(
+    (c) => c.eventKey && isSameEvent(c.eventKey, key),
+  );
 
   return existing ?? null;
 }

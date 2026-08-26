@@ -1,8 +1,8 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { db } from "@/db";
-import { rumors } from "@/db/schema";
+import { rumorSources, rumors } from "@/db/schema";
 import { WireItem } from "@/components/WireItem";
 import { WireShell } from "@/components/WireShell";
 import { latestRumors } from "@/lib/queries";
@@ -13,11 +13,42 @@ export default async function RumorPage({ params }: PageProps<"/rumor/[slug]">) 
   const { slug } = await params;
 
   const [row] = await db
-    .select({ id: rumors.id })
+    .select({
+      id: rumors.id,
+      isPublished: rumors.isPublished,
+      feedItemId: rumors.feedItemId,
+    })
     .from(rumors)
     .where(eq(rumors.slug, slug))
     .limit(1);
   if (!row) notFound();
+
+  /*
+   * A post that was merged into another is unpublished, not deleted, and its
+   * URL was live until the merge ran. Rather than 404 a link someone may
+   * already hold, send them to the post that absorbed it.
+   *
+   * No extra column is needed to find it: merging copies the duplicate's feed
+   * item onto the survivor as a source row, so the feed item leads back to
+   * whichever post now carries that report.
+   */
+  if (!row.isPublished) {
+    if (row.feedItemId) {
+      const [keeper] = await db
+        .select({ slug: rumors.slug })
+        .from(rumorSources)
+        .innerJoin(rumors, eq(rumors.id, rumorSources.rumorId))
+        .where(
+          and(
+            eq(rumorSources.feedItemId, row.feedItemId),
+            eq(rumors.isPublished, true),
+          ),
+        )
+        .limit(1);
+      if (keeper) permanentRedirect(`/rumor/${keeper.slug}`);
+    }
+    notFound();
+  }
 
   // Small dataset — pull the feed and pick, rather than a second hydrate path.
   const feed = await latestRumors(200);

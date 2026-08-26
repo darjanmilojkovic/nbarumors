@@ -39,7 +39,7 @@ async function LeftRail({ teamSlug }: { teamSlug?: string }) {
 
   return (
     <aside className="sticky top-4 hidden py-6 pr-5 lg:block">
-      <RailHeading>Beats</RailHeading>
+      <RailHeading>Beats since 2026</RailHeading>
       <nav className="mb-7 flex flex-col gap-px">
         <Link
           href="/"
