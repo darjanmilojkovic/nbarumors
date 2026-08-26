@@ -83,7 +83,10 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
 
       <div className="border-x border-rule bg-surface sm:mx-0">
         {/* tabs */}
-        <div className="sticky top-0 z-10 border-b border-rule bg-surface/95 backdrop-blur">
+        <div
+          className="sticky z-10 border-b border-rule bg-surface/95 backdrop-blur"
+          style={{ top: "var(--masthead-offset, 0px)" }}
+        >
           <div className="flex">
             {TABS.map((t) => (
               <Link

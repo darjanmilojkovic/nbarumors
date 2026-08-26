@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
+import { StickyMasthead } from "@/components/StickyMasthead";
 import {
   activeTeams,
   beatCounts,
@@ -177,7 +178,9 @@ export function WireShell({
 }) {
   return (
     <>
-      <SiteHeader teamLabel={teamLabel} playerLabel={playerLabel} />
+      <StickyMasthead>
+        <SiteHeader teamLabel={teamLabel} playerLabel={playerLabel} />
+      </StickyMasthead>
       <div className="mx-auto grid max-w-[1280px] grid-cols-1 items-start px-0 sm:px-5 lg:grid-cols-[230px_minmax(0,1fr)] xl:grid-cols-[230px_minmax(0,1fr)_300px]">
         <LeftRail teamSlug={teamSlug} />
         <main className="min-h-screen">{children}</main>
