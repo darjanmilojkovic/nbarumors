@@ -14,6 +14,7 @@ import {
 import { enrichBody } from "@/lib/enrich";
 import { isSameEvent } from "@/lib/event-key";
 import { sameStory } from "@/lib/same-story";
+import { pruneStaleTags } from "@/lib/tags";
 import type { Extraction } from "@/lib/extract";
 import { findCommonsImages, preferLandscape } from "@/lib/images";
 
@@ -399,6 +400,14 @@ async function attachSource(
        */
     })
     .where(eq(rumors.id, rumorId));
+
+  /*
+   * Tags follow the text. A grown summary is not the one the tags were written
+   * against, and a name it no longer mentions must stop claiming the post:
+   * being tagged is what puts a player's face on the card and the post on
+   * their page, which says the story is about them.
+   */
+  if (enriched) await pruneStaleTags(rumorId);
 
   await db
     .update(feedItems)
