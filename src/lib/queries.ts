@@ -527,13 +527,23 @@ export async function rumorBySlug(slug: string) {
   return rumor ?? null;
 }
 
+/*
+ * A team or player page is a timeline, so it reads newest first.
+ *
+ * The ranked order these used belongs on the front page, where the question is
+ * "what matters across the league right now" and a fringe signing should not
+ * outrank a star's. On one player's page every post is already about them, so
+ * prominence is a constant and all the ordering did was shuffle their story
+ * out of sequence: a three-week-old trade rumour could sit above the signing
+ * that resolved it.
+ */
 export async function rumorsForTeam(teamSlug: string, limit = 30) {
   const ids = db
     .select({ id: rumorTeams.rumorId })
     .from(rumorTeams)
     .innerJoin(teams, eq(teams.id, rumorTeams.teamId))
     .where(eq(teams.slug, teamSlug));
-  return hydrate(await baseSelect(sql`${rumors.id} in ${ids}`).limit(limit));
+  return hydrate(await baseSelect(sql`${rumors.id} in ${ids}`, "chrono").limit(limit));
 }
 
 export async function rumorsForPlayer(playerSlug: string, limit = 30) {
@@ -542,7 +552,7 @@ export async function rumorsForPlayer(playerSlug: string, limit = 30) {
     .from(rumorPlayers)
     .innerJoin(players, eq(players.id, rumorPlayers.playerId))
     .where(eq(players.slug, playerSlug));
-  return hydrate(await baseSelect(sql`${rumors.id} in ${ids}`).limit(limit));
+  return hydrate(await baseSelect(sql`${rumors.id} in ${ids}`, "chrono").limit(limit));
 }
 
 /**
