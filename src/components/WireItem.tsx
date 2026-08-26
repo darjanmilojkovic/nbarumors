@@ -115,18 +115,16 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
       : null;
 
   /*
-   * The ceiling tier, not a score threshold.
+   * The star tier — 37 players, from Jokic and Giannis down to Wembanyama,
+   * Zion, Brunson, Sengun and Butler.
    *
-   * Prominence deliberately saturates: to a reader Jokic and Curry are both
-   * simply "superstar", so every established star lands at 100 and the top of
-   * the scale is flat. That makes a fixed cut-off useless — the old >=88 rule
-   * would now fire on a quarter of the site, and a badge that common stops
-   * being a signal, which is how the source-strength meter died.
-   *
-   * Keyed to the ceiling instead, it marks the eleven players at the top of
-   * the league and lands on 6.7% of posts — about where it was before.
+   * Pinned to the ceiling at first, which was too strict: it marked only the
+   * sixteen players saturating the scale, so Ja Morant and Karl-Anthony Towns
+   * missed by a point. 90 is where the list stops reading as "stars" and the
+   * cost is small — 11.3% of posts against 8.6%, still selective enough that
+   * the badge means something when it appears.
    */
-  const isMarquee = rumor.maxProminence >= 100;
+  const isMarquee = rumor.maxProminence >= 90;
 
   /*
    * Momentum around the player, not this report — how many posts in the last
