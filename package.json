@@ -30,7 +30,8 @@
     "fix:status": "tsx src/scripts/reclassify-status.ts",
     "sync:ids": "tsx src/scripts/sync-ids-wikidata.ts",
     "fix:bodies": "tsx src/scripts/rewrite-bodies.ts",
-    "fix:openings": "tsx src/scripts/fix-outlet-openings.ts"
+    "fix:openings": "tsx src/scripts/fix-outlet-openings.ts",
+    "fix:transactions": "tsx src/scripts/shorten-transaction-bodies.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
