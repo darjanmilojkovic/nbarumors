@@ -100,7 +100,7 @@ const SCHEMA = {
     body: {
       type: "string",
       description:
-        "2-4 original sentences summarizing the reported facts, in your own words. Never copy phrasing from the source. Attribute claims, e.g. 'according to ESPN'. State plainly if it is speculation.",
+        "2-4 original sentences summarizing the reported facts, in your own words. Never copy phrasing from the source. State plainly if it is speculation. ATTRIBUTION: name whoever actually did the reporting — 'per ESPN', 'Shams Charania reports', 'according to The Athletic' — because a named outlet is stronger than a vague one. Vary the wording; do not open every item the same way, and do not repeat the same attribution twice in one item. When the item is an official league transaction record rather than a news report, say so in plain language and vary that too: 'the move is now official', 'it is on the league transaction log', 'officially logged, no terms disclosed'. Never write 'according to sources' or 'sources say' unless the source item itself credits sources — we aggregate public reporting and have no sources of our own.",
     },
     reportedBy: {
       type: ["string", "null"],
