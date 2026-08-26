@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { feedItems, sources } from "@/db/schema";
+import { FETCH_ARTICLE_SOURCES, bestText } from "@/lib/article";
 import { extractRumor, extractionModel } from "@/lib/extract";
 import { pendingItems, publishExtraction } from "@/lib/publish";
 
@@ -12,6 +13,9 @@ export type ProcessResult = {
   held: number;
   rejected: number;
   errors: number;
+  /** Items whose article was fetched because the feed only gave a teaser. */
+  fetched: number;
+  fetchFailures: string[];
   durationMs: number;
 };
 
@@ -48,12 +52,29 @@ export async function runExtraction(limit = 50): Promise<ProcessResult> {
   let held = 0;
   let rejected = 0;
   let errors = 0;
+  let fetched = 0;
+  const fetchFailures: string[] = [];
 
   await pool(items, 4, async (item) => {
     try {
+      /*
+       * Read the article rather than the teaser, where the outlet's feed only
+       * carries one. Never fatal: a fetch that fails returns the teaser, so a
+       * paywall or a timeout costs detail, not the item.
+       */
+      const source = await bestText({
+        url: item.url,
+        rawSummary: item.rawSummary,
+        sourceSlug: sourceSlug.get(item.sourceId) ?? "",
+      });
+      if (source.fetched) fetched++;
+      else if (FETCH_ARTICLE_SOURCES.has(sourceSlug.get(item.sourceId) ?? "")) {
+        fetchFailures.push(`${item.url.slice(0, 60)}: ${source.reason}`);
+      }
+
       const extraction = await extractRumor({
         title: item.title,
-        rawSummary: item.rawSummary,
+        rawSummary: source.text,
         publisher: item.publisher,
         sourceName: sourceName.get(item.sourceId) ?? "unknown",
       });
@@ -87,6 +108,8 @@ export async function runExtraction(limit = 50): Promise<ProcessResult> {
     held,
     rejected,
     errors,
+    fetched,
+    fetchFailures,
     durationMs: Date.now() - started,
   };
 }

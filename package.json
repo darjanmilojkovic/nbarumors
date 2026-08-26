@@ -35,7 +35,9 @@
     "try:extract": "tsx src/scripts/try-extract.ts",
     "probe:feeds": "tsx src/scripts/probe-feeds.ts",
     "merge:pair": "tsx src/scripts/merge-pair.ts",
-    "fix:commentary": "tsx src/scripts/rewrite-commentary.ts"
+    "fix:commentary": "tsx src/scripts/rewrite-commentary.ts",
+    "try:article": "tsx src/scripts/try-article.ts",
+    "test:fetch": "tsx src/scripts/test-article-fetch.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
