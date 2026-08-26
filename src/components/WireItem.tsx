@@ -106,8 +106,14 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
     (p) => p.isPrimary || (p.fromAbbrev && p.toAbbrev),
   );
   const cast = inTheStory.length > 0 ? inTheStory : ordered;
-  const faces = cast.slice(0, MAX_FACES);
-  const extraFaces = Math.max(0, cast.length - MAX_FACES);
+  /*
+   * A "+1" tile occupies exactly the room of the face it is hiding, so at four
+   * players it trades a portrait for a count and tells the reader nothing. The
+   * overflow tile only earns its place when it stands for two or more.
+   */
+  const shown = cast.length === MAX_FACES + 1 ? MAX_FACES + 1 : MAX_FACES;
+  const faces = cast.slice(0, shown);
+  const extraFaces = Math.max(0, cast.length - shown);
 
   /*
    * Some rumors name no player at all — "Kings and Raptors talks collapsed" —
