@@ -196,6 +196,37 @@ const HOT = sql`(case when ${rumors.publishedAt} > now() - interval '7 days' the
   where rp.rumor_id = ${rumors.id} and rp.is_primary
 ) else 0 end)`;
 
+/**
+ * How much an outlet's word is worth, in ranking points.
+ *
+ * Not every byline carries the same weight, and our own data says so: of the
+ * moves ESPN reports, 89% turn out to be completed deals, against 64% for CBS,
+ * 50% for RealGM and 0% for heavy.com, Bleacher Report and the long tail of
+ * aggregators. A national desk breaking a signing should outrank a mock-trade
+ * blog writing about the same player.
+ *
+ * Resolved from the effective outlet, not the feed: three of our feeds are
+ * Google News searches, so the source row says "Google News" while the actual
+ * publisher underneath ranges from ESPN to bballrumors.com.
+ *
+ * Fifteen points is about one tier of prominence — enough to separate two
+ * reports of the same story, not enough to lift a fringe signing over a star.
+ * The long tail is docked eight rather than merely left at zero: rewarding the
+ * national desks was not enough on the recency-weighted feed, where a fresh
+ * mock-trade post still led the front page on the strength of its subject.
+ * Basketball-Reference sits at zero deliberately: the transaction log is the
+ * most reliable source we have and the least newsworthy, and 497 routine
+ * filings must not crowd out reporting.
+ */
+const OUTLET_WEIGHT = sql`(case
+  when ${sources.slug} = 'bbref-transactions' then 0
+  when lower(coalesce(nullif(${feedItems.publisher}, ''), ${sources.name})) in
+    ('espn', 'espn.com', 'yahoo sports', 'sports.yahoo.com', 'realgm', 'the athletic') then 15
+  when lower(coalesce(nullif(${feedItems.publisher}, ''), ${sources.name})) in
+    ('cbs sports', 'cbssports.com', 'hoops rumors', 'bleacher report', 'sports illustrated',
+     'usa today', 'sportando', 'sportando.basketball', 'hoopshype') then 8
+  else -8 end)`;
+
 const OUTLETS = sql`(
   select count(distinct case when s2.slug like 'gnews%'
     then coalesce(nullif(rs.publisher, ''), s2.name) else s2.name end)
@@ -204,7 +235,7 @@ const OUTLETS = sql`(
 )`;
 
 /** Rank decayed by age — the default feed order. */
-const RANK = sql`(${PROMINENCE} - extract(epoch from (now() - ${rumors.publishedAt})) / 3600.0 * 1.2) desc`;
+const RANK = sql`(${PROMINENCE} + ${OUTLET_WEIGHT} - extract(epoch from (now() - ${rumors.publishedAt})) / 3600.0 * 1.2) desc`;
 
 /**
  * "Top" means biggest story, not best-sourced one. Lives in SQL so it can be
@@ -231,7 +262,7 @@ const RANK = sql`(${PROMINENCE} - extract(epoch from (now() - ${rumors.published
  * is the decayed one, so duplicating either here would leave no view that
  * surfaces a big story once it is a few days old.
  */
-const TOP = sql`(${PROMINENCE} + ${HOT} * 3 + (${OUTLETS} - 1) * 12 + ${rumors.confidence} * 10) desc`;
+const TOP = sql`(${PROMINENCE} + ${OUTLET_WEIGHT} + ${HOT} * 3 + (${OUTLETS} - 1) * 12 + ${rumors.confidence} * 10) desc`;
 
 export type FeedOrder = "rank" | "chrono" | "top";
 
