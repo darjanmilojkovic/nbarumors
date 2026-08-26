@@ -11,20 +11,18 @@ import { writeFileSync } from "node:fs";
  * or a rumor; "framework" is what executives call it, and on a wire it reads
  * as borrowed vocabulary.
  *
- * The word list is the point — this exists to be re-run with a new entry when
- * another one turns up, rather than rewritten each time.
+ * The word list lives in lib/enrich beside the guard that enforces it, so a
+ * new entry both blocks future posts and sweeps the archive for old ones.
  *
  *   npm run fix:jargon -- --dry
  *   npm run fix:jargon
  */
-const JARGON = ["framework"];
-
 async function main() {
   const dryRun = process.argv.includes("--dry");
   const { db } = await import("@/db");
   const { rumors } = await import("@/db/schema");
   const { SCHEMA } = await import("@/lib/extract");
-  const { rejectBody } = await import("@/lib/enrich");
+  const { rejectBody, JARGON } = await import("@/lib/enrich");
   const Anthropic = (await import("@anthropic-ai/sdk")).default;
   const client = new Anthropic();
   const MODEL = process.env.EXTRACTION_MODEL ?? "claude-opus-5";

@@ -33,6 +33,21 @@ const anthropic = () => (client ??= new Anthropic());
 const MAX_BODY_CHARS = 900;
 
 /**
+ * Borrowed vocabulary we have decided against, checked rather than asked for.
+ *
+ * The prompt tells every extraction to use the word a reader would use, and
+ * mostly it does. This is the half that does not depend on that holding: a
+ * rewrite carrying one of these is refused and the post keeps the summary it
+ * already had, which is the safe direction to fail in.
+ *
+ * fix:jargon reads the same list, so adding a word here also sweeps the
+ * archive for it.
+ */
+export const JARGON = ["framework"];
+
+const JARGON_RE = new RegExp(JARGON.join("|"), "i");
+
+/**
  * Everything we have been told twice not to publish, in one place.
  *
  * The rewrite scripts each grew their own copy of this and they have already
@@ -45,6 +60,7 @@ export function rejectBody(next: string, current: string): string | null {
   if (next.length < current.length * 0.8) return "shorter than what it replaces";
   if (/—/.test(next)) return "em dash";
   if (/\brelay(s|ed)?\b/i.test(next)) return "uses relay";
+  if (JARGON_RE.test(next)) return "uses jargon we have decided against";
   if (/[\u0000-\u0008\u000B-\u001F]/.test(next)) return "control characters";
   if (/","\w+":|":\s*(null|")|\\u[0-9a-f]{4}|[{}]/i.test(next)) return "raw JSON in the text";
   if (
