@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { WireShell } from "@/components/WireShell";
 import { WireItem } from "@/components/WireItem";
-import { latestRumors, type FeedRumor } from "@/lib/queries";
+import { feedPage } from "@/lib/queries";
 
 export const revalidate = 300;
 
@@ -22,60 +22,37 @@ const CHIPS = [
   { key: "draft", label: "Draft" },
 ] as const;
 
-/**
- * "Top" means biggest story, not best-sourced one.
- *
- * It used to sort on sourceCount then confidence, but 186 of 200 posts carry
- * exactly one outlet, so the tab was really "the 14 corroborated posts, then
- * everything else by a confidence score that clusters at 0.9-1.0". That put a
- * Dillon Brooks extension above LeBron-to-Philadelphia, and a Lonnie Walker
- * signing — prominence 0 — at number two.
- *
- * The weights, in order of how much work they do:
- * - prominence (0-100) is the base: who the story is about.
- * - hotMentions x3 is the strongest signal we have that something is THE
- *   story of the week. 13 separate posts about Klay Thompson in seven days
- *   is the site telling us where the attention is, and it was being ignored.
- * - corroboration is a bonus, not the sort key. One extra outlet is worth 12
- *   points, roughly a tier of prominence, so a well-sourced mid-tier story
- *   can still beat a thin star rumor without steamrolling the ranking.
- * - confidence breaks ties; its range is too narrow to do more.
- *
- * Recency is deliberately absent — the Live tab is the chronological view,
- * and duplicating it here would leave no tab that surfaces the big stories.
- */
-const topScore = (r: FeedRumor) =>
-  r.maxProminence +
-  r.hotMentions * 3 +
-  (r.sourceCount - 1) * 12 +
-  r.confidence * 10;
+const PER_PAGE = 40;
 
-const href = (tab: string, cat: string) => {
+/**
+ * Page is deliberately dropped when the tab or the category changes: landing
+ * on page 7 of a filter you just picked would be a dead end.
+ */
+const href = (tab: string, cat: string, page = 1) => {
   const p = new URLSearchParams();
   if (tab !== "live") p.set("tab", tab);
   if (cat) p.set("cat", cat);
+  if (page > 1) p.set("page", String(page));
   const q = p.toString();
   return q ? `/?${q}` : "/";
 };
 
 export default async function HomePage({ searchParams }: PageProps<"/">) {
-  const { tab: rawTab, cat: rawCat } = await searchParams;
+  const {
+    tab: rawTab,
+    cat: rawCat,
+    page: rawPage,
+  } = await searchParams;
   const tab = typeof rawTab === "string" ? rawTab : "live";
   const cat = typeof rawCat === "string" ? rawCat : "";
 
-  // Pull wide, then filter — the dataset is small enough that a second set of
-  // query paths would cost more in complexity than it saves in rows.
-  const all = await latestRumors(200, tab === "live");
-
-  let rumors = cat ? all.filter((r) => r.type === cat) : all;
-  if (tab === "confirmed") {
-    rumors = rumors.filter(
-      (r) => r.status === "confirmed" || r.status === "completed",
-    );
-  } else if (tab === "top") {
-    rumors = [...rumors].sort((a, b) => topScore(b) - topScore(a));
-  }
-  rumors = rumors.slice(0, 40);
+  const page = Math.max(1, Number(rawPage) || 1);
+  const { rumors, total, pageCount } = await feedPage({
+    tab,
+    cat,
+    page,
+    perPage: PER_PAGE,
+  });
 
   return (
     <WireShell>
@@ -131,9 +108,42 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
           rumors.map((r) => <WireItem key={r.id} rumor={r} />)
         )}
 
-        <p className="px-4 py-8 text-center font-mono text-[11px] tracking-widest text-muted uppercase">
-          — End of the feed —
-        </p>
+        {/*
+         * This used to read "End of the feed" under the first 40 posts while
+         * 582 others sat in the database with URLs nothing linked to. It now
+         * says where you are, and only claims the end when it is the end.
+         */}
+        <nav className="flex items-center justify-between gap-3 px-4 py-8 sm:px-5">
+          {page > 1 ? (
+            <Link
+              href={href(tab, cat, page - 1)}
+              rel="prev"
+              className="rounded-sm border border-rule px-3 py-2 font-mono text-[11px] tracking-widest text-body uppercase hover:border-link hover:text-link"
+            >
+              ← Newer
+            </Link>
+          ) : (
+            <span />
+          )}
+
+          <span className="font-mono text-[11px] tracking-widest text-muted uppercase">
+            {total === 0
+              ? "Nothing here"
+              : `Page ${page} of ${pageCount} · ${total} posts`}
+          </span>
+
+          {page < pageCount ? (
+            <Link
+              href={href(tab, cat, page + 1)}
+              rel="next"
+              className="rounded-sm border border-rule px-3 py-2 font-mono text-[11px] tracking-widest text-body uppercase hover:border-link hover:text-link"
+            >
+              Older →
+            </Link>
+          ) : (
+            <span />
+          )}
+        </nav>
       </div>
     </WireShell>
   );

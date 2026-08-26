@@ -97,8 +97,66 @@ async function hydrate(rows: Awaited<ReturnType<typeof baseSelect>>): Promise<Fe
   }));
 }
 
+/**
+ * The three scoring pieces, defined once because the ordering needs the same
+ * expressions the select does. Repeating them inline made the "top" ordering
+ * a wall of duplicated subqueries.
+ */
+const PROMINENCE = sql`coalesce((
+  select max(p.prominence) from rumor_players rp
+  join players p on p.id = rp.player_id
+  where rp.rumor_id = ${rumors.id}
+), 0)`;
+
+const HOT = sql`(case when ${rumors.publishedAt} > now() - interval '7 days' then (
+  select count(distinct r2.id)
+  from rumor_players rp
+  join rumor_players rp2 on rp2.player_id = rp.player_id
+  join rumors r2 on r2.id = rp2.rumor_id
+    and r2.is_published and r2.published_at > now() - interval '7 days'
+  where rp.rumor_id = ${rumors.id} and rp.is_primary
+) else 0 end)`;
+
+const OUTLETS = sql`(
+  select count(distinct case when s2.slug like 'gnews%'
+    then coalesce(nullif(rs.publisher, ''), s2.name) else s2.name end)
+  from rumor_sources rs join sources s2 on s2.id = rs.source_id
+  where rs.rumor_id = ${rumors.id}
+)`;
+
+/** Rank decayed by age — the default feed order. */
+const RANK = sql`(${PROMINENCE} - extract(epoch from (now() - ${rumors.publishedAt})) / 3600.0 * 1.2) desc`;
+
+/**
+ * "Top" means biggest story, not best-sourced one. Lives in SQL so it can be
+ * paged — sorted in memory, page two was only ever ordering whichever 200 rows
+ * the query happened to return.
+ *
+ * It used to sort on outlet count then confidence, but almost every post
+ * carries exactly one outlet, so the tab was really "the handful of
+ * corroborated posts, then everything else by a score that clusters at
+ * 0.9-1.0". That put a Dillon Brooks extension above LeBron-to-Philadelphia
+ * and a prominence-0 signing at number two.
+ *
+ * The weights, in order of how much work they do:
+ * - prominence (0-100) is the base: who the story is about.
+ * - hot mentions x3 is the strongest signal that something is THE story of the
+ *   week. Thirteen posts about one player in seven days is the site telling us
+ *   where the attention is, and it was being ignored entirely.
+ * - corroboration is a bonus, not the sort key. One extra outlet is worth 12
+ *   points, roughly a tier of prominence, so a well-sourced mid-tier story can
+ *   beat a thin star rumor without steamrolling the ranking.
+ * - confidence breaks ties; its range is too narrow to do more.
+ *
+ * Recency is deliberately absent — Live is the chronological view, and
+ * duplicating it here would leave no tab that surfaces the big stories.
+ */
+const TOP = sql`(${PROMINENCE} + ${HOT} * 3 + (${OUTLETS} - 1) * 12 + ${rumors.confidence} * 10) desc`;
+
+export type FeedOrder = "rank" | "chrono" | "top";
+
 /** Drizzle allows exactly one `.where()`, so extra filters are passed in. */
-const baseSelect = (extra?: SQL, chronological = false) =>
+const baseSelect = (extra?: SQL, order: FeedOrder = "rank") =>
   db
     .select({
       id: rumors.id,
@@ -198,19 +256,9 @@ const baseSelect = (extra?: SQL, chronological = false) =>
      * with nothing weighted or reordered.
      */
     .orderBy(
-      ...(chronological
+      ...(order === "chrono"
         ? [desc(rumors.publishedAt)]
-        : [
-            sql`(
-        coalesce((
-          select max(p.prominence) from rumor_players rp
-          join players p on p.id = rp.player_id
-          where rp.rumor_id = ${rumors.id}
-        ), 0)
-        - extract(epoch from (now() - ${rumors.publishedAt})) / 3600.0 * 1.2
-      ) desc`,
-            desc(rumors.publishedAt),
-          ]),
+        : [order === "top" ? TOP : RANK, desc(rumors.publishedAt)]),
     );
 
 /**
@@ -219,7 +267,53 @@ const baseSelect = (extra?: SQL, chronological = false) =>
  * date would still be showing the rank-selected rows.
  */
 export async function latestRumors(limit = 30, chronological = false) {
-  return hydrate(await baseSelect(undefined, chronological).limit(limit));
+  return hydrate(await baseSelect(undefined, chronological ? "chrono" : "rank").limit(limit));
+}
+
+/**
+ * One page of the main feed, filtered and ordered in the database.
+ *
+ * The page used to pull 200 rows and narrow them in memory, which capped the
+ * whole archive at whatever those 200 happened to be: 582 of 622 posts had
+ * URLs that nothing on the site linked to, under a line reading "End of the
+ * feed". Filtering and ordering in SQL is what makes an offset mean anything.
+ */
+export async function feedPage(opts: {
+  tab: string;
+  cat: string;
+  page: number;
+  perPage: number;
+}) {
+  const { tab, cat, page, perPage } = opts;
+
+  const filters: SQL[] = [];
+  if (cat) filters.push(sql`${rumors.type} = ${cat}`);
+  if (tab === "confirmed") {
+    filters.push(sql`${rumors.status} in ('confirmed','completed')`);
+  }
+  const extra = filters.length ? and(...filters) : undefined;
+
+  const order: FeedOrder =
+    tab === "live" ? "chrono" : tab === "top" ? "top" : "rank";
+
+  const [rows, [counted]] = await Promise.all([
+    baseSelect(extra, order)
+      .limit(perPage)
+      .offset((page - 1) * perPage),
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(rumors)
+      .where(
+        extra ? and(eq(rumors.isPublished, true), extra) : eq(rumors.isPublished, true),
+      ),
+  ]);
+
+  const total = counted?.n ?? 0;
+  return {
+    rumors: await hydrate(rows),
+    total,
+    pageCount: Math.max(1, Math.ceil(total / perPage)),
+  };
 }
 
 export async function rumorsForTeam(teamSlug: string, limit = 30) {
