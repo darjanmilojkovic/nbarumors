@@ -29,6 +29,61 @@ export type SeasonStat = {
 };
 
 /**
+ * Per-game stats for everyone who appeared, from Basketball-Reference.
+ *
+ * The NBA's own leaderboard lists only players who met a games/minutes
+ * threshold, which quietly erased anyone who missed a stretch of the season.
+ * Joel Embiid — a former MVP averaging 26.9 points — scored 0 prominence and
+ * ranked below two-way signings, because as far as our data was concerned he
+ * had not played. This page carries all 963 players instead of ~230.
+ *
+ * No NBA player id here, so this fills stats only; ids come from the league
+ * leaders and, failing that, from Wikidata.
+ */
+export async function fetchBrefSeason(season: string): Promise<SeasonStat[]> {
+  // "2025-26" is the 2026 season file.
+  const endYear = Number(season.slice(0, 4)) + 1;
+  const res = await fetch(
+    `https://www.basketball-reference.com/leagues/NBA_${endYear}_per_game.html`,
+    { headers: { "User-Agent": NBA_HEADERS["User-Agent"] } },
+  );
+  if (!res.ok) throw new Error(`bref ${season}: HTTP ${res.status}`);
+  const html = await res.text();
+
+  const stat = (row: string, name: string) => {
+    const m = row.match(new RegExp(`data-stat="${name}"[^>]*>([^<]*)<`));
+    return m ? Number(m[1]) : NaN;
+  };
+
+  const best = new Map<string, SeasonStat>();
+  for (const row of html.split('data-append-csv="').slice(1)) {
+    const name = row.match(/">([^<]+)<\/a><\/td>/)?.[1];
+    if (!name) continue;
+    const points = stat(row, "pts_per_g");
+    const games = stat(row, "games");
+    if (!Number.isFinite(points) || !Number.isFinite(games)) continue;
+
+    /*
+     * A player traded mid-season gets one row per club plus a combined row.
+     * Keeping the row with the most games takes the combined one, which is the
+     * season we actually want to score.
+     */
+    const key = nameKey(name);
+    const prev = best.get(key);
+    if (!prev || games > prev.gamesPlayed) {
+      best.set(key, {
+        nbaPlayerId: "",
+        name,
+        gamesPlayed: games,
+        minutes: stat(row, "mp_per_g") || 0,
+        points,
+      });
+    }
+  }
+  return [...best.values()];
+}
+
+/**
  * Season scoring leaders. Returns qualified players only (~230), which is the
  * right shape for prominence: a player who never qualified is, by definition,
  * not prominent this season.

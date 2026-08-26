@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { db } from "@/db";
 import { players } from "@/db/schema";
 import {
+  fetchBrefSeason,
   fetchSeasonLeaders,
   fetchCareerScoringRanks,
   prominenceScore,
@@ -94,6 +95,37 @@ export async function runStatsSync(): Promise<StatsSyncResult> {
   }
 
   /*
+   * Then everyone the league's own leaderboard leaves out. It lists only
+   * players who met a games threshold, so a former MVP who missed half a
+   * season scored 0 and ranked below two-way signings. Basketball-Reference
+   * publishes all 963 players who appeared, which is the population we
+   * actually want to rate.
+   *
+   * NBA rows win where both exist — they carry the player id — so this only
+   * ever fills gaps.
+   */
+  for (const season of recentSeasons()) {
+    try {
+      const rows = await fetchBrefSeason(season);
+      let added = 0;
+      for (const r of rows) {
+        const k = nameKey(r.name);
+        const prev = best.get(k);
+        if (!prev) {
+          best.set(k, r);
+          added++;
+        } else if (!prev.nbaPlayerId && r.points > prev.points) {
+          best.set(k, r);
+        }
+      }
+      result.seasons[`${season} (bref)`] = added;
+    } catch (err) {
+      result.seasons[`${season} (bref)`] =
+        `failed: ${err instanceof Error ? err.message : err}`;
+    }
+  }
+
+  /*
    * If every upstream fetch failed there is nothing to apply, and running the
    * update anyway would zero the prominence of the entire league.
    */
@@ -113,8 +145,14 @@ export async function runStatsSync(): Promise<StatsSyncResult> {
       id: p.id,
       score,
       ppg: season?.points ?? null,
-      nbaPlayerId: season?.nbaPlayerId ?? null,
-      headshot: season ? headshotUrl(season.nbaPlayerId) : null,
+      /*
+       * Empty, not null, when the line came from Basketball-Reference — it
+       * carries no player id. Coalescing an empty id into a headshot URL would
+       * write ".../.png" over a photo we already had, so both fall back to null
+       * and the coalesce in SQL keeps the existing value.
+       */
+      nbaPlayerId: season?.nbaPlayerId || null,
+      headshot: season?.nbaPlayerId ? headshotUrl(season.nbaPlayerId) : null,
     };
   });
   result.scored = updates.filter((u) => u.score > 0).length;
@@ -156,8 +194,8 @@ export async function runStatsSync(): Promise<StatsSyncResult> {
       slug: slugify(s.name),
       fullName: s.name,
       aliases: [k],
-      nbaPlayerId: s.nbaPlayerId,
-      headshotUrl: headshotUrl(s.nbaPlayerId),
+      nbaPlayerId: s.nbaPlayerId || null,
+      headshotUrl: s.nbaPlayerId ? headshotUrl(s.nbaPlayerId) : null,
       prominence: prominenceScore(s, careerByKey.get(k)),
       pointsPerGame: s.points,
       statsSyncedAt: new Date(),
