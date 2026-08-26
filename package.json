@@ -45,7 +45,8 @@
     "fix:terms": "tsx src/scripts/fix-missing-terms.ts",
     "try:enrich": "tsx src/scripts/try-enrich.ts",
     "fix:tags": "tsx src/scripts/prune-tags.ts",
-    "fix:hypotheticals": "tsx src/scripts/fix-hypothetical-openers.ts"
+    "fix:hypotheticals": "tsx src/scripts/fix-hypothetical-openers.ts",
+    "fix:shorthand": "tsx src/scripts/fix-shorthand-case.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
