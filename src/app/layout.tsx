@@ -23,6 +23,13 @@ const serif = Noto_Serif({
 const sans = Noto_Sans({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
+  /*
+   * Italic is loaded rather than synthesised. Body copy is sans, and quoted
+   * speech is set in italic to mark it as someone speaking — a browser-faked
+   * oblique is a slanted regular, which at this size reads as a rendering
+   * fault rather than a change of voice.
+   */
+  style: ["normal", "italic"],
   variable: "--font-sans-loaded",
   display: "swap",
 });

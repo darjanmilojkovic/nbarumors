@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Quoted } from "@/components/Quoted";
 import { toParagraphs } from "@/lib/paragraphs";
 import type { FeedRumor } from "@/lib/queries";
 
@@ -449,7 +450,9 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
            */}
           <div className="max-w-[62ch] space-y-3 text-[15.5px] leading-7 text-body">
             {toParagraphs(rumor.body).map((para, i) => (
-              <p key={i}>{para}</p>
+              <p key={i}>
+                <Quoted text={para} />
+              </p>
             ))}
           </div>
 
