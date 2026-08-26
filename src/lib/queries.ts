@@ -50,6 +50,9 @@ export type FeedRumor = {
     isPrimary: boolean;
     headshotUrl: string | null;
     prominence: number;
+    /** Where this player goes, on a post that moves more than one. */
+    fromAbbrev: string | null;
+    toAbbrev: string | null;
   }[];
 };
 
@@ -93,6 +96,8 @@ async function hydrate(rows: Awaited<ReturnType<typeof baseSelect>>): Promise<Fe
       rumorId: rumorPlayers.rumorId,
       playerId: rumorPlayers.playerId,
       isPrimary: rumorPlayers.isPrimary,
+      fromTeamId: rumorPlayers.fromTeamId,
+      toTeamId: rumorPlayers.toTeamId,
       slug: players.slug,
       fullName: players.fullName,
       headshotUrl: players.headshotUrl,
@@ -101,6 +106,15 @@ async function hydrate(rows: Awaited<ReturnType<typeof baseSelect>>): Promise<Fe
     .from(rumorPlayers)
     .innerJoin(players, eq(players.id, rumorPlayers.playerId))
     .where(sql`${rumorPlayers.rumorId} in ${ids}`);
+
+  /*
+   * All 30 rows, once. A player's from/to team is usually tagged on the post
+   * as well, but not always — a player can be described as leaving a team the
+   * item never names as involved — so resolving against the post's own tags
+   * would drop those arrows.
+   */
+  const allTeams = await db.select({ id: teams.id, abbreviation: teams.abbreviation }).from(teams);
+  const abbrevById = new Map(allTeams.map((t) => [t.id, t.abbreviation]));
 
   const stories = await storiesPerPlayer();
 
@@ -120,7 +134,11 @@ async function hydrate(rows: Awaited<ReturnType<typeof baseSelect>>): Promise<Fe
       teams: teamRows
         .filter((t) => t.rumorId === r.id)
         .sort((a, b) => TEAM_ROLE_ORDER[a.role] - TEAM_ROLE_ORDER[b.role]),
-      players: mine,
+      players: mine.map((p) => ({
+        ...p,
+        fromAbbrev: p.fromTeamId ? (abbrevById.get(p.fromTeamId) ?? null) : null,
+        toAbbrev: p.toTeamId ? (abbrevById.get(p.toTeamId) ?? null) : null,
+      })),
     };
   });
 }

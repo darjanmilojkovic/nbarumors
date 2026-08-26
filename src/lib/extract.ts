@@ -28,7 +28,12 @@ export type Extraction = {
   headline: string;
   body: string;
   reportedBy: string | null;
-  players: { name: string; isPrimary: boolean }[];
+  players: {
+    name: string;
+    isPrimary: boolean;
+    fromTeam: string | null;
+    toTeam: string | null;
+  }[];
   teams: { abbreviation: string; role: "to" | "from" | "mentioned" }[];
 };
 
@@ -122,8 +127,18 @@ export const SCHEMA = {
             type: "boolean",
             description: "True for the player the move is actually about.",
           },
+          fromTeam: {
+            type: ["string", "null"],
+            description:
+              "The team abbreviation THIS player is leaving, or null if the item does not say. Fill it in whenever the item moves more than one player, so each player's direction is recorded separately: in a three-team proposal sending Jimmy Butler from Golden State to Atlanta and Jonathan Kuminga from Golden State to Milwaukee, both players get fromTeam GSW while their toTeam differs. Null for a player who is only mentioned and is not moving.",
+          },
+          toTeam: {
+            type: ["string", "null"],
+            description:
+              "The team abbreviation THIS player is joining, or null if the item does not say. See fromTeam.",
+          },
         },
-        required: ["name", "isPrimary"],
+        required: ["name", "isPrimary", "fromTeam", "toTeam"],
         additionalProperties: false,
       },
     },

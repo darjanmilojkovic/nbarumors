@@ -29,6 +29,7 @@ export const FETCH_ARTICLE_SOURCES = new Set([
   "yahoo-nba", // 4/4 of the thin ones, averaging 2,885 chars
   "sportando", // 6/6, averaging 1,893
   "hoops-rumors", // 5/5, averaging 3,053 — its feed truncates mid-story
+  "gnews-woj-shams", // headline-only by design; the link resolves to the publisher
 ]);
 
 /*
@@ -91,6 +92,81 @@ export function articleText(html: string): string {
   return paragraphs.join("\n\n").slice(0, MAX_ARTICLE_CHARS);
 }
 
+/**
+ * Turn a news.google.com link into the publisher's own URL.
+ *
+ * Google News stores an opaque id, not the article address: the base64 payload
+ * carries no URL, and the interstitial resolves itself in JavaScript, so
+ * fetching it server-side returns Google's shell.
+ *
+ * The page's own resolver can be called directly, but only with a signature
+ * and timestamp minted for that article — they sit on the c-wiz element as
+ * data-n-a-sg and data-n-a-ts. Sending placeholders, which is what the widely
+ * posted version of this does, returns an empty result.
+ *
+ * This is an internal endpoint with no stability promise. Everything here
+ * fails to null rather than throwing, and the caller falls back to the feed
+ * text, so the day Google changes the shape we lose detail and nothing else.
+ */
+export async function resolveGoogleNewsUrl(url: string): Promise<string | null> {
+  const id = url.split("/articles/")[1]?.split("?")[0];
+  if (!id) return null;
+
+  try {
+    const page = await fetch(url, {
+      headers: { "user-agent": UA },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+    if (!page.ok) return null;
+    const html = await page.text();
+    const ts = html.match(/data-n-a-ts="(\d+)"/)?.[1];
+    const sig = html.match(/data-n-a-sg="([^"]+)"/)?.[1];
+    if (!ts || !sig) return null;
+
+    const payload = JSON.stringify([
+      "garturlreq",
+      [
+        ["X", "X", ["X", "X"], null, null, 1, 1, "US:en", null, 1, null, null, null, null, null, 0, 1],
+        "X",
+        "X",
+        1,
+        [1, 1, 1],
+        1,
+        1,
+        null,
+        0,
+        0,
+        null,
+        0,
+      ],
+      id,
+      Number(ts),
+      sig,
+    ]);
+
+    const res = await fetch(
+      "https://news.google.com/_/DotsSplashUi/data/batchexecute?rpcids=Fbv4je",
+      {
+        method: "POST",
+        headers: {
+          "user-agent": UA,
+          "content-type": "application/x-www-form-urlencoded;charset=UTF-8",
+        },
+        body: new URLSearchParams({
+          "f.req": JSON.stringify([[["Fbv4je", payload, null, "generic"]]]),
+        }),
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      },
+    );
+    if (!res.ok) return null;
+
+    const hit = (await res.text()).match(/https?:\\?\/\\?\/(?!news\.google)[^"\\]+/);
+    return hit ? hit[0].replace(/\\\//g, "/") : null;
+  } catch {
+    return null;
+  }
+}
+
 export type ArticleFetch =
   | { ok: true; text: string }
   | { ok: false; reason: string };
@@ -102,12 +178,13 @@ export type ArticleFetch =
  */
 export async function fetchArticle(url: string): Promise<ArticleFetch> {
   /*
-   * Google News stores an interstitial, not the publisher's URL, and it does
-   * not resolve server-side — the redirect happens in JavaScript. Fetching it
-   * returns Google's shell page, so there is nothing to gain by trying.
+   * A Google News link points at an interstitial. Trade it for the
+   * publisher's own URL first; without that there is nothing to read.
    */
   if (/(^|\.)news\.google\.com/i.test(new URL(url).hostname)) {
-    return { ok: false, reason: "google news interstitial" };
+    const real = await resolveGoogleNewsUrl(url);
+    if (!real) return { ok: false, reason: "could not resolve google news link" };
+    url = real;
   }
 
   try {

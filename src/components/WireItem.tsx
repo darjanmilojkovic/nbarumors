@@ -132,10 +132,30 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
    */
   const movedFrom = rumor.teams.find((t) => t.role === "from");
   const movedTo = rumor.teams.find((t) => t.role === "to");
+
+  /*
+   * One arrow per player, when the post moves more than one.
+   *
+   * A three-team proposal sending Jimmy Butler to Atlanta and Jonathan Kuminga
+   * to Milwaukee has one "from" and two "to" rows against the post, so a
+   * single arrow could only ever name one destination, and which one came down
+   * to the order Postgres returned. Each player now carries their own
+   * direction.
+   *
+   * Ordered by prominence, so the arrow a reader looks for first is the one
+   * for the biggest name in the deal: Butler at 90 leads Kuminga at 58.
+   */
+  const moves = rumor.players
+    .filter((p) => p.fromAbbrev && p.toAbbrev)
+    .sort((a, b) => b.prominence - a.prominence)
+    .slice(0, 3);
+
   const primaryContext =
-    movedFrom && movedTo
-      ? `${movedFrom.abbreviation} → ${movedTo.abbreviation}`
-      : null;
+    moves.length > 1
+      ? null
+      : movedFrom && movedTo
+        ? `${movedFrom.abbreviation} → ${movedTo.abbreviation}`
+        : null;
 
   /*
    * The kicker names the teams in the move, not every team the report happens
@@ -183,7 +203,8 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
     rumor.outcome === "confirmed" ||
     rumor.outcome === "unrecorded" ||
     isHot ||
-    Boolean(primaryContext);
+    Boolean(primaryContext) ||
+    moves.length > 1;
 
   /*
    * py-7 (28px) rather than 20px: body copy sets ~22px between lines, so
@@ -432,6 +453,19 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
                   {primaryContext}
                 </span>
               )}
+
+              {moves.length > 1 &&
+                moves.map((p) => (
+                  <span
+                    key={p.slug}
+                    className="font-mono text-[10px] tracking-widest text-muted uppercase"
+                  >
+                    {/* Surname alone: the arrow is the point, and full names
+                        turn a two-player deal into two lines of chrome. */}
+                    {p.fullName.split(" ").slice(-1)[0]} {p.fromAbbrev} →{" "}
+                    {p.toAbbrev}
+                  </span>
+                ))}
             </div>
           )}
 

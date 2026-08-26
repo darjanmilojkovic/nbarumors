@@ -49,3 +49,4 @@ dash-relay-*.json
 transaction-bodies-*.json
 commentary-bodies-*.json
 article-backfill-*.json
+gnews-backfill-*.json

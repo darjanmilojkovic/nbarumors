@@ -367,14 +367,18 @@ export async function publishExtraction(
     })
     .onConflictDoNothing({ target: rumorSources.feedItemId });
 
+  /*
+   * Needed for both the team tags and each player's own direction, so it is
+   * loaded once rather than per link.
+   */
+  const teamRows = await db
+    .select({ id: teams.id, abbreviation: teams.abbreviation })
+    .from(teams);
+  const byAbbrev = new Map(teamRows.map((r) => [r.abbreviation, r.id]));
+
   // Team tags — ignore abbreviations the model invented.
   const abbrevs = [...new Set(extraction.teams.map((t) => t.abbreviation))];
   if (abbrevs.length > 0) {
-    const rows = await db
-      .select({ id: teams.id, abbreviation: teams.abbreviation })
-      .from(teams);
-    const byAbbrev = new Map(rows.map((r) => [r.abbreviation, r.id]));
-
     const links: { rumorId: number; teamId: number; role: string }[] = [];
     const seen = new Set<number>();
     for (const t of extraction.teams) {
@@ -396,7 +400,15 @@ export async function publishExtraction(
 
     await db
       .insert(rumorPlayers)
-      .values({ rumorId: rumor.id, playerId, isPrimary: p.isPrimary })
+      .values({
+        rumorId: rumor.id,
+        playerId,
+        isPrimary: p.isPrimary,
+        // Each player's own direction, so a multi-player deal can show who
+        // goes where rather than one arrow for the whole post.
+        fromTeamId: p.fromTeam ? (byAbbrev.get(p.fromTeam) ?? null) : null,
+        toTeamId: p.toTeam ? (byAbbrev.get(p.toTeam) ?? null) : null,
+      })
       .onConflictDoNothing();
 
     if (p.isPrimary && imageId == null) {

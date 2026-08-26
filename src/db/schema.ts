@@ -347,6 +347,18 @@ export const rumorPlayers = pgTable(
       .references(() => players.id),
     /** The player the rumor is actually about, vs. a name merely mentioned. */
     isPrimary: boolean("is_primary").notNull().default(false),
+    /*
+     * Where THIS player is going, when the post moves more than one.
+     *
+     * rumor_teams records that a post involves GSW, ATL and MIL, but not who
+     * goes where — so a three-team proposal sending Butler to Atlanta and
+     * Kuminga to Milwaukee could only ever render one arrow, pointing at
+     * whichever destination the rows happened to come back in. Null on the
+     * ordinary single-player post, where the post's own from/to already says
+     * it.
+     */
+    fromTeamId: integer("from_team_id").references(() => teams.id),
+    toTeamId: integer("to_team_id").references(() => teams.id),
   },
   (t) => [
     primaryKey({ columns: [t.rumorId, t.playerId] }),
