@@ -259,8 +259,10 @@ async function main() {
       continue;
     }
 
-    const num = (r.contract_value.match(/[\d.]+/) ?? [])[0];
-    const bad = reject(parsed.body, r.body) ?? (parsed.body.includes(num) ? null : "does not state the corrected figure");
+    const num = r.contract_value.match(/[\d.]+/)?.[0] ?? "";
+    const bad =
+      reject(parsed.body, r.body) ??
+      (num && parsed.body.includes(num) ? null : "does not state the corrected figure");
     if (bad) {
       console.log(`  ${r.slug}: ${bad}`);
       continue;
