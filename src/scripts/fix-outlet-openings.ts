@@ -101,6 +101,17 @@ async function main() {
    * at all." Prose has no undo once written, so every result is checked before
    * it is allowed near the database.
    */
+  /*
+   * The model sometimes double-escapes a character inside the JSON string, so
+   * parsing yields the six literal characters of "—" instead of an em
+   * dash. Decoding is safe and lossless; rejecting the whole rewrite over one
+   * punctuation mark would not be.
+   */
+  const decodeEscapes = (s: string) =>
+    s.replace(/\\u([0-9a-fA-F]{4})/g, (_m, hex) =>
+      String.fromCharCode(parseInt(hex, 16)),
+    );
+
   const reject = (text: string, original: string, names: string[]) => {
     const t = text.trim();
     if (/[\t\r\v\f]/.test(t)) return "control characters";
@@ -135,6 +146,8 @@ async function main() {
     let out: { headline: string; body: string };
     try { out = JSON.parse(t.text); } catch { console.log(`  ! unparseable: ${r.slug}`); continue; }
     if (!out.body) continue;
+    out.body = decodeEscapes(out.body);
+    out.headline = decodeEscapes(out.headline ?? "");
 
     const names = [r.publisher, r.outlet].filter(Boolean) as string[];
     const problem = reject(out.body, r.body, names);
