@@ -47,21 +47,21 @@ const STATE: Record<string, { label: string; cls: string }> = {
  * likely to be wrong, so the long tail switches to something that cannot go
  * stale at all.
  *
- * The date carries no time and no year for the current year — the exact minute
- * is not information a reader of a week-old rumour needs.
+ * The date carries no time of day: the exact minute is not something a reader
+ * of a week-old rumour needs, and omitting it avoids picking a timezone that
+ * is right for neither the league nor the reader.
  */
 function ago(d: Date, now = new Date()) {
   const mins = Math.max(0, Math.round((now.getTime() - d.getTime()) / 60000));
   if (mins < 60) return `${mins}m`;
   if (mins < 1440) return `${Math.round(mins / 60)}h`;
 
-  return d.toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    // Only worth showing once a post is from a different year to today's.
-    ...(d.getUTCFullYear() === now.getUTCFullYear() ? {} : { year: "numeric" }),
-    timeZone: "UTC",
-  });
+  /*
+   * Assembled rather than formatted whole: no locale produces "25 Aug, 2026" —
+   * en-GB drops the comma and en-US leads with the month.
+   */
+  const month = d.toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" });
+  return `${d.getUTCDate()} ${month}, ${d.getUTCFullYear()}`;
 }
 
 const initials = (name: string) =>
