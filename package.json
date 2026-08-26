@@ -32,7 +32,9 @@
     "fix:bodies": "tsx src/scripts/rewrite-bodies.ts",
     "fix:openings": "tsx src/scripts/fix-outlet-openings.ts",
     "fix:transactions": "tsx src/scripts/shorten-transaction-bodies.ts",
-    "try:extract": "tsx src/scripts/try-extract.ts"
+    "try:extract": "tsx src/scripts/try-extract.ts",
+    "probe:feeds": "tsx src/scripts/probe-feeds.ts",
+    "merge:pair": "tsx src/scripts/merge-pair.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

@@ -2,8 +2,13 @@
  * Ingest sources. Each was checked live during setup; item counts in comments
  * are what the feed returned at the time.
  *
- * Google News queries are the widest net — they surface Woj/Shams-style scoops
- * that break on X and get aggregated before the majors publish a feed item.
+ * PREFER AN OUTLET'S OWN FEED. Google News is the widest net and catches
+ * scoops early, but it strips the article: its description is the headline
+ * repeated with the outlet name appended, and its link is an interstitial
+ * rather than the publisher's URL. Measured across our published posts, items
+ * arriving that way carried a median of zero characters beyond the headline,
+ * against 904 for RealGM's own feed — and they are the posts whose summaries
+ * had nothing to say. Only one narrow Google News query is still enabled.
  */
 export type SeedSource = {
   slug: string;
@@ -78,12 +83,31 @@ export const SEED_SOURCES: SeedSource[] = [
     note: "Stands in for HoopsHype, and is a closer fit than it ever was: a dedicated transactions desk rather than a general NBA site, so nearly every item is a signing, trade or contract story rather than a game recap to be rejected.",
   },
   {
+    slug: "heavy-nba",
+    name: "Heavy",
+    homepageUrl: "https://heavy.com/sports/nba/",
+    feedUrl: "https://heavy.com/sports/nba/feed/",
+    kind: "rss",
+    enabled: true,
+    note: "Was reaching us through Google News as a bare headline. Its own feed carries the full article in content:encoded — about 4,000 characters against zero.",
+  },
+  {
+    slug: "fadeaway-world",
+    name: "Fadeaway World",
+    homepageUrl: "https://fadeawayworld.net/",
+    feedUrl: "https://fadeawayworld.net/feed",
+    kind: "rss",
+    enabled: true,
+    note: "Same swap as Heavy: full article text in the feed, where Google News gave us the headline twice.",
+  },
+  {
     slug: "gnews-trade-rumors",
     name: "Google News",
     homepageUrl: "https://news.google.com/",
     feedUrl: googleNews("NBA trade rumors"),
     kind: "google_news",
-    enabled: true,
+    enabled: false,
+    note: "Disabled. Google News strips the article: its description repeats the headline and appends the outlet name, so 39% of our editorial posts arrived with nothing to summarize and the model padded them with commentary about the sourcing. Every outlet it surfaced in volume now has a direct feed here. It also hands us a news.google.com interstitial as the source URL rather than the publisher's own.",
   },
   {
     slug: "gnews-signings",
@@ -91,7 +115,8 @@ export const SEED_SOURCES: SeedSource[] = [
     homepageUrl: "https://news.google.com/",
     feedUrl: googleNews("NBA free agency signing agree deal"),
     kind: "google_news",
-    enabled: true,
+    enabled: false,
+    note: "Disabled for the same reason as gnews-trade-rumors.",
   },
   {
     slug: "gnews-woj-shams",
@@ -100,5 +125,6 @@ export const SEED_SOURCES: SeedSource[] = [
     feedUrl: googleNews("NBA sources tell ESPN trade OR sign"),
     kind: "google_news",
     enabled: true,
+    note: "The one Google News query kept. It exists to catch a scoop breaking on X before any outlet files it to a feed, where being early matters more than being detailed. Its items are still headline-only, so they will read short until article fetching lands.",
   },
 ];

@@ -2,6 +2,7 @@ import { config } from "dotenv";
 config({ path: ".env.local" });
 
 import { neon } from "@neondatabase/serverless";
+import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-http";
 import * as schema from "./schema";
 import { SEED_TEAMS, teamLogoUrl } from "./seed-data/teams";
@@ -52,12 +53,20 @@ async function main() {
         enabled: s.enabled,
       })),
     )
+    /*
+     * excluded.* is the row we tried to insert. Pointing these at
+     * schema.sources.* instead set every column to the value it already had,
+     * so re-seeding silently changed nothing: a corrected feed URL or a
+     * flipped `enabled` stayed on the file and never reached the database.
+     */
     .onConflictDoUpdate({
       target: schema.sources.slug,
       set: {
-        feedUrl: schema.sources.feedUrl,
-        enabled: schema.sources.enabled,
-        name: schema.sources.name,
+        feedUrl: sql`excluded.feed_url`,
+        enabled: sql`excluded.enabled`,
+        name: sql`excluded.name`,
+        homepageUrl: sql`excluded.homepage_url`,
+        kind: sql`excluded.kind`,
       },
     });
   console.log(`seeded ${SEED_SOURCES.length} sources`);

@@ -8,6 +8,16 @@ export type ParsedItem = {
   publishedAt: Date;
 };
 
+/**
+ * Ceiling on the text we keep per item.
+ *
+ * Every character here is billed on the way into extraction, and a news story
+ * front-loads its facts: the terms, the teams and the reporter are in the
+ * first few paragraphs, and the rest is background we would not use anyway.
+ * Around 4,000 covers a full heavy.com or Fadeaway World article.
+ */
+const MAX_SUMMARY_CHARS = 4000;
+
 const parser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "@_",
@@ -114,12 +124,26 @@ export async function fetchFeed(
     const link = extractLink(entry).trim();
     if (!title || !link) continue;
 
+    /*
+     * Take the richest field, not the first one present.
+     *
+     * content:encoded was only a fallback for an empty description, and most
+     * WordPress feeds populate both — a one-line teaser in description and the
+     * entire article in content:encoded. So heavy.com and Fadeaway World were
+     * handing us roughly 4,000 characters per item and we were reading 300 of
+     * it, then writing summaries that had nothing to say.
+     *
+     * Capped, because the whole thing is priced per token on the way into
+     * extraction and the facts that matter are near the top of a news story.
+     */
     const summary = clean(
-      asText(entry.description) ||
-        asText(entry.summary) ||
-        asText(entry["content:encoded"]) ||
+      [
+        asText(entry.description),
+        asText(entry.summary),
+        asText(entry["content:encoded"]),
         asText(entry.content),
-    );
+      ].reduce((best, s) => (s && s.length > best.length ? s : best), ""),
+    ).slice(0, MAX_SUMMARY_CHARS);
 
     items.push({
       title,
