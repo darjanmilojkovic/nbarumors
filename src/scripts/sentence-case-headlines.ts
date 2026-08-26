@@ -17,6 +17,14 @@ import { eq } from "drizzle-orm";
  *
  * Slugs are untouched. They are the permanent URL.
  *
+ * ONE-TIME MIGRATION — do not re-run on headlines that are already sentence
+ * case. It assumes Title Case input, so against corrected text it lowercases
+ * proper nouns it does not know ("Turkey", "China", "New Orleans") and
+ * capitalises ordinary words that collide with a surname: "a young point
+ * guard" becomes "a Young point guard" because of Trae Young, and
+ * "ball-handler" becomes "Ball-handler" because of LaMelo Ball. The extraction
+ * prompt asks for sentence case directly now, so new items never need this.
+ *
  *   npm run fix:case -- --dry     preview every rewrite
  *   npm run fix:case              apply
  */
@@ -91,6 +99,13 @@ function buildDictionary(phrases: string[]) {
       const k = key(word);
       const canonical = canon(word);
       if (k.length < 2 || NEVER_PROPER.has(k)) continue;
+      /*
+       * A proper noun is capitalised where it was written. Reporter strings
+       * are phrases, not names — "ESPN sources" contributed "sources" with a
+       * lowercase canonical, which then rewrote the first word of "Sources
+       * float three-year, $60M extension for Josh Hart" to lowercase.
+       */
+      if (canonical[0] !== canonical[0].toUpperCase()) continue;
       // Longest canonical form wins, so "McDonald's" beats "mcdonalds".
       if (!single.has(k) || canonical.length > single.get(k)!.length) {
         single.set(k, canonical);
@@ -216,7 +231,11 @@ function toSentenceCase(headline: string, dict: Map<string, string>): string {
     return piece;
   });
 
-  return out.join("");
+  /*
+   * Last line of defence: whatever the dictionary decided, a headline starts
+   * with a capital. Cheaper than trusting every path above to get it right.
+   */
+  return out.join("").replace(/^([^\p{L}]*)(\p{Ll})/u, (_m, lead, ch) => lead + ch.toUpperCase());
 }
 
 async function main() {
