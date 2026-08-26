@@ -37,7 +37,9 @@
     "merge:pair": "tsx src/scripts/merge-pair.ts",
     "fix:commentary": "tsx src/scripts/rewrite-commentary.ts",
     "try:article": "tsx src/scripts/try-article.ts",
-    "test:fetch": "tsx src/scripts/test-article-fetch.ts"
+    "test:fetch": "tsx src/scripts/test-article-fetch.ts",
+    "backfill:articles": "tsx src/scripts/backfill-articles.ts",
+    "restore:body": "tsx src/scripts/restore-body.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

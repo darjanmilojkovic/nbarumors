@@ -48,3 +48,4 @@ merge-batch-*.json
 dash-relay-*.json
 transaction-bodies-*.json
 commentary-bodies-*.json
+article-backfill-*.json
