@@ -47,3 +47,4 @@ lebron-merge-*.json
 merge-batch-*.json
 dash-relay-*.json
 transaction-bodies-*.json
+commentary-bodies-*.json
