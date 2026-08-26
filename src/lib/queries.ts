@@ -23,6 +23,8 @@ export type FeedRumor = {
   sourceName: string;
   sourceUrl: string;
   publishedAt: Date;
+  /** Set when a later report grew the summary; null on an untouched post. */
+  bodyUpdatedAt: Date | null;
   imageUrl: string | null;
   imageAttribution: string | null;
   sourceCount: number;
@@ -388,6 +390,7 @@ const baseSelect = (extra?: SQL, order: FeedOrder = "rank") =>
       outcomeAt: rumors.outcomeAt,
       sourceUrl: rumors.sourceUrl,
       publishedAt: rumors.publishedAt,
+      bodyUpdatedAt: rumors.bodyUpdatedAt,
       imageUrl: playerImages.url,
       imageAttribution: playerImages.attribution,
       /** Distinct outlets that reported this event — the corroboration count. */

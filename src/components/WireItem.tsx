@@ -122,6 +122,17 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
       : null;
 
   /*
+   * Only worth showing when the gap is real. A summary rewritten minutes after
+   * publication, which is what happens when two outlets file within one ingest
+   * cycle, is the post being assembled rather than updated.
+   */
+  const updated =
+    rumor.bodyUpdatedAt &&
+    rumor.bodyUpdatedAt.getTime() - rumor.publishedAt.getTime() > 30 * 60_000
+      ? rumor.bodyUpdatedAt
+      : null;
+
+  /*
    * "DAL → MIA", drawn only when the post names both ends of the move.
    *
    * The team code used to come from players.current_team_id — the roster
@@ -280,6 +291,18 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
               <span className="font-mono text-[11px] text-muted">
                 · {ago(rumor.publishedAt)}
               </span>
+              {/*
+               * A post that has taken in a later report says so. The date
+               * beside the byline stays pinned to the first report, because
+               * that is when the story broke and what the feed orders on — but
+               * a reader looking at a three-day-old rumour deserves to know
+               * the summary is not three days old.
+               */}
+              {updated && (
+                <span className="font-mono text-[11px] text-accent">
+                  · updated {ago(updated)}
+                </span>
+              )}
             </div>
 
             <div className="font-mono text-[10px] tracking-widest text-muted uppercase">

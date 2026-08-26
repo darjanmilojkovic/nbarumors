@@ -1,0 +1,1 @@
+ALTER TABLE "rumors" ADD COLUMN "body_updated_at" timestamp with time zone;

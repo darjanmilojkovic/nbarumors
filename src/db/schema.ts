@@ -271,6 +271,15 @@ export const rumors = pgTable(
       onDelete: "set null",
     }),
     publishedAt: timestamp("published_at", { withTimezone: true }).notNull(),
+    /*
+     * When the summary was last rewritten to take in a later report.
+     *
+     * Distinct from published_at, which stays pinned to the first report and
+     * is what the card's timestamp and the feed ordering read. A post that has
+     * absorbed a follow-up is still the same story from the same moment; it
+     * just says more than it did, and the reader deserves to be told which.
+     */
+    bodyUpdatedAt: timestamp("body_updated_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

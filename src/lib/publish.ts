@@ -11,6 +11,7 @@ import {
   rumors,
   teams,
 } from "@/db/schema";
+import { enrichBody } from "@/lib/enrich";
 import { isSameEvent } from "@/lib/event-key";
 import type { Extraction } from "@/lib/extract";
 import { findCommonsImages, preferLandscape } from "@/lib/images";
@@ -166,6 +167,8 @@ async function findExistingEvent(eventKey: string, publishedAt: Date) {
       sourceSlug: sources.slug,
       contractValue: rumors.contractValue,
       contractYears: rumors.contractYears,
+      headline: rumors.headline,
+      body: rumors.body,
     })
     .from(rumors)
     .innerJoin(sources, eq(sources.id, rumors.sourceId))
@@ -196,6 +199,8 @@ async function attachSource(
     sourceSlug: string;
     contractValue: string | null;
     contractYears: number | null;
+    headline: string;
+    body: string;
   },
   item: {
     id: number;
@@ -230,6 +235,36 @@ async function attachSource(
       : (current.status as Extraction["status"]);
 
   /*
+   * Grow the summary when the story is still moving.
+   *
+   * An open rumour is a story in progress: three reports on Nikola Jovic's
+   * trade value carried the Dallas sweetener demand, the Charlotte and
+   * Brooklyn scenarios and his extension figure between them, and whichever
+   * arrived first kept the post while the rest became chain entries.
+   *
+   * A settled deal is left alone. Once a move is done its summary is finished,
+   * and a URL someone shared should not keep changing under them — with one
+   * exception: a corrected figure. That is not new colour on a live story, it
+   * is the post being wrong, which the Klay Thompson deal was for three days
+   * at $13M while five later reports in its own chain said $11.5M.
+   */
+  const correctsTerms = Boolean(
+    extraction.contractValue &&
+      current.contractValue &&
+      extraction.contractValue !== current.contractValue,
+  );
+  const open = current.status === "rumor" || current.status === "reported";
+  const enriched =
+    open || correctsTerms
+      ? await enrichBody({
+          headline: current.headline,
+          current: current.body,
+          incoming: extraction,
+          incomingOutlet: item.publisher ?? item.sourceSlug,
+        })
+      : null;
+
+  /*
    * A league transaction record proves a move happened; it cannot tell the
    * story. Its entire text is a line like "Official transaction record. Teams:
    * PHI. Players: LeBron James." — 63 characters — so the biggest signing of
@@ -248,6 +283,14 @@ async function attachSource(
     .set({
       status,
       confidence: Math.min(1, Math.max(current.confidence, extraction.confidence) + 0.05),
+      /*
+       * The grown summary, and the stamp that says the post has moved on since
+       * it was filed. An upgrade off the transaction log sets the body below
+       * and wins, since replacing a clerk's filing note beats extending it.
+       */
+      ...(enriched && !(current.sourceSlug === "bbref-transactions")
+        ? { body: enriched, bodyUpdatedAt: new Date() }
+        : {}),
       /*
        * Terms come across from ANY later report, not only from an upgrade off
        * the transaction log. Outlets split the work: one files that a signing
