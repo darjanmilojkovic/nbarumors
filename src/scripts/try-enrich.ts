@@ -60,12 +60,7 @@ async function main() {
     const grown = await enrichBody({
       headline: String(first.headline),
       current: body,
-      // Only the fields enrichBody reads; the rest of an Extraction is unused.
-      incoming: {
-        body: String(next.body),
-        contractValue: (next.contract_value as string) ?? null,
-        contractYears: next.contract_years ? Number(next.contract_years) : null,
-      } as Parameters<typeof enrichBody>[0]["incoming"],
+      incoming: String(next.body),
       incomingOutlet: String(next.outlet),
     });
 

@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { SCHEMA, type Extraction } from "@/lib/extract";
+import { SCHEMA } from "@/lib/extract";
 
 /**
  * Grow a post's summary when a later report adds something to it.
@@ -17,7 +17,17 @@ import { SCHEMA, type Extraction } from "@/lib/extract";
  */
 
 const MODEL = process.env.EXTRACTION_MODEL ?? "claude-opus-5";
-const client = new Anthropic();
+/*
+ * Built on first use, not at import.
+ *
+ * A script loads its .env at the top of main(), but a static import is
+ * evaluated before that line runs — so a client constructed at module scope
+ * saw no ANTHROPIC_API_KEY and threw on every call. The catch below turned
+ * that into a quiet "no", and a merge pass reported 31 pairs deliberately
+ * kept apart when it had in fact never asked.
+ */
+let client: Anthropic | null = null;
+const anthropic = () => (client ??= new Anthropic());
 
 /** Hard cap, so a story followed for a week does not become an essay. */
 const MAX_BODY_CHARS = 900;
@@ -78,13 +88,13 @@ export function addsSomething(current: string, incoming: string): boolean {
 export async function enrichBody(input: {
   headline: string;
   current: string;
-  incoming: Extraction;
+  incoming: string;
   incomingOutlet: string;
 }): Promise<string | null> {
-  if (!addsSomething(input.current, input.incoming.body)) return null;
+  if (!addsSomething(input.current, input.incoming)) return null;
 
   try {
-    const res = await client.messages.create({
+    const res = await anthropic().messages.create({
       model: MODEL,
       max_tokens: 900,
       output_config: {
@@ -124,7 +134,7 @@ This is a summary, not a digest. If the new report adds one detail, the result i
             input.current,
             ``,
             `Newer report, from ${input.incomingOutlet}:`,
-            input.incoming.body,
+            input.incoming,
           ].join("\n"),
         },
       ],

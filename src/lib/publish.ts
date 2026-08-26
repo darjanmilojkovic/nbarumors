@@ -13,6 +13,7 @@ import {
 } from "@/db/schema";
 import { enrichBody } from "@/lib/enrich";
 import { isSameEvent } from "@/lib/event-key";
+import { sameStory } from "@/lib/same-story";
 import type { Extraction } from "@/lib/extract";
 import { findCommonsImages, preferLandscape } from "@/lib/images";
 
@@ -131,12 +132,23 @@ const MERGE_WINDOW_DAYS = 14;
 const SETTLED_WINDOW_DAYS = 90;
 const SETTLED = ["confirmed", "completed"];
 
+/*
+ * How recent a same-subject post must be before the model is asked whether it
+ * is the same story. Two days is one news cycle; past that, two reports about
+ * a player are usually two developments.
+ */
+const ADJUDICATE_WINDOW_HOURS = 48;
+
 /**
  * Find an existing post for the same event. Keyed on the model's canonical
  * event key, which is why four outlets on one signing collapse while four
  * different angles on one player's free agency stay separate.
  */
-async function findExistingEvent(eventKey: string, publishedAt: Date) {
+async function findExistingEvent(
+  eventKey: string,
+  publishedAt: Date,
+  subject: { headline: string; body: string; type: string; primaries: string[] },
+) {
   const key = eventKey.trim().toLowerCase();
   if (!key) return null;
 
@@ -164,6 +176,7 @@ async function findExistingEvent(eventKey: string, publishedAt: Date) {
       confidence: rumors.confidence,
       publishedAt: rumors.publishedAt,
       eventKey: rumors.eventKey,
+      type: rumors.type,
       sourceSlug: sources.slug,
       contractValue: rumors.contractValue,
       contractYears: rumors.contractYears,
@@ -185,8 +198,51 @@ async function findExistingEvent(eventKey: string, publishedAt: Date) {
       : MERGE_WINDOW_DAYS;
     return daysApart <= limit;
   });
+  if (existing) return existing;
 
-  return existing ?? null;
+  /*
+   * No key matched. Before filing a second post, check whether one about the
+   * same player, of the same kind, landed in the last two days — and if so ask
+   * whether it is the same story.
+   *
+   * Keys cannot answer this. Three reports on Nikola Jovic's trade value, all
+   * Jake Fischer, all on one day, scored 0.44, 0.20 and 0.15 against a 0.50
+   * threshold because one angle named Klay Thompson and another Bobby Portis.
+   * Lowering the threshold to catch them also merges two LeBron columns filed
+   * the same afternoon, and no string score tells those apart.
+   */
+  if (!subject.primaries.length) return null;
+
+  const recent = candidates.filter((c) => {
+    const hours = Math.abs(publishedAt.getTime() - c.publishedAt.getTime()) / 3_600_000;
+    return hours <= ADJUDICATE_WINDOW_HOURS && c.type === subject.type;
+  });
+  if (!recent.length) return null;
+
+  const sameSubject = await db
+    .select({ rumorId: rumorPlayers.rumorId, slug: players.slug })
+    .from(rumorPlayers)
+    .innerJoin(players, eq(players.id, rumorPlayers.playerId))
+    .where(
+      sql`${rumorPlayers.rumorId} in ${recent.map((c) => c.id)} and ${rumorPlayers.isPrimary}`,
+    );
+
+  const primariesByRumor = new Map<number, string[]>();
+  for (const row of sameSubject) {
+    primariesByRumor.set(row.rumorId, [
+      ...(primariesByRumor.get(row.rumorId) ?? []),
+      row.slug,
+    ]);
+  }
+  const wanted = [...subject.primaries].sort().join(",");
+
+  for (const c of recent) {
+    const theirs = (primariesByRumor.get(c.id) ?? []).sort().join(",");
+    if (!theirs || theirs !== wanted) continue;
+    if (await sameStory({ headline: c.headline, body: c.body }, subject)) return c;
+  }
+
+  return null;
 }
 
 /** Attach this report to an existing post instead of creating a duplicate. */
@@ -259,7 +315,7 @@ async function attachSource(
       ? await enrichBody({
           headline: current.headline,
           current: current.body,
-          incoming: extraction,
+          incoming: extraction.body,
           incomingOutlet: item.publisher ?? item.sourceSlug,
         })
       : null;
@@ -379,7 +435,13 @@ export async function publishExtraction(
   }
 
   // Same event, different outlet — attach rather than duplicate.
-  const existing = await findExistingEvent(extraction.eventKey, item.publishedAt);
+  const existing = await findExistingEvent(extraction.eventKey, item.publishedAt, {
+    headline: extraction.headline,
+    body: extraction.body,
+    type: extraction.type,
+    // Slugified here to match what the tags hold, without writing any rows yet.
+    primaries: extraction.players.filter((p) => p.isPrimary).map((p) => slugify(p.name)),
+  });
   if (existing) {
     await attachSource(existing.id, existing, item, extraction);
     return { status: "merged", rumorId: existing.id };

@@ -2,6 +2,8 @@ import { config } from "dotenv";
 config({ path: ".env.local" });
 import { eq, inArray, sql } from "drizzle-orm";
 import { eventKeySimilarity, isSameEvent, normalizeEventKey } from "@/lib/event-key";
+import { enrichBody } from "@/lib/enrich";
+import { sameStory } from "@/lib/same-story";
 
 /**
  * Merge posts that describe one event under differently-worded keys.
@@ -32,6 +34,7 @@ async function main() {
       id: rumors.id,
       slug: rumors.slug,
       headline: rumors.headline,
+      body: rumors.body,
       eventKey: rumors.eventKey,
       type: rumors.type,
       status: rumors.status,
@@ -137,7 +140,16 @@ async function main() {
   };
   for (const r of live) parent.set(r.id, r.id);
 
+  /*
+   * How close in time two reports must be before the model is asked. Two days
+   * is where the same-subject rule stops describing one news cycle: past that,
+   * two posts about a player are usually two developments.
+   */
+  const ADJUDICATE_WINDOW = 2 * 86_400_000;
+
   const links: string[] = [];
+  const rejectedPairs: string[] = [];
+  let adjudicated = 0;
   for (let i = 0; i < live.length; i++) {
     for (let j = i + 1; j < live.length; j++) {
       const A = live[i];
@@ -152,11 +164,34 @@ async function main() {
       if (!ta.primaries || ta.primaries !== tb.primaries) continue;
       if (!nests(ta.teams, tb.teams)) continue;
 
-      if (!isSameEvent(A.eventKey!, B.eventKey!)) continue;
+      if (isSameEvent(A.eventKey!, B.eventKey!)) {
+        union(A.id, B.id);
+        links.push(
+          `    ${eventKeySimilarity(A.eventKey!, B.eventKey!).toFixed(2)}  ${A.eventKey}\n           ${B.eventKey}`,
+        );
+        continue;
+      }
+
+      /*
+       * The keys disagree, but everything else about these two says one story:
+       * same subject, same kind of move, teams that nest, filed within two
+       * days. That is the shape of the three Nikola Jovic reports, whose keys
+       * scored 0.44, 0.20 and 0.15 against a 0.50 threshold because one angle
+       * named Klay Thompson and another named Bobby Portis.
+       *
+       * Ask rather than guess. Lowering the threshold far enough to catch them
+       * also merges two LeBron James columns filed the same day, and no string
+       * score separates those cases.
+       */
+      if (Math.abs(+B.publishedAt - +A.publishedAt) > ADJUDICATE_WINDOW) continue;
+      if (find(A.id) === find(B.id)) continue; // already one story
+      adjudicated++;
+      if (!(await sameStory(A, B))) {
+        rejectedPairs.push(`    ${A.headline}\n       vs ${B.headline}`);
+        continue;
+      }
       union(A.id, B.id);
-      links.push(
-        `    ${eventKeySimilarity(A.eventKey!, B.eventKey!).toFixed(2)}  ${A.eventKey}\n           ${B.eventKey}`,
-      );
+      links.push(`    model  ${A.eventKey}\n           ${B.eventKey}`);
     }
   }
 
@@ -172,6 +207,12 @@ async function main() {
     `${live.length} keyed posts (${publishedCount} published) · ${merges.length} groups\n`,
   );
   if (links.length) console.log("matched pairs:\n" + links.join("\n") + "\n");
+  if (adjudicated) {
+    console.log(`asked the model about ${adjudicated} same-subject pairs the keys missed\n`);
+  }
+  if (rejectedPairs.length) {
+    console.log("kept apart:\n" + rejectedPairs.join("\n") + "\n");
+  }
 
   let removed = 0;
   for (const group of merges) {
@@ -237,11 +278,34 @@ async function main() {
     const withValue = byNewest.find((m) => m.contractValue);
     const withYears = byNewest.find((m) => m.contractYears);
 
+    /*
+     * Fold each duplicate's summary into the survivor before it disappears.
+     *
+     * Without this the pass still loses exactly what it used to: three reports
+     * on Nikola Jovic carried the Dallas sweetener demand, the Charlotte and
+     * Brooklyn scenarios and the extension figure between them, and collapsing
+     * them onto whichever arrived first would keep a third of the story and
+     * drop the rest into the chain.
+     */
+    let body = keeper.body;
+    for (const d of dupes) {
+      const grown = await enrichBody({
+        headline: keeper.headline,
+        current: body,
+        incoming: d.body,
+        incomingOutlet: "another outlet",
+      });
+      if (grown) body = grown;
+    }
+    const bodyGrew = body !== keeper.body;
+    if (bodyGrew) console.log(`      ↳ summary grown to ${body.length} chars`);
+
     await db
       .update(rumors)
       .set({
         status: firmest.status,
         eventKey: normalizeEventKey(keeper.eventKey!),
+        ...(bodyGrew ? { body, bodyUpdatedAt: new Date() } : {}),
         ...(withValue ? { contractValue: withValue.contractValue } : {}),
         ...(withYears ? { contractYears: withYears.contractYears } : {}),
         confidence: Math.min(
