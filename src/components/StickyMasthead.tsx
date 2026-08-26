@@ -16,6 +16,15 @@ import { useEffect, useRef, useState } from "react";
  * Above sm the masthead is static again, exactly as before: at that width it
  * scrolls away and the filter bar takes the top on its own.
  */
+
+/**
+ * How long after mount a scroll is assumed to be the browser placing the page
+ * rather than the reader moving through it. Generous on purpose: being wrong
+ * this way costs a masthead that stays up slightly too long, and being wrong
+ * the other way costs the masthead entirely.
+ */
+const RESTORE_WINDOW_MS = 700;
+
 export function StickyMasthead({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const [shown, setShown] = useState(true);
@@ -36,6 +45,19 @@ export function StickyMasthead({ children }: { children: React.ReactNode }) {
     const desktop = window.matchMedia("(min-width: 640px)");
     let last = window.scrollY;
 
+    /*
+     * Scroll position is restored AFTER this effect runs, and the browser
+     * restores it by scrolling. That arrived here as an ordinary downward
+     * gesture, so refreshing halfway down the feed — or halfway down an
+     * article — hid the masthead before the reader had touched anything, and
+     * it stayed hidden until they scrolled back up. Back-navigation restores
+     * the same way.
+     *
+     * Anything in the first moments after mount is therefore treated as the
+     * page being placed, not read: track the position, stay visible.
+     */
+    const mountedAt = performance.now();
+
     const apply = (visible: boolean) => {
       setShown(visible);
       const height = ref.current?.offsetHeight ?? 0;
@@ -48,6 +70,11 @@ export function StickyMasthead({ children }: { children: React.ReactNode }) {
     const onScroll = () => {
       if (desktop.matches) return apply(true);
       const y = window.scrollY;
+
+      if (performance.now() - mountedAt < RESTORE_WINDOW_MS) {
+        last = y;
+        return apply(true);
+      }
 
       /*
        * Near the top it is always visible, checked before the threshold below.
@@ -71,11 +98,23 @@ export function StickyMasthead({ children }: { children: React.ReactNode }) {
       apply(goingUp);
     };
 
+    /*
+     * Coming back from the back/forward cache does not remount the component
+     * or change the pathname, so the effect above never re-runs and whatever
+     * state the masthead was left in is what the reader returns to.
+     */
+    const onPageShow = () => {
+      last = window.scrollY;
+      apply(true);
+    };
+
     apply(true);
     window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("pageshow", onPageShow);
     desktop.addEventListener("change", onScroll);
     return () => {
       window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("pageshow", onPageShow);
       desktop.removeEventListener("change", onScroll);
     };
   }, [pathname]);
