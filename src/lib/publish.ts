@@ -164,6 +164,8 @@ async function findExistingEvent(eventKey: string, publishedAt: Date) {
       publishedAt: rumors.publishedAt,
       eventKey: rumors.eventKey,
       sourceSlug: sources.slug,
+      contractValue: rumors.contractValue,
+      contractYears: rumors.contractYears,
     })
     .from(rumors)
     .innerJoin(sources, eq(sources.id, rumors.sourceId))
@@ -187,7 +189,14 @@ async function findExistingEvent(eventKey: string, publishedAt: Date) {
 /** Attach this report to an existing post instead of creating a duplicate. */
 async function attachSource(
   rumorId: number,
-  current: { status: string; confidence: number; publishedAt: Date; sourceSlug: string },
+  current: {
+    status: string;
+    confidence: number;
+    publishedAt: Date;
+    sourceSlug: string;
+    contractValue: string | null;
+    contractYears: number | null;
+  },
   item: {
     id: number;
     sourceId: number;
@@ -239,6 +248,20 @@ async function attachSource(
     .set({
       status,
       confidence: Math.min(1, Math.max(current.confidence, extraction.confidence) + 0.05),
+      /*
+       * Terms come across from ANY later report, not only from an upgrade off
+       * the transaction log. Outlets split the work: one files that a signing
+       * happened and another files what it is worth, and keeping only the
+       * first post's side left the DeRozan signing saying no financial terms
+       * were included while the RealGM item attached to it said one year,
+       * $3.9M. A figure we did not have is new information whoever sends it.
+       */
+      ...(!current.contractValue && extraction.contractValue
+        ? { contractValue: extraction.contractValue.slice(0, 24) }
+        : {}),
+      ...(!current.contractYears && extraction.contractYears
+        ? { contractYears: extraction.contractYears }
+        : {}),
       ...(upgrading
         ? {
             /*

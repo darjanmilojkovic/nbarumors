@@ -41,7 +41,8 @@
     "backfill:articles": "tsx src/scripts/backfill-articles.ts",
     "restore:body": "tsx src/scripts/restore-body.ts",
     "backfill:moves": "tsx src/scripts/backfill-player-moves.ts",
-    "backfill:gnews": "tsx src/scripts/backfill-gnews.ts"
+    "backfill:gnews": "tsx src/scripts/backfill-gnews.ts",
+    "fix:terms": "tsx src/scripts/fix-missing-terms.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

@@ -42,6 +42,8 @@ async function main() {
       feedItemId: rumors.feedItemId,
       sourceUrl: rumors.sourceUrl,
       reportedBy: rumors.reportedBy,
+      contractValue: rumors.contractValue,
+      contractYears: rumors.contractYears,
     })
     .from(rumors)
     .orderBy(rumors.publishedAt);
@@ -208,11 +210,23 @@ async function main() {
     };
     const firmest = sorted.reduce((a, b) => (RANK[b.status] > RANK[a.status] ? b : a));
 
+    /*
+     * Terms survive the merge. One outlet reports a signing and another reports
+     * what it is worth, and collapsing them used to keep only the survivor's
+     * side: the DeRozan post read "No financial terms were included in the
+     * report" while the RealGM item merged into it said one year, $3.9M, and
+     * the figure was sitting in the duplicate's own row the whole time.
+     */
+    const withValue = sorted.find((m) => m.contractValue);
+    const withYears = sorted.find((m) => m.contractYears);
+
     await db
       .update(rumors)
       .set({
         status: firmest.status,
         eventKey: normalizeEventKey(keeper.eventKey!),
+        ...(keeper.contractValue ? {} : { contractValue: withValue?.contractValue ?? null }),
+        ...(keeper.contractYears ? {} : { contractYears: withYears?.contractYears ?? null }),
         confidence: Math.min(
           1,
           Math.max(...sorted.map((m) => m.confidence)) + 0.05 * dupes.length,
