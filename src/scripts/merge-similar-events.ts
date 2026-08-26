@@ -54,24 +54,49 @@ async function main() {
    * "Mavericks buy Ishchenko from Lakers" with "Lakers buy Ishchenko from
    * Bulls", which are two real and separate transactions.
    *
-   * So the roster of the story has to match exactly as well: same players,
-   * same teams. Those come from our own join tables rather than from the text
-   * of the key, and they are what actually identifies a transaction.
+   * So the roster of the story has to match as well. It comes from our own
+   * join tables rather than from the text of the key, and it is what actually
+   * identifies a transaction.
+   *
+   * Matched on the SUBJECTS, not on every name that appears. Requiring the
+   * full cast to be identical missed the obvious ones: "DeRozan reportedly
+   * headed to Denver" and "Nuggets add DeMar DeRozan on one-year deal" were
+   * filed the same day about the same signing, and stayed apart because the
+   * first mentions Nikola Jokic in passing and the second does not. Both still
+   * name DeRozan as the subject, which is the part that identifies the move.
+   *
+   * Teams are compared by containment rather than equality, for the same
+   * reason: one report names the team a player is leaving and another does
+   * not, and neither is describing a different transaction. One side's teams
+   * must be a subset of the other's, so "Lakers buy Ishchenko from Bulls" and
+   * "Mavericks buy Ishchenko from Lakers" stay separate — neither contains the
+   * other.
    */
-  type Tag = { id: number; players: string; teams: string };
+  type Tag = { id: number; players: string; primaries: string; teams: string };
   const tagRows = await db.execute(sql`
     select r.id,
       coalesce((select string_agg(distinct p.slug, ',' order by p.slug)
                 from rumor_players rp join players p on p.id = rp.player_id
                 where rp.rumor_id = r.id), '') players,
+      coalesce((select string_agg(distinct p.slug, ',' order by p.slug)
+                from rumor_players rp join players p on p.id = rp.player_id
+                where rp.rumor_id = r.id and rp.is_primary), '') primaries,
       coalesce((select string_agg(distinct t.abbreviation, ',' order by t.abbreviation)
                 from rumor_teams rt join teams t on t.id = rt.team_id
                 where rt.rumor_id = r.id), '') teams
     from rumors r`);
-  const tags = new Map<number, { players: string; teams: string }>();
+  const tags = new Map<number, { players: string; primaries: string; teams: string }>();
   for (const t of (tagRows.rows ?? tagRows) as unknown as Tag[]) {
-    tags.set(t.id, { players: t.players, teams: t.teams });
+    tags.set(t.id, { players: t.players, primaries: t.primaries, teams: t.teams });
   }
+
+  /** True when one comma-separated set contains the other. */
+  const nests = (a: string, b: string) => {
+    const [x, y] = [new Set(a.split(",").filter(Boolean)), new Set(b.split(",").filter(Boolean))];
+    if (x.size === 0 || y.size === 0) return false;
+    const [small, big] = x.size <= y.size ? [x, y] : [y, x];
+    return [...small].every((v) => big.has(v));
+  };
 
   /*
    * Unpublished rows are included so the pass can repair its own earlier runs:
@@ -118,11 +143,12 @@ async function main() {
       if (A.type !== B.type) continue;
       if (Math.abs(+B.publishedAt - +A.publishedAt) > WINDOW) continue;
 
-      // Same cast, or it is not the same transaction.
+      // Same subject and compatible teams, or it is not the same transaction.
       const ta = tags.get(A.id);
       const tb = tags.get(B.id);
-      if (!ta?.players || ta.players !== tb?.players) continue;
-      if (ta.teams !== tb.teams) continue;
+      if (!ta || !tb) continue;
+      if (!ta.primaries || ta.primaries !== tb.primaries) continue;
+      if (!nests(ta.teams, tb.teams)) continue;
 
       if (!isSameEvent(A.eventKey!, B.eventKey!)) continue;
       union(A.id, B.id);

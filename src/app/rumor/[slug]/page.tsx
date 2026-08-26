@@ -111,13 +111,29 @@ export default async function RumorPage({ params }: PageProps<"/rumor/[slug]">) 
     )
     .slice(0, 4);
 
+  /*
+   * The rail names the team and player this post is ABOUT.
+   *
+   * It took teams[0], which is only sorted by role, so a post where every team
+   * is merely mentioned fell back to whatever Postgres returned first. "Harden,
+   * Green among names left as free agency rolls on" mentions four clubs and
+   * involves none, and the rail announced Detroit Pistons — a team named once,
+   * in a piece about nobody signing anywhere. A merely-mentioned team is not
+   * what a post is about, so nothing is claimed at all.
+   *
+   * Same for the player: several posts mark more than one subject, and taking
+   * the first row picked between them arbitrarily. The biggest name wins.
+   */
+  const subjectTeam = rumor.teams.find((t) => t.role !== "mentioned");
+  const subjectPlayer = [...rumor.players]
+    .filter((p) => p.isPrimary)
+    .sort((a, b) => b.prominence - a.prominence)[0];
+
   return (
     <WireShell
-      teamSlug={rumor.teams[0]?.slug}
-      teamLabel={
-        rumor.teams[0] ? `${rumor.teams[0].city} ${rumor.teams[0].name}` : undefined
-      }
-      playerLabel={rumor.players.find((p) => p.isPrimary)?.fullName}
+      teamSlug={subjectTeam?.slug}
+      teamLabel={subjectTeam ? `${subjectTeam.city} ${subjectTeam.name}` : undefined}
+      playerLabel={subjectPlayer?.fullName}
     >
       <div className="border-x border-rule bg-surface">
         <div className="border-b border-rule px-4 py-3 sm:px-5">

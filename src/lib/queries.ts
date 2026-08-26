@@ -333,7 +333,25 @@ const STATUS_WEIGHT = sql`(case ${rumors.status}
   when 'debunked' then -30
   else 0 end)`;
 
-const TOP = sql`(${PROMINENCE} + ${OUTLET_WEIGHT} + ${STATUS_WEIGHT} + least(${HOT}, 4) * 3 + least(${OUTLETS} - 1, 3) * 12 + ${rumors.confidence} * 10) desc`;
+/**
+ * Roundups are not stories, and Top is a list of stories.
+ *
+ * "Harden, Green among names left as free agency rolls on" tags three players
+ * as its subject and no team as involved in anything. It ranked 20th on the
+ * strength of James Harden being rated 100, which is the ordering answering a
+ * question nobody asked: not "how big is this move" but "is a famous name
+ * anywhere in this text".
+ *
+ * A post with more than one subject is a survey of several situations, and the
+ * prominence it inherits belongs to whichever name in the list scores highest.
+ * Docked enough to clear the front page without hiding it.
+ */
+const ROUNDUP_PENALTY = sql`(case when (
+  select count(*) from rumor_players rp
+  where rp.rumor_id = ${rumors.id} and rp.is_primary
+) > 1 then -25 else 0 end)`;
+
+const TOP = sql`(${PROMINENCE} + ${OUTLET_WEIGHT} + ${STATUS_WEIGHT} + ${ROUNDUP_PENALTY} + least(${HOT}, 4) * 3 + least(${OUTLETS} - 1, 3) * 12 + ${rumors.confidence} * 10) desc`;
 
 export type FeedOrder = "rank" | "chrono" | "top";
 
