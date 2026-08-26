@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { toParagraphs } from "@/lib/paragraphs";
 import type { FeedRumor } from "@/lib/queries";
 
 /*
@@ -440,9 +441,17 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
            * unreasonably loose written down and is the main reason that page
            * reads as easily as it does at a glance.
            */}
-          <p className="max-w-[62ch] text-[15.5px] leading-7 text-body">
-            {rumor.body}
-          </p>
+          {/*
+           * Paragraphs, once a summary is long enough to need them. They were
+           * two sentences when this was one <p>; a post that has absorbed
+           * later reports runs to five, which is a twelve-line block at this
+           * measure with nowhere for the eye to rest.
+           */}
+          <div className="max-w-[62ch] space-y-3 text-[15.5px] leading-7 text-body">
+            {toParagraphs(rumor.body).map((para, i) => (
+              <p key={i}>{para}</p>
+            ))}
+          </div>
 
           {/*
            * One meta strip, and every chip in it is conditional — a post that
