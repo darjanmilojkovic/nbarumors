@@ -65,7 +65,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
 
   // Pull wide, then filter — the dataset is small enough that a second set of
   // query paths would cost more in complexity than it saves in rows.
-  const all = await latestRumors(200);
+  const all = await latestRumors(200, tab === "live");
 
   let rumors = cat ? all.filter((r) => r.type === cat) : all;
   if (tab === "confirmed") {

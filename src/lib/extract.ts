@@ -71,7 +71,7 @@ const SCHEMA = {
       type: "string",
       enum: ["rumor", "reported", "confirmed", "completed", "debunked"],
       description:
-        "rumor = speculation or 'linked with'. reported = a named insider reports it. confirmed = team or player confirmed. completed = the move is done. debunked = denied.",
+        "How far along the DEAL is, not how authoritative the source is. completed = an agreement has been reached: the item says the player agreed to terms, is signing, has signed, was traded, was waived or was bought out — whether or not the league has processed it and whether or not a team has issued a release. An agent telling a reporter that terms are agreed is a completed deal. confirmed = a team or the player has publicly announced it. reported = an insider says a deal is close, likely, being negotiated or expected, but not yet agreed. rumor = speculation, interest, 'linked with', 'could pursue', nothing agreed. debunked = denied. Never downgrade an agreed deal to 'reported' merely because it reached you through a journalist — almost everything here does.",
     },
     confidence: {
       type: "number",

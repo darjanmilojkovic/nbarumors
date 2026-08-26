@@ -98,7 +98,7 @@ async function hydrate(rows: Awaited<ReturnType<typeof baseSelect>>): Promise<Fe
 }
 
 /** Drizzle allows exactly one `.where()`, so extra filters are passed in. */
-const baseSelect = (extra?: SQL) =>
+const baseSelect = (extra?: SQL, chronological = false) =>
   db
     .select({
       id: rumors.id,
@@ -192,9 +192,16 @@ const baseSelect = (extra?: SQL) =>
      * an hour, a LeBron rumor (≈89) outranks a fringe signing (≈5) for about
      * three days, then recency takes over — so the feed stays current without
      * burying the story everyone actually came for.
+     *
+     * Chronological drops all of that and orders purely by when a report
+     * landed, which is what "Latest updates" promises: the wire as it came in,
+     * with nothing weighted or reordered.
      */
     .orderBy(
-      sql`(
+      ...(chronological
+        ? [desc(rumors.publishedAt)]
+        : [
+            sql`(
         coalesce((
           select max(p.prominence) from rumor_players rp
           join players p on p.id = rp.player_id
@@ -202,11 +209,17 @@ const baseSelect = (extra?: SQL) =>
         ), 0)
         - extract(epoch from (now() - ${rumors.publishedAt})) / 3600.0 * 1.2
       ) desc`,
-      desc(rumors.publishedAt),
+            desc(rumors.publishedAt),
+          ]),
     );
 
-export async function latestRumors(limit = 30) {
-  return hydrate(await baseSelect().limit(limit));
+/**
+ * `chronological` must be applied in the query, not by re-sorting the result:
+ * the limit selects which rows come back, so sorting a rank-selected page by
+ * date would still be showing the rank-selected rows.
+ */
+export async function latestRumors(limit = 30, chronological = false) {
+  return hydrate(await baseSelect(undefined, chronological).limit(limit));
 }
 
 export async function rumorsForTeam(teamSlug: string, limit = 30) {

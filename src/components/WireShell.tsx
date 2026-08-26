@@ -45,7 +45,7 @@ async function LeftRail({ teamSlug }: { teamSlug?: string }) {
           href="/"
           className="flex items-center justify-between rounded-sm px-3 py-2 text-sm text-body hover:bg-surface hover:text-white"
         >
-          All Updates
+          Latest Updates
           <span className="font-mono text-[11px] text-muted">
             {stats?.rumorCount ?? 0}
           </span>
