@@ -6,6 +6,7 @@ import {
   fetchSeasonLeaders,
   fetchCareerScoringRanks,
   prominenceScore,
+  productionScore,
   headshotUrl,
   nameKey,
 } from "@/lib/stats";
@@ -33,6 +34,22 @@ function recentSeasons(now = new Date()): [string, string] {
     now.getUTCMonth() >= 9 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;
   const label = (y: number) => `${y}-${String((y + 1) % 100).padStart(2, "0")}`;
   return [label(startYear), label(startYear - 1)];
+}
+
+/**
+ * How far back the production history goes. Six seasons is enough to tell a
+ * sustained star from one good year, without letting a player who retired into
+ * a bench role keep coasting on a decade-old peak.
+ */
+const HISTORY_SEASONS = 6;
+
+function seasonHistory(now = new Date()): string[] {
+  const startYear =
+    now.getUTCMonth() >= 9 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;
+  return Array.from(
+    { length: HISTORY_SEASONS },
+    (_, i) => `${startYear - i}-${String((startYear - i + 1) % 100).padStart(2, "0")}`,
+  );
 }
 
 const slugify = (s: string) =>
@@ -104,21 +121,17 @@ export async function runStatsSync(): Promise<StatsSyncResult> {
    * NBA rows win where both exist — they carry the player id — so this only
    * ever fills gaps.
    */
-  for (const season of recentSeasons()) {
+  const history = new Map<string, Awaited<ReturnType<typeof fetchBrefSeason>>>();
+  for (const season of seasonHistory()) {
     try {
       const rows = await fetchBrefSeason(season);
-      let added = 0;
       for (const r of rows) {
         const k = nameKey(r.name);
+        history.set(k, [...(history.get(k) ?? []), r]);
         const prev = best.get(k);
-        if (!prev) {
-          best.set(k, r);
-          added++;
-        } else if (!prev.nbaPlayerId && r.points > prev.points) {
-          best.set(k, r);
-        }
+        if (!prev || (!prev.nbaPlayerId && r.points > prev.points)) best.set(k, r);
       }
-      result.seasons[`${season} (bref)`] = added;
+      result.seasons[`${season} (bref)`] = rows.length;
     } catch (err) {
       result.seasons[`${season} (bref)`] =
         `failed: ${err instanceof Error ? err.message : err}`;
@@ -139,8 +152,21 @@ export async function runStatsSync(): Promise<StatsSyncResult> {
   result.playersInDb = existing.length;
 
   const updates = existing.map((p) => {
-    const season = best.get(nameKey(p.fullName));
-    const score = prominenceScore(season, careerByKey.get(nameKey(p.fullName)));
+    const k = nameKey(p.fullName);
+    const season = best.get(k);
+    /*
+     * Production history first, since it reads the whole box score over six
+     * seasons. The single-season formula is the fallback for anyone
+     * Basketball-Reference does not cover, and the all-time scoring rank still
+     * lifts the handful of players who have one.
+     */
+    const seasons = history.get(k);
+    const score = seasons?.length
+      ? Math.max(
+          productionScore(seasons),
+          prominenceScore(season, careerByKey.get(k)),
+        )
+      : prominenceScore(season, careerByKey.get(k));
     return {
       id: p.id,
       score,
@@ -196,7 +222,10 @@ export async function runStatsSync(): Promise<StatsSyncResult> {
       aliases: [k],
       nbaPlayerId: s.nbaPlayerId || null,
       headshotUrl: s.nbaPlayerId ? headshotUrl(s.nbaPlayerId) : null,
-      prominence: prominenceScore(s, careerByKey.get(k)),
+      prominence: Math.max(
+        productionScore(history.get(k) ?? []),
+        prominenceScore(s, careerByKey.get(k)),
+      ),
       pointsPerGame: s.points,
       statsSyncedAt: new Date(),
     }))

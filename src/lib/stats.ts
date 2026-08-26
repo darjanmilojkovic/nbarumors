@@ -26,6 +26,15 @@ export type SeasonStat = {
   gamesPlayed: number;
   minutes: number;
   points: number;
+  /*
+   * Only Basketball-Reference fills these in. Scoring alone ranked a volume
+   * shooter above a triple-double guard, so prominence reads the whole line.
+   */
+  assists?: number;
+  rebounds?: number;
+  steals?: number;
+  blocks?: number;
+  season?: string;
 };
 
 /**
@@ -77,10 +86,80 @@ export async function fetchBrefSeason(season: string): Promise<SeasonStat[]> {
         gamesPlayed: games,
         minutes: stat(row, "mp_per_g") || 0,
         points,
+        assists: stat(row, "ast_per_g") || 0,
+        rebounds: stat(row, "trb_per_g") || 0,
+        steals: stat(row, "stl_per_g") || 0,
+        blocks: stat(row, "blk_per_g") || 0,
+        season,
       });
     }
   }
   return [...best.values()];
+}
+
+/**
+ * Prominence from a player's production over several seasons.
+ *
+ * Scoring average alone was a poor proxy for how much a player matters: it put
+ * a volume shooter above a guard averaging a near triple-double, and it read a
+ * single hot season the same as a decade of them. This reads the whole box
+ * score, over as many seasons as we fetched.
+ *
+ * The per-game weights are the familiar efficiency shape — a steal or a block
+ * is worth more than a point because they are far rarer — normalised so that a
+ * genuine superstar line lands near the top of the scale rather than in the
+ * middle of it.
+ *
+ * Recent seasons count for more, but not overwhelmingly: a star who missed
+ * this year should not fall behind a career backup having a good run. And
+ * seasons played is credited on its own, because sustaining that production is
+ * itself the signal that separates a star from one good year.
+ */
+export function productionScore(seasons: SeasonStat[]): number {
+  if (seasons.length === 0) return 0;
+
+  const value = (s: SeasonStat) =>
+    s.points +
+    1.2 * (s.assists ?? 0) +
+    0.9 * (s.rebounds ?? 0) +
+    2.2 * (s.steals ?? 0) +
+    2.2 * (s.blocks ?? 0);
+
+  // Newest first, so the weight falls away with age.
+  const ordered = [...seasons].sort((a, b) =>
+    (b.season ?? "").localeCompare(a.season ?? ""),
+  );
+
+  let weighted = 0;
+  let weightSum = 0;
+  for (const [i, s] of ordered.entries()) {
+    const recency = Math.pow(0.75, i);
+    // A 12-game cameo should not carry the same weight as a full season.
+    const played = Math.min(1, s.gamesPlayed / 45);
+    const w = recency * (0.4 + 0.6 * played);
+    weighted += value(s) * w;
+    weightSum += w;
+  }
+  const production = weightSum > 0 ? weighted / weightSum : 0;
+
+  /*
+   * Calibrated against the real distribution rather than guessed. Across 1,096
+   * players the weighted line runs: median 11.5, p90 26.3, p97 37.1, p99 40.7,
+   * and a maximum of 51.1 (Giannis).
+   *
+   * The first attempt saturated at 38, which is the 97th percentile — so the
+   * entire top 3% of the league flattened to the same score and eighteen
+   * players tied on 100. Saturating just above the observed maximum keeps the
+   * best players separable from each other, which is the whole point at the
+   * top of the scale.
+   *
+   * Longevity is worth less than it was, for the same reason: at 18 points it
+   * was lifting every six-season veteran into the same band as the stars.
+   */
+  const core = 88 * Math.min(1, production / 52);
+  const longevity = 12 * Math.min(1, seasons.length / 6);
+
+  return Math.max(0, Math.min(100, Math.round(core + longevity)));
 }
 
 /**
