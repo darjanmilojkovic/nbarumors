@@ -52,3 +52,4 @@ article-backfill-*.json
 gnews-backfill-*.json
 missing-terms-*.json
 hypothetical-openers-*.json
+jargon-*.json
