@@ -27,7 +27,8 @@
     "fix:case": "tsx src/scripts/sentence-case-headlines.ts",
     "backfill:from": "tsx src/scripts/backfill-from-team.ts",
     "merge:events": "tsx src/scripts/merge-similar-events.ts",
-    "fix:status": "tsx src/scripts/reclassify-status.ts"
+    "fix:status": "tsx src/scripts/reclassify-status.ts",
+    "sync:ids": "tsx src/scripts/sync-ids-wikidata.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
