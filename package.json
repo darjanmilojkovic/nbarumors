@@ -44,7 +44,8 @@
     "backfill:gnews": "tsx src/scripts/backfill-gnews.ts",
     "fix:terms": "tsx src/scripts/fix-missing-terms.ts",
     "try:enrich": "tsx src/scripts/try-enrich.ts",
-    "fix:tags": "tsx src/scripts/prune-tags.ts"
+    "fix:tags": "tsx src/scripts/prune-tags.ts",
+    "fix:hypotheticals": "tsx src/scripts/fix-hypothetical-openers.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

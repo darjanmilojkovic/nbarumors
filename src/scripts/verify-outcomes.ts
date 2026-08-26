@@ -32,9 +32,15 @@ async function main() {
            s.slug as source_slug,
            (select p.slug from rumor_players rp join players p on p.id = rp.player_id
              where rp.rumor_id = r.id and rp.is_primary limit 1) as player,
+           (select count(*) from rumor_players rp
+             where rp.rumor_id = r.id and rp.is_primary) as primaries,
+           r.outcome,
            (select string_agg(t.abbreviation, ',' order by t.abbreviation)
               from rumor_teams rt join teams t on t.id = rt.team_id
-             where rt.rumor_id = r.id) as teams
+             where rt.rumor_id = r.id) as teams,
+           (select string_agg(t.abbreviation, ',' order by t.abbreviation)
+              from rumor_teams rt join teams t on t.id = rt.team_id
+             where rt.rumor_id = r.id and rt.role = 'to') as to_teams
     from rumors r join sources s on s.id = r.source_id
     where r.is_published
   `);
@@ -47,7 +53,10 @@ async function main() {
     published_at: string;
     source_slug: string;
     player: string | null;
+    primaries: number;
+    outcome: string | null;
     teams: string | null;
+    to_teams: string | null;
   };
   const all = rows.rows as unknown as Row[];
 
@@ -68,21 +77,50 @@ async function main() {
   const now = Date.now();
   let confirmed = 0;
   let unrecorded = 0;
+  let cleared = 0;
   const samples: string[] = [];
 
   for (const r of reports) {
     if (!r.player) continue;
     const reportedAt = new Date(r.published_at).getTime();
 
-    const match = (byPlayer.get(r.player) ?? []).find((t) => {
-      const txAt = new Date(t.published_at).getTime();
-      // The transaction has to come after the report, and share a team —
-      // otherwise a later unrelated move would "confirm" the rumor.
-      if (txAt < reportedAt - 36e5) return false;
-      const rTeams = new Set((r.teams ?? "").split(",").filter(Boolean));
-      const tTeams = (t.teams ?? "").split(",").filter(Boolean);
-      return tTeams.length === 0 || tTeams.some((x) => rTeams.has(x));
-    });
+    /*
+     * A post has to make ONE claim before it can be shown to have come true.
+     *
+     * "Rumor roundup ties Beal, Harden and LeBron to trade chatter" named
+     * three players and predicted nothing about any of them, and was labelled
+     * "Confirmed 20d later" because Bradley Beal signed with the Clippers
+     * three weeks on. The roundup was not confirmed; a player it mentioned did
+     * something.
+     */
+    const single = Number(r.primaries ?? 0) === 1;
+
+    const match = !single
+      ? undefined
+      : (byPlayer.get(r.player) ?? []).find((t) => {
+          const txAt = new Date(t.published_at).getTime();
+          // The transaction has to come after the report, and share a team —
+          // otherwise a later unrelated move would "confirm" the rumor.
+          if (txAt < reportedAt - 36e5) return false;
+          /*
+           * The DESTINATION the report named, not every team it mentioned.
+           *
+           * "Rumor roundup ties Beal, Harden and LeBron to trade chatter" put
+           * Beal to Boston and mentioned the Clippers in passing. He signed
+           * with the Clippers, and matching on any named team called that a
+           * confirmation — when what the post actually predicted did not
+           * happen. A rumour is confirmed by the move it called, or not at all.
+           */
+          const rTeams = new Set((r.to_teams ?? "").split(",").filter(Boolean));
+          const tTeams = (t.teams ?? "").split(",").filter(Boolean);
+          /*
+           * A transaction naming no team used to match anything, which is the
+           * opposite of what an unknown should do: with nothing to compare,
+           * there is no evidence the move is the one that was reported.
+           */
+          if (tTeams.length === 0 || rTeams.size === 0) return false;
+          return tTeams.some((x) => rTeams.has(x));
+        });
 
     if (match) {
       confirmed++;
@@ -107,6 +145,24 @@ async function main() {
       continue;
     }
 
+    /*
+     * A confirmation that no longer holds is withdrawn.
+     *
+     * The pass only ever wrote outcomes, never cleared them, so a label set by
+     * an earlier and looser rule survived every later run that disagreed with
+     * it. A claim on the page has to be re-earned each time, or tightening the
+     * rule fixes nothing already published.
+     */
+    if (r.outcome === "confirmed") {
+      cleared++;
+      if (!dryRun) {
+        await db
+          .update(rumors)
+          .set({ outcome: null, outcomeRumorId: null, outcomeAt: null })
+          .where(eq(rumors.id, r.id));
+      }
+    }
+
     // Only speculative posts get the soft negative; a completed report that
     // simply predates our log is not "unrecorded", it is just unmatched.
     const isSpeculative = r.status === "rumor" || r.status === "reported";
@@ -124,6 +180,7 @@ async function main() {
 
   console.log(`\n  confirmed by the transaction log: ${confirmed}`);
   console.log(`  speculative and unrecorded after ${STALE_DAYS}d: ${unrecorded}`);
+  console.log(`  confirmations withdrawn: ${cleared}`);
   if (samples.length) console.log(`\n${samples.join("\n")}`);
   if (dryRun) console.log("\n(dry run — nothing written)");
 }
