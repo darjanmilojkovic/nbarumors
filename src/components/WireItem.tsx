@@ -118,13 +118,17 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
    * The star tier — 37 players, from Jokic and Giannis down to Wembanyama,
    * Zion, Brunson, Sengun and Butler.
    *
-   * Pinned to the ceiling at first, which was too strict: it marked only the
-   * sixteen players saturating the scale, so Ja Morant and Karl-Anthony Towns
-   * missed by a point. 90 is where the list stops reading as "stars" and the
-   * cost is small — 11.3% of posts against 8.6%, still selective enough that
-   * the badge means something when it appears.
+   * Judged on the player the story is ABOUT, not the highest-rated name that
+   * appears in it. Reading the maximum across everyone tagged meant a Peyton
+   * Watson trade counted as marquee because Nikola Jokic was mentioned in
+   * passing — the badge was describing the cast list rather than the subject.
+   *
+   * 90 rather than the ceiling: pinned to 100 it marked only the sixteen
+   * players saturating the scale, so Ja Morant and Karl-Anthony Towns missed
+   * by a point.
    */
-  const isMarquee = rumor.maxProminence >= 90;
+  const primaryPlayer = ordered.find((p) => p.isPrimary) ?? ordered[0];
+  const isMarquee = (primaryPlayer?.prominence ?? 0) >= 90;
 
   /*
    * Momentum around the player, not this report — how many posts in the last

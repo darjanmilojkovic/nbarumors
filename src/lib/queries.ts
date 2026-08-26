@@ -50,6 +50,7 @@ export type FeedRumor = {
     fullName: string;
     isPrimary: boolean;
     headshotUrl: string | null;
+    prominence: number;
   }[];
 };
 
@@ -84,6 +85,7 @@ async function hydrate(rows: Awaited<ReturnType<typeof baseSelect>>): Promise<Fe
       slug: players.slug,
       fullName: players.fullName,
       headshotUrl: players.headshotUrl,
+      prominence: players.prominence,
     })
     .from(rumorPlayers)
     .innerJoin(players, eq(players.id, rumorPlayers.playerId))
