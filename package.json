@@ -34,7 +34,8 @@
     "fix:transactions": "tsx src/scripts/shorten-transaction-bodies.ts",
     "try:extract": "tsx src/scripts/try-extract.ts",
     "probe:feeds": "tsx src/scripts/probe-feeds.ts",
-    "merge:pair": "tsx src/scripts/merge-pair.ts"
+    "merge:pair": "tsx src/scripts/merge-pair.ts",
+    "fix:commentary": "tsx src/scripts/rewrite-commentary.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

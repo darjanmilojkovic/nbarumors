@@ -41,7 +41,11 @@ const TEAM_LIST = SEED_TEAMS.map(
  * parse freeform prose, and the enums keep `type`/`status` aligned with the
  * Postgres enums without a translation layer.
  */
-const SCHEMA = {
+/*
+ * Exported so the archive rewrite can reuse the exact body rules rather than
+ * paraphrasing them into a second prompt that then drifts out of step.
+ */
+export const SCHEMA = {
   type: "object",
   properties: {
     isRumor: {
