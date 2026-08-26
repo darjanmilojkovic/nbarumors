@@ -77,13 +77,25 @@ export function StickyMasthead({ children }: { children: React.ReactNode }) {
       }
 
       /*
-       * Near the top it is always visible, checked before the threshold below.
-       * Hiding it here is what leaves the hole: there is nothing above the
-       * masthead for it to slide behind, so the space it vacates just shows
-       * through. iOS rubber-banding also drives scrollY negative, which this
-       * covers.
+       * Nothing hides until the masthead is actually stuck to the top.
+       *
+       * A sticky element only pins once you have scrolled past its own height.
+       * Before that it is an ordinary block sitting at the top of the
+       * document, and sliding it up with a transform empties the space it
+       * occupies without letting anything move into it — the reader gets a
+       * band of background above "Back to the feed", exactly as tall as
+       * whatever is left of the masthead's box. At 40px scrolled that band is
+       * 70px; at 80px it is 30px; past its own height it does not exist,
+       * because from there the element is pinned and the article is scrolling
+       * underneath it.
+       *
+       * So the rule is geometric rather than a matter of taste: hide it only
+       * once hiding it costs nothing. Below that it simply scrolls away with
+       * the page, which is what a header is supposed to do. This also covers
+       * iOS rubber-banding driving scrollY negative.
        */
-      if (y < 8) {
+      const height = ref.current?.offsetHeight ?? 0;
+      if (y < height) {
         last = y;
         return apply(true);
       }
