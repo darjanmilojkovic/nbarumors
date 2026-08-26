@@ -10,17 +10,18 @@ export const revalidate = 300;
 /*
  * Four views, three of them genuinely different questions:
  *
- *   live       what matters right now — prominence decayed by age
+ *   live       shown as Trending: what matters right now, prominence decayed by age
  *   latest     the wire as it came in, newest first, nothing weighted
  *   top        the biggest stories, with recency deliberately absent
  *   confirmed  a filter rather than an ordering
  *
- * Live and Latest were briefly the same thing. The left rail links to "/",
- * which is Live, so making the rail chronological quietly took the ranking
- * away from the default landing page — the one view most people ever see.
+ * Trending and Latest were briefly the same thing. The left rail links to
+ * "/", which is Trending, so making the rail chronological quietly took the
+ * ranking away from the default landing page — the one most people ever see.
  */
 const TABS = [
-  { key: "live", label: "Live" },
+  // The key stays "live": it is in every /?tab= link already shared.
+  { key: "live", label: "Trending" },
   { key: "latest", label: "Latest" },
   { key: "top", label: "Top" },
   { key: "confirmed", label: "Confirmed" },
@@ -73,7 +74,7 @@ export async function generateMetadata({
   return {
     title: {
       absolute: `${scope}${
-        TABS.find((t) => t.key === tab)?.label ?? "Live"
+        TABS.find((t) => t.key === tab)?.label ?? "Trending"
       } — page ${page} — ${SITE.name}`,
     },
     alternates: { canonical: href(tab, cat, page) },

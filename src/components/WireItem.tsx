@@ -2,9 +2,15 @@ import Image from "next/image";
 import Link from "next/link";
 import type { FeedRumor } from "@/lib/queries";
 
+/*
+ * The kicker names what KIND of story this is, so the two commonest types say
+ * so in full: "Trade" alone reads as a completed trade on a post that is only
+ * floating one, and "Signing" is the event where the kicker could just as
+ * easily be naming the contract.
+ */
 const CAT: Record<string, string> = {
-  trade: "Trade",
-  signing: "Signing",
+  trade: "Trade rumor",
+  signing: "Contract signing",
   free_agency: "Free agency",
   buyout: "Buyout",
   extension: "Extension",
