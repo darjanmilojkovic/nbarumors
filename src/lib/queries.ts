@@ -220,11 +220,10 @@ const HOT = sql`(case when ${rumors.publishedAt} > now() - interval '7 days' the
  */
 const OUTLET_WEIGHT = sql`(case
   when ${sources.slug} = 'bbref-transactions' then 0
-  when lower(coalesce(nullif(${feedItems.publisher}, ''), ${sources.name})) in
-    ('espn', 'espn.com', 'yahoo sports', 'sports.yahoo.com', 'realgm', 'the athletic') then 15
-  when lower(coalesce(nullif(${feedItems.publisher}, ''), ${sources.name})) in
-    ('cbs sports', 'cbssports.com', 'hoops rumors', 'bleacher report', 'sports illustrated',
-     'usa today', 'sportando', 'sportando.basketball', 'hoopshype') then 8
+  when lower(coalesce(nullif(${feedItems.publisher}, ''), ${sources.name}))
+    ~ '(espn|yahoo|realgm|theathletic|the athletic)' then 15
+  when lower(coalesce(nullif(${feedItems.publisher}, ''), ${sources.name}))
+    ~ '(cbssports|cbs sports|hoopsrumors|hoops rumors|bleacher|sports illustrated|usatoday|usa today|sportando|hoopshype)' then 8
   else -8 end)`;
 
 const OUTLETS = sql`(
