@@ -290,7 +290,27 @@ const RANK = sql`(${PROMINENCE} + ${OUTLET_WEIGHT} - extract(epoch from (now() -
  * is the decayed one, so duplicating either here would leave no view that
  * surfaces a big story once it is a few days old.
  */
-const TOP = sql`(${PROMINENCE} + ${OUTLET_WEIGHT} + ${HOT} * 3 + (${OUTLETS} - 1) * 12 + ${rumors.confidence} * 10) desc`;
+/**
+ * The biggest stories, with recency deliberately absent.
+ *
+ * Both volume terms are capped, because uncapped they stopped measuring
+ * importance and started measuring how much was written. Jonathan Kuminga's
+ * free agency generated 20 posts in a week, worth 60 points before the cap —
+ * more than the entire gap between a fringe player and a superstar. So a
+ * roundup noting he was still unsigned ranked 4th, above LeBron signing with
+ * the 76ers at 20th, and "Kuminga said to favor Lakers" outranked most of the
+ * league. How much is being written about a player says how busy his summer
+ * is, not how big any one report is.
+ *
+ * Capped rather than deleted: a story genuinely everyone is chasing should
+ * still get some lift, and removing the term outright let pure roundups about
+ * famous players climb on prominence alone. Four posts is enough to show a
+ * story has legs; the twentieth says nothing the fourth did not.
+ *
+ * The same argument caps corroboration. Three independent outlets means a
+ * story is real; a fourth and fifth are the same fact again.
+ */
+const TOP = sql`(${PROMINENCE} + ${OUTLET_WEIGHT} + least(${HOT}, 4) * 3 + least(${OUTLETS} - 1, 3) * 12 + ${rumors.confidence} * 10) desc`;
 
 export type FeedOrder = "rank" | "chrono" | "top";
 
