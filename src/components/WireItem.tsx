@@ -88,8 +88,26 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
       Number(Boolean(b.headshotUrl)) - Number(Boolean(a.headshotUrl)),
   );
   const MAX_FACES = 3;
-  const faces = ordered.slice(0, MAX_FACES);
-  const extraFaces = Math.max(0, ordered.length - MAX_FACES);
+
+  /*
+   * Only the people the story is about get a face.
+   *
+   * Every name in a report is tagged, which is right for finding coverage but
+   * wrong for a portrait. Klay Thompson's buyout described the Dallas roster he
+   * was leaving, so Luka Doncic, Kyrie Irving and Anthony Davis were tagged —
+   * and the card showed their photos beside his on a post about one player
+   * signing for Miami, as though all four were moving.
+   *
+   * A player qualifies by being the subject or by actually moving in the deal,
+   * which keeps both sides of a trade — Butler and Kuminga in a three-team
+   * proposal are one primary and one not, and both belong on the card.
+   */
+  const inTheStory = ordered.filter(
+    (p) => p.isPrimary || (p.fromAbbrev && p.toAbbrev),
+  );
+  const cast = inTheStory.length > 0 ? inTheStory : ordered;
+  const faces = cast.slice(0, MAX_FACES);
+  const extraFaces = Math.max(0, cast.length - MAX_FACES);
 
   /*
    * Some rumors name no player at all — "Kings and Raptors talks collapsed" —
@@ -97,7 +115,7 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
    * initials or a generic mark, fall back to the team logos, which identify
    * the story just as well.
    */
-  const hasAnyPhoto = ordered.some((p) => p.headshotUrl);
+  const hasAnyPhoto = cast.some((p) => p.headshotUrl);
   const logoTiles = !hasAnyPhoto ? rumor.teams.slice(0, MAX_FACES) : [];
 
   const hasNamedReporter =
