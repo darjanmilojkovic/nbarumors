@@ -454,18 +454,28 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
                 </span>
               )}
 
-              {moves.length > 1 &&
-                moves.map((p) => (
-                  <span
-                    key={p.slug}
-                    className="font-mono text-[10px] tracking-widest text-muted uppercase"
-                  >
-                    {/* Surname alone: the arrow is the point, and full names
-                        turn a two-player deal into two lines of chrome. */}
-                    {p.fullName.split(" ").slice(-1)[0]} {p.fromAbbrev} →{" "}
-                    {p.toAbbrev}
-                  </span>
-                ))}
+              {moves.length > 1 && (
+                /*
+                 * One span, with a middot between legs. As separate flex
+                 * children the gap alone had to carry the division, and
+                 * "Butler GSW → ATL Kuminga GSW → MIL" ran together as a
+                 * single string. A pipe rather than the byline row's middot:
+                 * these legs each contain an arrow already, and the heavier
+                 * rule reads as a divider between them rather than more
+                 * punctuation inside one.
+                 *
+                 * Surname alone: the arrow is the point, and full names turn a
+                 * two-player deal into two lines of chrome.
+                 */
+                <span className="font-mono text-[10px] tracking-widest text-muted uppercase">
+                  {moves
+                    .map(
+                      (p) =>
+                        `${p.fullName.split(" ").slice(-1)[0]} ${p.fromAbbrev} → ${p.toAbbrev}`,
+                    )
+                    .join("  |  ")}
+                </span>
+              )}
             </div>
           )}
 

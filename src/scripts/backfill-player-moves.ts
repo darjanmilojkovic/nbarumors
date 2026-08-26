@@ -25,20 +25,31 @@ async function main() {
   const { extractRumor } = await import("@/lib/extract");
 
   /*
-   * Posts with more than one destination team are the only ones where a single
-   * arrow is ambiguous. A post with one "to" already reads correctly.
+   * Every post where more than one player moves.
+   *
+   * The first pass asked for more than one DESTINATION team, which caught the
+   * three-team proposals and missed every ordinary two-team trade: Lillard to
+   * Boston for Hauser and Scheierman has one destination on the post, but
+   * three players going in two directions, and one arrow cannot say that.
+   *
+   * Requiring two involved teams keeps out the roundups that merely name
+   * several players without moving any of them.
    */
   const res = await db.execute(sql`
-    select r.id, r.slug, r.headline, f.title, coalesce(f.raw_summary,'') as raw_summary,
+    select r.id, r.slug, r.headline, r.body, f.title,
+           coalesce(f.raw_summary,'') as raw_summary,
            coalesce(nullif(f.publisher,''), s.name) as outlet
       from rumors r join feed_items f on f.id = r.feed_item_id
       join sources s on s.id = f.source_id
      where r.is_published
+       and (select count(*) from rumor_players rp where rp.rumor_id = r.id) > 1
        and (select count(*) from rumor_teams rt
-             where rt.rumor_id = r.id and rt.role = 'to') > 1
+             where rt.rumor_id = r.id and rt.role <> 'mentioned') > 1
+       and (select count(*) from rumor_players rp
+             where rp.rumor_id = r.id and rp.to_team_id is not null) = 0
      order by r.published_at desc`);
   const rows = (res.rows ?? res) as Record<string, string>[];
-  console.log(`${rows.length} posts with more than one destination team\n`);
+  console.log(`${rows.length} posts where more than one player moves\n`);
 
   const teamRows = await db.select({ id: teams.id, abbreviation: teams.abbreviation }).from(teams);
   const byAbbrev = new Map(teamRows.map((t) => [t.abbreviation, t.id]));
@@ -52,9 +63,15 @@ async function main() {
   const skipped: string[] = [];
 
   for (const r of rows) {
+    /*
+     * Our own summary goes in alongside the feed text. For the Google News
+     * posts the feed text is the headline repeated, but the body was rewritten
+     * from the article and already names who goes where — no point fetching
+     * the page again to learn what we have written down.
+     */
     const out = await extractRumor({
       title: r.title,
-      rawSummary: r.raw_summary,
+      rawSummary: [r.raw_summary, r.body].filter(Boolean).join("\n\n"),
       publisher: r.outlet,
       sourceName: r.outlet,
     });
