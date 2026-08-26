@@ -192,9 +192,21 @@ async function attachSource(
     .set({
       status,
       confidence: Math.min(1, Math.max(current.confidence, extraction.confidence) + 0.05),
-      // Keep the post surfacing while outlets are still picking it up.
-      publishedAt:
-        item.publishedAt > current.publishedAt ? item.publishedAt : current.publishedAt,
+      /*
+       * publishedAt deliberately untouched.
+       *
+       * It used to advance to whichever report was newest, to keep a story
+       * surfacing while outlets picked it up. But the card shows that date
+       * beside a byline linking to one specific article, so a story that broke
+       * on 21 August read "12h ago" next to a link to a five-day-old CBS
+       * piece. It also let old stories jump to the top of the chronological
+       * tab, and shifted them inside the seven-day window that decides which
+       * players count as generating coverage.
+       *
+       * The date now means when this story broke. How much attention it is
+       * still getting is what the corroboration count and the momentum badge
+       * are for.
+       */
     })
     .where(eq(rumors.id, rumorId));
 
