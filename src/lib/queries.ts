@@ -310,7 +310,30 @@ const RANK = sql`(${PROMINENCE} + ${OUTLET_WEIGHT} - extract(epoch from (now() -
  * The same argument caps corroboration. Three independent outlets means a
  * story is real; a fourth and fifth are the same fact again.
  */
-const TOP = sql`(${PROMINENCE} + ${OUTLET_WEIGHT} + least(${HOT}, 4) * 3 + least(${OUTLETS} - 1, 3) * 12 + ${rumors.confidence} * 10) desc`;
+/**
+ * How far the move itself got, which Top ignored entirely.
+ *
+ * "Sabonis set to stay in Sacramento after trade talks stall" ranked 7th: a
+ * move that is NOT happening, sitting among the biggest stories of the month,
+ * carried there by Sabonis being rated 100. The ordering knew who a post was
+ * about and nothing about whether anything happened.
+ *
+ * A completed deal is the biggest kind of story there is, so it leads. A
+ * debunked one is the smallest — the news is that there is no news — and it is
+ * docked hard enough to leave the front page whoever it concerns.
+ *
+ * Rumors are NOT penalised. Speculation is a large part of what this site is
+ * for, and a well-sourced Kyrie Irving rumor deserves its place at the top.
+ * The only thing being pushed down is the non-event.
+ */
+const STATUS_WEIGHT = sql`(case ${rumors.status}
+  when 'completed' then 12
+  when 'confirmed' then 12
+  when 'reported' then 6
+  when 'debunked' then -30
+  else 0 end)`;
+
+const TOP = sql`(${PROMINENCE} + ${OUTLET_WEIGHT} + ${STATUS_WEIGHT} + least(${HOT}, 4) * 3 + least(${OUTLETS} - 1, 3) * 12 + ${rumors.confidence} * 10) desc`;
 
 export type FeedOrder = "rank" | "chrono" | "top";
 
