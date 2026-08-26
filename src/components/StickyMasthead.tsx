@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 /**
@@ -18,6 +19,18 @@ import { useEffect, useRef, useState } from "react";
 export function StickyMasthead({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const [shown, setShown] = useState(true);
+  /*
+   * Every page renders WireShell at the same position in the tree, so React
+   * reuses this component across a route change rather than remounting it —
+   * and `shown` carried over with it. Scrolling down the feed hid the
+   * masthead, tapping through to an article kept it hidden, and because a
+   * translated sticky element still occupies its space in normal flow, the
+   * article opened with a masthead-sized hole above it. Reported on iOS
+   * Safari, but nothing about it was Safari-specific.
+   *
+   * Re-running on pathname puts it back for each new page.
+   */
+  const pathname = usePathname();
 
   useEffect(() => {
     const desktop = window.matchMedia("(min-width: 640px)");
@@ -35,6 +48,19 @@ export function StickyMasthead({ children }: { children: React.ReactNode }) {
     const onScroll = () => {
       if (desktop.matches) return apply(true);
       const y = window.scrollY;
+
+      /*
+       * Near the top it is always visible, checked before the threshold below.
+       * Hiding it here is what leaves the hole: there is nothing above the
+       * masthead for it to slide behind, so the space it vacates just shows
+       * through. iOS rubber-banding also drives scrollY negative, which this
+       * covers.
+       */
+      if (y < 8) {
+        last = y;
+        return apply(true);
+      }
+
       /*
        * A small threshold, or the header flickers on the elastic bounce at the
        * top of the page and on the one-pixel jitter of a trackpad.
@@ -42,7 +68,7 @@ export function StickyMasthead({ children }: { children: React.ReactNode }) {
       if (Math.abs(y - last) < 6) return;
       const goingUp = y < last;
       last = y;
-      apply(goingUp || y < 8);
+      apply(goingUp);
     };
 
     apply(true);
@@ -52,7 +78,7 @@ export function StickyMasthead({ children }: { children: React.ReactNode }) {
       window.removeEventListener("scroll", onScroll);
       desktop.removeEventListener("change", onScroll);
     };
-  }, []);
+  }, [pathname]);
 
   return (
     <div
