@@ -112,6 +112,24 @@ const STATUS_RANK: Record<string, number> = {
 const MERGE_WINDOW_DAYS = 14;
 
 /**
+ * How far back a settled transaction still counts as the same event.
+ *
+ * Fourteen days is right for a live rumour: two reports a month apart about a
+ * player's future are usually two different stories. It is wrong for a done
+ * deal, which stays the same event forever. LeBron signing for Philadelphia on
+ * 24 July was reported again on 26 August — 33 days later, key
+ * "lebron-james-phi-signing" against the original's
+ * "lebron-james-phi-signing-multiyear" — and became a second post announcing a
+ * month-old signing as news.
+ *
+ * Ninety days lets later coverage attach to the story it belongs to. Only for
+ * events already recorded as done: an open rumour keeps the tighter window,
+ * because that is where two months genuinely does mean two stories.
+ */
+const SETTLED_WINDOW_DAYS = 90;
+const SETTLED = ["confirmed", "completed"];
+
+/**
  * Find an existing post for the same event. Keyed on the model's canonical
  * event key, which is why four outlets on one signing collapse while four
  * different angles on one player's free agency stay separate.
@@ -120,7 +138,12 @@ async function findExistingEvent(eventKey: string, publishedAt: Date) {
   const key = eventKey.trim().toLowerCase();
   if (!key) return null;
 
-  const since = new Date(publishedAt.getTime() - MERGE_WINDOW_DAYS * 86_400_000);
+  /*
+   * Look back as far as the settled window, then let each candidate decide
+   * which limit applies to it — a done deal keeps the long reach, an open
+   * rumour is held to fourteen days.
+   */
+  const since = new Date(publishedAt.getTime() - SETTLED_WINDOW_DAYS * 86_400_000);
   const until = new Date(publishedAt.getTime() + MERGE_WINDOW_DAYS * 86_400_000);
 
   /*
@@ -145,9 +168,15 @@ async function findExistingEvent(eventKey: string, publishedAt: Date) {
     .orderBy(sql`${rumors.publishedAt} asc`);
 
   // Earliest match wins, so a story always collapses onto its first report.
-  const existing = candidates.find(
-    (c) => c.eventKey && isSameEvent(c.eventKey, key),
-  );
+  const existing = candidates.find((c) => {
+    if (!c.eventKey || !isSameEvent(c.eventKey, key)) return false;
+    const daysApart =
+      Math.abs(publishedAt.getTime() - c.publishedAt.getTime()) / 86_400_000;
+    const limit = SETTLED.includes(c.status)
+      ? SETTLED_WINDOW_DAYS
+      : MERGE_WINDOW_DAYS;
+    return daysApart <= limit;
+  });
 
   return existing ?? null;
 }

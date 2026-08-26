@@ -47,7 +47,7 @@ const SCHEMA = {
     isRumor: {
       type: "boolean",
       description:
-        "True only if this is about a player transfer, trade, signing, contract, buyout, waiver, or draft move. False for game recaps, standings, injuries with no transfer angle, off-court news, awards, or opinion pieces.",
+        "True only if this item REPORTS a transfer, trade, signing, contract, buyout, waiver or draft move — that is, it tells the reader something about the move they could not have known yesterday. False for game recaps, standings, injuries with no transfer angle, off-court news, awards and opinion pieces. Also false for a feature, column, retrospective, season preview, roster breakdown or ranking that merely REFERENCES a move already made: 'Eight years after Brett Brown went star hunting, the one he really wanted lands in Philly' is a profile of a coach, not a report that LeBron signed. The test is whether the move itself is the news. A feature CAN qualify if it carries something new about the move — a player explaining why he chose a team, or terms not previously reported — but not if the transfer is only its backdrop.",
     },
     rejectedReason: {
       type: ["string", "null"],
