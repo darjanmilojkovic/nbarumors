@@ -148,8 +148,9 @@ const RANK = sql`(${PROMINENCE} - extract(epoch from (now() - ${rumors.published
  *   beat a thin star rumor without steamrolling the ranking.
  * - confidence breaks ties; its range is too narrow to do more.
  *
- * Recency is deliberately absent — Live is the chronological view, and
- * duplicating it here would leave no tab that surfaces the big stories.
+ * Recency is deliberately absent — Latest is the chronological view and Live
+ * is the decayed one, so duplicating either here would leave no view that
+ * surfaces a big story once it is a few days old.
  */
 const TOP = sql`(${PROMINENCE} + ${HOT} * 3 + (${OUTLETS} - 1) * 12 + ${rumors.confidence} * 10) desc`;
 
@@ -294,7 +295,7 @@ export async function feedPage(opts: {
   const extra = filters.length ? and(...filters) : undefined;
 
   const order: FeedOrder =
-    tab === "live" ? "chrono" : tab === "top" ? "top" : "rank";
+    tab === "latest" ? "chrono" : tab === "top" ? "top" : "rank";
 
   const [rows, [counted]] = await Promise.all([
     baseSelect(extra, order)

@@ -5,8 +5,21 @@ import { feedPage } from "@/lib/queries";
 
 export const revalidate = 300;
 
+/*
+ * Four views, three of them genuinely different questions:
+ *
+ *   live       what matters right now — prominence decayed by age
+ *   latest     the wire as it came in, newest first, nothing weighted
+ *   top        the biggest stories, with recency deliberately absent
+ *   confirmed  a filter rather than an ordering
+ *
+ * Live and Latest were briefly the same thing. The left rail links to "/",
+ * which is Live, so making the rail chronological quietly took the ranking
+ * away from the default landing page — the one view most people ever see.
+ */
 const TABS = [
   { key: "live", label: "Live" },
+  { key: "latest", label: "Latest" },
   { key: "top", label: "Top" },
   { key: "confirmed", label: "Confirmed" },
 ] as const;

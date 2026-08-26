@@ -43,7 +43,7 @@ async function LeftRail({ teamSlug }: { teamSlug?: string }) {
       <RailHeading>Beats since 2026</RailHeading>
       <nav className="mb-7 flex flex-col gap-px">
         <Link
-          href="/"
+          href="/?tab=latest"
           className="flex items-center justify-between rounded-sm px-3 py-2 text-sm text-body hover:bg-surface hover:text-white"
         >
           Latest Updates
