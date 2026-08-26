@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { rumorSources, rumors } from "@/db/schema";
 import { WireItem } from "@/components/WireItem";
 import { WireShell } from "@/components/WireShell";
-import { latestRumors } from "@/lib/queries";
+import { latestRumors, rumorBySlug } from "@/lib/queries";
 
 export const revalidate = 300;
 
@@ -50,11 +50,15 @@ export default async function RumorPage({ params }: PageProps<"/rumor/[slug]">) 
     notFound();
   }
 
-  // Small dataset — pull the feed and pick, rather than a second hydrate path.
-  const feed = await latestRumors(200);
-  const rumor = feed.find((r) => r.id === row.id);
+  /*
+   * Fetched by slug, not looked up inside the feed. Picking it out of the top
+   * 200 meant a post 404'd once it aged out of that window — roughly 430 of
+   * 631 published posts, every one of them still listed in the sitemap.
+   */
+  const rumor = await rumorBySlug(slug);
   if (!rumor) notFound();
 
+  const feed = await latestRumors(200);
   const related = feed
     .filter(
       (r) =>

@@ -375,6 +375,20 @@ export async function feedPage(opts: {
   };
 }
 
+/**
+ * One post, fetched by slug.
+ *
+ * The rumor page used to pull the top 200 of the ranked feed and look for the
+ * post inside it, so anything older than the current window 404'd even though
+ * it was published and listed in the sitemap — around 430 of 631 posts. Age is
+ * not a reason a page should stop existing.
+ */
+export async function rumorBySlug(slug: string) {
+  const rows = await baseSelect(sql`${rumors.slug} = ${slug}`).limit(1);
+  const [rumor] = await hydrate(rows);
+  return rumor ?? null;
+}
+
 export async function rumorsForTeam(teamSlug: string, limit = 30) {
   const ids = db
     .select({ id: rumorTeams.rumorId })
