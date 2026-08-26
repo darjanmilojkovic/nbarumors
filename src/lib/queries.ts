@@ -33,7 +33,6 @@ export type FeedRumor = {
   contractYears: number | null;
   outcome: string | null;
   outcomeAt: Date | null;
-  maxProminence: number;
   hotMentions: number;
   confidence: number;
   teams: {
@@ -162,11 +161,31 @@ async function storiesPerPlayer(): Promise<Map<number, number>> {
  * expressions the select does. Repeating them inline made the "top" ordering
  * a wall of duplicated subqueries.
  */
-const PROMINENCE = sql`coalesce((
-  select max(p.prominence) from rumor_players rp
-  join players p on p.id = rp.player_id
-  where rp.rumor_id = ${rumors.id}
-), 0)`;
+/**
+ * How big a story is, by who it is about.
+ *
+ * The primary player carries it, plus a quarter of the best other name tagged.
+ * Taking the plain maximum meant a Peyton Watson trade sorted as a Nikola
+ * Jokic story purely because Jokic was mentioned — rated 100 when Watson is
+ * 49. Taking the primary alone would drop it to 49 and lose the fact that a
+ * Jokic-adjacent trade genuinely is more interesting than an ordinary one.
+ *
+ * A quarter splits it: that post lands at 74, above a routine Watson signing
+ * and below a real Jokic story. Multi-player trades keep some lift from the
+ * biggest name in them without being mistaken for stories about that name.
+ */
+const PROMINENCE = sql`(
+  coalesce((
+    select max(p.prominence) from rumor_players rp
+    join players p on p.id = rp.player_id
+    where rp.rumor_id = ${rumors.id} and rp.is_primary
+  ), 0)
+  + 0.25 * coalesce((
+    select max(p.prominence) from rumor_players rp
+    join players p on p.id = rp.player_id
+    where rp.rumor_id = ${rumors.id} and not rp.is_primary
+  ), 0)
+)`;
 
 const HOT = sql`(case when ${rumors.publishedAt} > now() - interval '7 days' then (
   select count(distinct r2.id)
@@ -272,12 +291,6 @@ const baseSelect = (extra?: SQL, order: FeedOrder = "rank") =>
         ) order by rs.published_at), '[]'::json)
         from rumor_sources rs join sources s2 on s2.id = rs.source_id
         where rs.rumor_id = ${rumors.id}
-      )`,
-      /** Highest prominence among the players named — drives the hype badge. */
-      maxProminence: sql<number>`(
-        select coalesce(max(p.prominence), 0)::int
-        from rumor_players rp join players p on p.id = rp.player_id
-        where rp.rumor_id = ${rumors.id}
       )`,
       /**
        * How many separate posts named this rumor's primary player in the last
