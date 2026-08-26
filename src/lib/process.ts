@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { feedItems, sources } from "@/db/schema";
+import { feedItems, rumors, sources } from "@/db/schema";
 import { FETCH_ARTICLE_SOURCES, bestText } from "@/lib/article";
 import { extractRumor, extractionModel } from "@/lib/extract";
 import { pendingItems, publishExtraction } from "@/lib/publish";
@@ -47,6 +47,20 @@ export async function runExtraction(limit = 50): Promise<ProcessResult> {
   // A log entry and a news report get treated differently on merge.
   const sourceSlug = new Map(sourceRows.map((s) => [s.id, s.slug]));
 
+  /*
+   * The headlines a reader will see beside whatever this run produces: the
+   * most recent published, plus the ones written as the run goes. Extraction
+   * is per-item, so without this each new post is written blind to the ones
+   * either side of it and they converge on one construction.
+   */
+  const recent = await db
+    .select({ headline: rumors.headline })
+    .from(rumors)
+    .where(eq(rumors.isPublished, true))
+    .orderBy(desc(rumors.publishedAt))
+    .limit(8);
+  const recentHeadlines = recent.map((r) => r.headline);
+
   let published = 0;
   let merged = 0;
   let held = 0;
@@ -75,6 +89,7 @@ export async function runExtraction(limit = 50): Promise<ProcessResult> {
       const extraction = await extractRumor({
         title: item.title,
         rawSummary: source.text,
+        recentHeadlines,
         publisher: item.publisher,
         sourceName: sourceName.get(item.sourceId) ?? "unknown",
       });
@@ -82,6 +97,17 @@ export async function runExtraction(limit = 50): Promise<ProcessResult> {
         { ...item, sourceSlug: sourceSlug.get(item.sourceId) ?? "" },
         extraction,
       );
+      /*
+       * Written this run, so the next item in the same batch sees it too. A
+       * quiet night can publish six posts in one pass, and without this they
+       * would all be written against the same eight older headlines and could
+       * still converge on each other.
+       */
+      if (result.status === "published" || result.status === "held") {
+        recentHeadlines.unshift(extraction.headline);
+        recentHeadlines.splice(8);
+      }
+
       if (result.status === "published") published++;
       else if (result.status === "merged") merged++;
       else if (result.status === "held") held++;

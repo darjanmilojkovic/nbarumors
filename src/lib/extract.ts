@@ -208,11 +208,25 @@ Valid team abbreviations: ${TEAM_LIST}`;
 
 const client = new Anthropic();
 
+/**
+ * Headlines written recently, passed in so the next one does not echo them.
+ *
+ * Every item is extracted on its own, which is why the wire drifts into a
+ * house formula: nothing tells the model that the last four posts all began
+ * "Hypothetical trade sends" or "X would land in Y". Nine headlines said
+ * "would land" and fourteen said "floated" before anyone noticed, and no
+ * per-item instruction can prevent that, because the problem only exists
+ * between items.
+ *
+ * Cheap: eight headlines is around a hundred tokens, and it goes in the user
+ * turn, so the cached system prompt is untouched.
+ */
 export async function extractRumor(item: {
   title: string;
   rawSummary: string | null;
   publisher: string | null;
   sourceName: string;
+  recentHeadlines?: string[];
 }): Promise<Extraction> {
   const response = await client.messages.create({
     model: MODEL,
@@ -231,6 +245,13 @@ export async function extractRumor(item: {
           `Outlet: ${item.publisher ?? item.sourceName}`,
           `Headline: ${item.title}`,
           `Summary: ${item.rawSummary ?? "(none provided)"}`,
+          ...(item.recentHeadlines?.length
+            ? [
+                ``,
+                `Headlines we published most recently. Do not echo their construction — the reader sees these on the same page as yours, and four in a row built the same way reads as a template rather than a wire:`,
+                ...item.recentHeadlines.slice(0, 8).map((h) => `  ${h}`),
+              ]
+            : []),
         ].join("\n"),
       },
     ],
