@@ -33,12 +33,35 @@ const STATE: Record<string, { label: string; cls: string }> = {
   debunked: { label: "Debunked", cls: "text-debunked bg-debunked/10" },
 };
 
-/** "4m", "3h", "2d" — wire cadence, not a formatted date. */
-function ago(d: Date) {
-  const mins = Math.max(0, Math.round((Date.now() - d.getTime()) / 60000));
+/**
+ * "4m" and "3h" inside a day, "21 Aug" beyond it.
+ *
+ * Relative time is the right register for a wire — but it is computed on the
+ * server and baked into the HTML, and pages are cached for five minutes, so
+ * what a reader sees is only ever as fresh as the last regeneration. On a
+ * quiet night the first visitor is served a stale page, and "2h" can be hours
+ * out of date.
+ *
+ * That risk is worth taking for the first day, where recency is the whole
+ * point. Past that it is not: "5d" is both less precise than a date and more
+ * likely to be wrong, so the long tail switches to something that cannot go
+ * stale at all.
+ *
+ * The date carries no time and no year for the current year — the exact minute
+ * is not information a reader of a week-old rumour needs.
+ */
+function ago(d: Date, now = new Date()) {
+  const mins = Math.max(0, Math.round((now.getTime() - d.getTime()) / 60000));
   if (mins < 60) return `${mins}m`;
   if (mins < 1440) return `${Math.round(mins / 60)}h`;
-  return `${Math.round(mins / 1440)}d`;
+
+  return d.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    // Only worth showing once a post is from a different year to today's.
+    ...(d.getUTCFullYear() === now.getUTCFullYear() ? {} : { year: "numeric" }),
+    timeZone: "UTC",
+  });
 }
 
 const initials = (name: string) =>
