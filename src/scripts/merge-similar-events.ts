@@ -77,7 +77,7 @@ async function main() {
    * "Mavericks buy Ishchenko from Lakers" stay separate — neither contains the
    * other.
    */
-  type Tag = { id: number; players: string; primaries: string; teams: string };
+  type Tag = { id: number; players: string; primaries: string; teams: string; involved: string; destinations: string };
   const tagRows = await db.execute(sql`
     select r.id,
       coalesce((select string_agg(distinct p.slug, ',' order by p.slug)
@@ -88,11 +88,24 @@ async function main() {
                 where rp.rumor_id = r.id and rp.is_primary), '') primaries,
       coalesce((select string_agg(distinct t.abbreviation, ',' order by t.abbreviation)
                 from rumor_teams rt join teams t on t.id = rt.team_id
-                where rt.rumor_id = r.id), '') teams
+                where rt.rumor_id = r.id), '') teams,
+      /*
+       * The teams the move involves, without the ones a report merely
+       * name-checks. Two RealGM items about Miami's last roster spot listed
+       * ATL, DAL, MIA and CHI, MIA, PHX — the same story, the same
+       * destination, and neither set containing the other because each
+       * mentioned different clubs in passing.
+       */
+      coalesce((select string_agg(distinct t.abbreviation, ',' order by t.abbreviation)
+                from rumor_teams rt join teams t on t.id = rt.team_id
+                where rt.rumor_id = r.id and rt.role <> 'mentioned'), '') involved,
+      coalesce((select string_agg(distinct t.abbreviation, ',' order by t.abbreviation)
+                from rumor_teams rt join teams t on t.id = rt.team_id
+                where rt.rumor_id = r.id and rt.role = 'to'), '') destinations
     from rumors r`);
-  const tags = new Map<number, { players: string; primaries: string; teams: string }>();
+  const tags = new Map<number, { players: string; primaries: string; teams: string; involved: string; destinations: string }>();
   for (const t of (tagRows.rows ?? tagRows) as unknown as Tag[]) {
-    tags.set(t.id, { players: t.players, primaries: t.primaries, teams: t.teams });
+    tags.set(t.id, { players: t.players, primaries: t.primaries, teams: t.teams, involved: t.involved, destinations: t.destinations });
   }
 
   /** True when one comma-separated set contains the other. */
@@ -134,11 +147,35 @@ async function main() {
     parent.set(x, root);
     return root;
   };
+  /*
+   * Destinations known for everything in a group, so a conflict is caught
+   * across the whole chain rather than one pair at a time.
+   *
+   * Pairwise checking is not enough once posts chain. "Rivals keep watching
+   * Kyrie Irving's Dallas situation" names no destination, so it is compatible
+   * with both "Irving would return to Boston" and "Irving chatter cools for
+   * Detroit" — and joining all three through it merged Boston with Detroit,
+   * which the pairwise rule had just refused.
+   */
+  const dests = new Map<number, Set<string>>();
+
   const union = (a: number, b: number) => {
     const [ra, rb] = [find(a), find(b)];
-    if (ra !== rb) parent.set(rb, ra);
+    if (ra === rb) return true;
+
+    const da = dests.get(ra) ?? new Set<string>();
+    const db2 = dests.get(rb) ?? new Set<string>();
+    if (da.size && db2.size && ![...da].some((x) => db2.has(x))) return false;
+
+    parent.set(rb, ra);
+    dests.set(ra, new Set([...da, ...db2]));
+    return true;
   };
-  for (const r of live) parent.set(r.id, r.id);
+
+  for (const r of live) {
+    parent.set(r.id, r.id);
+    dests.set(r.id, new Set((tags.get(r.id)?.destinations ?? "").split(",").filter(Boolean)));
+  }
 
   /*
    * How close in time two reports must be before the model is asked. Two days
@@ -162,7 +199,22 @@ async function main() {
       const tb = tags.get(B.id);
       if (!ta || !tb) continue;
       if (!ta.primaries || ta.primaries !== tb.primaries) continue;
-      if (!nests(ta.teams, tb.teams)) continue;
+      if (!nests(ta.involved, tb.involved)) continue;
+
+      /*
+       * Two reports naming different destinations are different events, and no
+       * amount of similarity changes that. The model was willing to call
+       * "Kyrie Irving would return to Boston for a Derrick White package" and
+       * "Kyrie Irving trade chatter cools for Detroit" one story — they are
+       * both Kyrie trade speculation from the same week, so the resemblance is
+       * real — but a transfer is identified by where the player goes.
+       *
+       * Only applies when both name one: a report that says a player is
+       * available without saying where can still join the story that does.
+       */
+      const da = new Set(ta.destinations.split(",").filter(Boolean));
+      const dbSet = new Set(tb.destinations.split(",").filter(Boolean));
+      if (da.size && dbSet.size && ![...da].some((x) => dbSet.has(x))) continue;
 
       if (isSameEvent(A.eventKey!, B.eventKey!)) {
         union(A.id, B.id);
@@ -183,6 +235,24 @@ async function main() {
        * also merges two LeBron James columns filed the same day, and no string
        * score separates those cases.
        */
+      /*
+       * The model may only join posts making the same KIND of claim about the
+       * destination: both naming one and agreeing, or neither naming one. It
+       * was willing to fold "Kyrie Irving would return to Boston for a Derrick
+       * White package" into general Irving chatter that named nowhere — the
+       * resemblance is real, both being Irving trade speculation from one
+       * week, but a specific proposal and an open situation are different
+       * claims and a reader wants both.
+       *
+       * Key similarity is held to a lower bar because it is evidence about the
+       * event itself rather than about how alike two stories read.
+       */
+      if (ta.destinations !== tb.destinations) {
+        rejectedPairs.push(
+          `    ${A.headline}\n       vs ${B.headline}  (destinations differ)`,
+        );
+        continue;
+      }
       if (Math.abs(+B.publishedAt - +A.publishedAt) > ADJUDICATE_WINDOW) continue;
       if (find(A.id) === find(B.id)) continue; // already one story
       adjudicated++;
