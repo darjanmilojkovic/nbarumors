@@ -2,6 +2,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   feedItems,
+  sources,
   playerImages,
   players,
   rumorPlayers,
@@ -162,8 +163,10 @@ async function findExistingEvent(eventKey: string, publishedAt: Date) {
       confidence: rumors.confidence,
       publishedAt: rumors.publishedAt,
       eventKey: rumors.eventKey,
+      sourceSlug: sources.slug,
     })
     .from(rumors)
+    .innerJoin(sources, eq(sources.id, rumors.sourceId))
     .where(sql`${rumors.publishedAt} between ${since} and ${until}`)
     .orderBy(sql`${rumors.publishedAt} asc`);
 
@@ -184,7 +187,7 @@ async function findExistingEvent(eventKey: string, publishedAt: Date) {
 /** Attach this report to an existing post instead of creating a duplicate. */
 async function attachSource(
   rumorId: number,
-  current: { status: string; confidence: number; publishedAt: Date },
+  current: { status: string; confidence: number; publishedAt: Date; sourceSlug: string },
   item: {
     id: number;
     sourceId: number;
@@ -192,6 +195,7 @@ async function attachSource(
     title: string;
     publisher: string | null;
     publishedAt: Date;
+    sourceSlug: string;
   },
   extraction: Extraction,
 ) {
@@ -216,11 +220,46 @@ async function attachSource(
       ? extraction.status
       : (current.status as Extraction["status"]);
 
+  /*
+   * A league transaction record proves a move happened; it cannot tell the
+   * story. Its entire text is a line like "Official transaction record. Teams:
+   * PHI. Players: LeBron James." — 63 characters — so the biggest signing of
+   * the offseason was summarised as a filing note, because merging keeps the
+   * earliest report and for a completed deal that is always the log entry.
+   *
+   * When actual reporting arrives on a story we only had from the log, it
+   * takes over the headline and body. The post keeps its URL, its date and its
+   * place in the feed; it just stops being written by a clerk.
+   */
+  const fromLog = current.sourceSlug === "bbref-transactions";
+  const upgrading = fromLog && item.sourceSlug !== "bbref-transactions";
+
   await db
     .update(rumors)
     .set({
       status,
       confidence: Math.min(1, Math.max(current.confidence, extraction.confidence) + 0.05),
+      ...(upgrading
+        ? {
+            /*
+             * The body always comes across — that is the point. The headline
+             * only if the incoming report is at least as settled, because a
+             * log entry's "signs multi-year deal" is a better headline for a
+             * done deal than an earlier "reportedly headed to Philadelphia".
+             */
+            ...(STATUS_RANK[extraction.status] >= STATUS_RANK[current.status]
+              ? { headline: extraction.headline }
+              : {}),
+            body: extraction.body,
+            sourceId: item.sourceId,
+            sourceUrl: item.url,
+            reportedBy: extraction.reportedBy?.slice(0, 128) ?? null,
+            feedItemId: item.id,
+            // Terms the log never carried.
+            ...(extraction.contractValue ? { contractValue: extraction.contractValue } : {}),
+            ...(extraction.contractYears ? { contractYears: extraction.contractYears } : {}),
+          }
+        : {}),
       /*
        * publishedAt deliberately untouched.
        *
@@ -260,6 +299,7 @@ export async function publishExtraction(
     title: string;
     publisher: string | null;
     publishedAt: Date;
+    sourceSlug: string;
   },
   extraction: Extraction,
 ): Promise<PublishResult> {

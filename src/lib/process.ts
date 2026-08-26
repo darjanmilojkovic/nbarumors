@@ -37,9 +37,11 @@ export async function runExtraction(limit = 50): Promise<ProcessResult> {
   const items = await pendingItems(limit);
 
   const sourceRows = await db
-    .select({ id: sources.id, name: sources.name })
+    .select({ id: sources.id, name: sources.name, slug: sources.slug })
     .from(sources);
   const sourceName = new Map(sourceRows.map((s) => [s.id, s.name]));
+  // A log entry and a news report get treated differently on merge.
+  const sourceSlug = new Map(sourceRows.map((s) => [s.id, s.slug]));
 
   let published = 0;
   let merged = 0;
@@ -55,7 +57,10 @@ export async function runExtraction(limit = 50): Promise<ProcessResult> {
         publisher: item.publisher,
         sourceName: sourceName.get(item.sourceId) ?? "unknown",
       });
-      const result = await publishExtraction(item, extraction);
+      const result = await publishExtraction(
+        { ...item, sourceSlug: sourceSlug.get(item.sourceId) ?? "" },
+        extraction,
+      );
       if (result.status === "published") published++;
       else if (result.status === "merged") merged++;
       else if (result.status === "held") held++;
