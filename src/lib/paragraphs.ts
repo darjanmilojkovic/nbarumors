@@ -31,9 +31,20 @@ function sentences(text: string): string[] {
   const DOT = "\u0000";
   const masked = text
     .replace(/(\d)\.(\d)/g, `$1${DOT}$2`)
+    /*
+     * A full stop with a lowercase letter hard against it is inside a word,
+     * not between two sentences: NBA.com, Heavy.com, bballrumors.com. Without
+     * this the Klay Thompson summary broke as "NBA. com has reported".
+     */
+    .replace(/\.(?=[a-z])/g, DOT)
     .replace(/\b(Jr|Sr|St|Mr|Dr|vs|No|[A-Z])\./g, `$1${DOT}`);
 
-  const parts = masked.match(/[^.!?]+[.!?]+|[^.!?]+$/g) ?? [masked];
+  /*
+   * Closing punctuation belongs to the sentence it closes. Ending the match
+   * at the full stop left a quote mark to open the next one, and rejoining put
+   * a space before it: 'keep him there. " Kevin O'Connor reports'.
+   */
+  const parts = masked.match(/[^.!?]+[.!?]+["'”’)\]]*|[^.!?]+$/g) ?? [masked];
   return parts
     .map((s) => s.split(DOT).join(".").trim())
     .filter(Boolean);
@@ -49,26 +60,53 @@ export function toParagraphs(body: string): string[] {
   const text = authored[0] ?? body.trim();
   if (text.length <= MIN_SPLIT_CHARS) return [text];
 
+  const parts = sentences(text);
+  if (parts.length < 2) return [text];
+
+  /*
+   * Decide how many paragraphs, then cut at the sentence boundaries nearest to
+   * where they would fall if the text divided evenly.
+   *
+   * Filling paragraphs greedily to a fixed size does not work here. A
+   * 413-character Lillard summary of three sentences filled one paragraph to
+   * 334 and left 78 over, and the rule that folded a short remainder back in
+   * to avoid an orphan then rebuilt the block it had just split. Choosing the
+   * cut points first cannot fail that way: it gives 158 and 255, which is the
+   * trade in one paragraph and the reasoning in the next.
+   */
+  const count = Math.max(2, Math.round(text.length / TARGET_PARA_CHARS));
+  const paraCount = Math.min(count, parts.length);
+
+  // Where each sentence ends, as a running character offset.
+  const ends: number[] = [];
+  let running = 0;
+  for (const s of parts) {
+    running += s.length + 1;
+    ends.push(running);
+  }
+
+  const cuts = new Set<number>();
+  for (let i = 1; i < paraCount; i++) {
+    const ideal = (text.length * i) / paraCount;
+    let best = 0;
+    // Never cut at the very end, and never twice in the same place.
+    for (let j = 0; j < parts.length - 1; j++) {
+      if (cuts.has(j)) continue;
+      if (Math.abs(ends[j] - ideal) < Math.abs(ends[best] - ideal) || cuts.has(best)) best = j;
+    }
+    cuts.add(best);
+  }
+
   const out: string[] = [];
-  let current = "";
-  for (const sentence of sentences(text)) {
-    current = current ? `${current} ${sentence}` : sentence;
-    if (current.length >= TARGET_PARA_CHARS) {
-      out.push(current);
-      current = "";
+  let current: string[] = [];
+  parts.forEach((sentence, i) => {
+    current.push(sentence);
+    if (cuts.has(i)) {
+      out.push(current.join(" "));
+      current = [];
     }
-  }
-  if (current) {
-    /*
-     * A trailing fragment joins the paragraph above rather than standing as a
-     * one-line orphan, unless that would make a paragraph twice the target.
-     */
-    const last = out[out.length - 1];
-    if (last && current.length < 90 && last.length + current.length < TARGET_PARA_CHARS * 2) {
-      out[out.length - 1] = `${last} ${current}`;
-    } else {
-      out.push(current);
-    }
-  }
+  });
+  if (current.length) out.push(current.join(" "));
+
   return out.length ? out : [text];
 }
