@@ -69,6 +69,15 @@ export const SEED_SOURCES: SeedSource[] = [
     note: "Feed 307s to archive.hoopshype.com, which does not resolve. Left registered but disabled; re-enable if the site returns.",
   },
   {
+    slug: "hoops-rumors",
+    name: "Hoops Rumors",
+    homepageUrl: "https://www.hoopsrumors.com/",
+    feedUrl: "https://www.hoopsrumors.com/feed",
+    kind: "rss",
+    enabled: true,
+    note: "Stands in for HoopsHype, and is a closer fit than it ever was: a dedicated transactions desk rather than a general NBA site, so nearly every item is a signing, trade or contract story rather than a game recap to be rejected.",
+  },
+  {
     slug: "gnews-trade-rumors",
     name: "Google News",
     homepageUrl: "https://news.google.com/",

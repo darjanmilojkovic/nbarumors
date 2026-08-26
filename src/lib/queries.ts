@@ -1,6 +1,7 @@
 import { and, desc, eq, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import {
+  feedItems,
   playerImages,
   players,
   rumorPlayers,
@@ -108,7 +109,20 @@ const baseSelect = (extra?: SQL) =>
       status: rumors.status,
       confidence: rumors.confidence,
       reportedBy: rumors.reportedBy,
-      sourceName: sources.name,
+      /*
+       * Credit the outlet that did the reporting, not the aggregator that
+       * carried it. Three of our feeds are Google News searches, so a byline
+       * of "Google News" was hiding Yahoo Sports, ESPN, Bleacher Report and
+       * the rest behind a wire we do not read.
+       *
+       * Only for the aggregators. On a direct feed the publisher field holds
+       * the bare domain the link resolved to — "espn.com" — which is a worse
+       * byline than the source's own name.
+       */
+      sourceName: sql<string>`case
+        when ${sources.slug} like 'gnews%'
+        then coalesce(nullif(${feedItems.publisher}, ''), ${sources.name})
+        else ${sources.name} end`,
       sourceSlug: sources.slug,
       contractValue: rumors.contractValue,
       contractYears: rumors.contractYears,
@@ -120,12 +134,12 @@ const baseSelect = (extra?: SQL) =>
       imageAttribution: playerImages.attribution,
       /** Distinct outlets that reported this event — the corroboration count. */
       sourceCount: sql<number>`(
-        select count(distinct s2.name)::int
+        select count(distinct case when s2.slug like 'gnews%' then coalesce(nullif(rs.publisher, ''), s2.name) else s2.name end)::int
         from rumor_sources rs join sources s2 on s2.id = rs.source_id
         where rs.rumor_id = ${rumors.id}
       )`,
       alsoReportedBy: sql<string | null>`(
-        select string_agg(distinct s2.name, ', ')
+        select string_agg(distinct case when s2.slug like 'gnews%' then coalesce(nullif(rs.publisher, ''), s2.name) else s2.name end, ', ')
         from rumor_sources rs join sources s2 on s2.id = rs.source_id
         where rs.rumor_id = ${rumors.id}
       )`,
@@ -134,7 +148,7 @@ const baseSelect = (extra?: SQL) =>
         { outlet: string; headline: string; url: string; at: string }[]
       >`(
         select coalesce(json_agg(json_build_object(
-          'outlet', s2.name, 'headline', rs.headline,
+          'outlet', case when s2.slug like 'gnews%' then coalesce(nullif(rs.publisher, ''), s2.name) else s2.name end, 'headline', rs.headline,
           'url', rs.source_url, 'at', rs.published_at
         ) order by rs.published_at), '[]'::json)
         from rumor_sources rs join sources s2 on s2.id = rs.source_id
@@ -171,6 +185,7 @@ const baseSelect = (extra?: SQL) =>
     .from(rumors)
     .innerJoin(sources, eq(sources.id, rumors.sourceId))
     .leftJoin(playerImages, eq(playerImages.id, rumors.imageId))
+    .leftJoin(feedItems, eq(feedItems.id, rumors.feedItemId))
     .where(extra ? and(eq(rumors.isPublished, true), extra) : eq(rumors.isPublished, true))
     /*
      * Rank = the most prominent player named, decayed by age. At 1.2 points
