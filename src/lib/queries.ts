@@ -1,5 +1,6 @@
 import { and, desc, eq, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
+import { isSameEvent } from "@/lib/event-key";
 import {
   feedItems,
   playerImages,
@@ -78,6 +79,7 @@ async function hydrate(rows: Awaited<ReturnType<typeof baseSelect>>): Promise<Fe
   const playerRows = await db
     .select({
       rumorId: rumorPlayers.rumorId,
+      playerId: rumorPlayers.playerId,
       isPrimary: rumorPlayers.isPrimary,
       slug: players.slug,
       fullName: players.fullName,
@@ -87,14 +89,70 @@ async function hydrate(rows: Awaited<ReturnType<typeof baseSelect>>): Promise<Fe
     .innerJoin(players, eq(players.id, rumorPlayers.playerId))
     .where(sql`${rumorPlayers.rumorId} in ${ids}`);
 
-  return rows.map((r) => ({
-    ...r,
-    teams: teamRows
-      .filter((t) => t.rumorId === r.id)
-      // "from" before "to" so the card reads like the trade direction.
-      .sort((a, b) => (a.role === "from" ? -1 : b.role === "from" ? 1 : 0)),
-    players: playerRows.filter((p) => p.rumorId === r.id),
-  }));
+  const stories = await storiesPerPlayer();
+
+  return rows.map((r) => {
+    const mine = playerRows.filter((p) => p.rumorId === r.id);
+    const primary = mine.find((p) => p.isPrimary) ?? mine[0];
+    return {
+      ...r,
+      /*
+       * Stories, not posts. The SQL count treats every row as a separate
+       * report, and one signing routinely exists as five or six of them —
+       * Klay Thompson showed "10 reports this week" for what was four stories.
+       * The badge is meant to say a player is generating coverage, not that we
+       * filed the same report six times.
+       */
+      hotMentions: r.hotMentions > 0 ? (stories.get(primary?.playerId ?? -1) ?? 0) : 0,
+      teams: teamRows
+        .filter((t) => t.rumorId === r.id)
+        // "from" before "to" so the card reads like the trade direction.
+        .sort((a, b) => (a.role === "from" ? -1 : b.role === "from" ? 1 : 0)),
+      players: mine,
+    };
+  });
+}
+
+/**
+ * Distinct stories per player over the last week, keyed by player id.
+ *
+ * Counting distinct event keys would not do it: every key is unique, which is
+ * exactly why the duplicates exist. They only collapse under the similarity
+ * rule, which is JS rather than SQL — so this is one small query (tens of rows)
+ * clustered in memory, rather than a subquery per feed row.
+ */
+async function storiesPerPlayer(): Promise<Map<number, number>> {
+  const recent = await db
+    .select({ playerId: rumorPlayers.playerId, eventKey: rumors.eventKey })
+    .from(rumors)
+    .innerJoin(
+      rumorPlayers,
+      sql`${rumorPlayers.rumorId} = ${rumors.id} and ${rumorPlayers.isPrimary}`,
+    )
+    .where(
+      sql`${rumors.isPublished} and ${rumors.publishedAt} > now() - interval '7 days'`,
+    );
+
+  const keysByPlayer = new Map<number, string[]>();
+  for (const row of recent) {
+    if (!row.eventKey) continue;
+    keysByPlayer.set(row.playerId, [
+      ...(keysByPlayer.get(row.playerId) ?? []),
+      row.eventKey,
+    ]);
+  }
+
+  const counts = new Map<number, number>();
+  for (const [playerId, keys] of keysByPlayer) {
+    const clusters: string[][] = [];
+    for (const key of keys) {
+      const hit = clusters.find((c) => c.some((k) => isSameEvent(k, key)));
+      if (hit) hit.push(key);
+      else clusters.push([key]);
+    }
+    counts.set(playerId, clusters.length);
+  }
+  return counts;
 }
 
 /**
