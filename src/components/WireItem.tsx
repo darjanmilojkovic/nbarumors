@@ -56,12 +56,12 @@ function ago(d: Date, now = new Date()) {
   if (mins < 60) return `${mins}m`;
   if (mins < 1440) return `${Math.round(mins / 60)}h`;
 
-  /*
-   * Assembled rather than formatted whole: no locale produces "25 Aug, 2026" —
-   * en-GB drops the comma and en-US leads with the month.
-   */
-  const month = d.toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" });
-  return `${d.getUTCDate()} ${month}, ${d.getUTCFullYear()}`;
+  return d.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 const initials = (name: string) =>
