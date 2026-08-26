@@ -189,6 +189,93 @@ async function main() {
     console.log(`\nleft alone (${skipped.length}):`);
     for (const s of skipped) console.log(`  ${s}`);
   }
+
+  /*
+   * Second pass: prose still quoting a figure the chip has since corrected.
+   *
+   * Klay Thompson's Heat deal was first reported at $13M and settled at
+   * $11.5M. The merge now takes the latest figure, so the chip says $11.5M
+   * while the summary went on saying $13 million.
+   */
+  const stale = await db.execute(sql`
+    select id, slug, headline, body, contract_value, contract_years
+      from rumors where is_published and contract_value is not null`);
+
+  const candidates = ((stale.rows ?? stale) as Record<string, string>[]).filter((r) => {
+    const num = (r.contract_value.match(/[\d.]+/) ?? [])[0];
+    if (!num || !/\$[\d.]+/.test(r.body)) return false;
+    if (r.body.includes(num)) return false;
+    /*
+     * A range is not a contradiction. "roughly $54 million to $62 million"
+     * with $60M stored is the midpoint of what the post already says, and
+     * rewriting it would replace a reported range with a single invented
+     * number.
+     */
+    const range = r.body.match(/\$([\d.]+)\s*(?:million|m)?\s*(?:to|-|–)\s*\$?([\d.]+)/i);
+    if (range && Number(num) >= Number(range[1]) && Number(num) <= Number(range[2])) return false;
+    return true;
+  });
+
+  console.log(`\n${candidates.length} posts quoting a figure the chip has corrected\n`);
+
+  for (const r of candidates) {
+    const response = await client.messages.create({
+      model: MODEL,
+      max_tokens: 800,
+      output_config: {
+        effort: "low",
+        format: {
+          type: "json_schema",
+          schema: {
+            type: "object",
+            properties: { body: SCHEMA.properties.body, headline: SCHEMA.properties.headline },
+            required: ["body", "headline"],
+            additionalProperties: false,
+          },
+        },
+      },
+      messages: [
+        {
+          role: "user",
+          content: [
+            `A deal's terms were revised after this post was written. The settled figure is ${r.contract_value}${r.contract_years ? ` over ${r.contract_years} years` : ""}.`,
+            ``,
+            `Current headline: ${r.headline}`,
+            `Current summary: ${r.body}`,
+            ``,
+            `Update both to the settled figure. Say in the summary that it came in below or above what was first reported, if that is what happened. Change nothing else: every other fact, figure and sentence stays as it is.`,
+          ].join("\n"),
+        },
+      ],
+    });
+
+    const t = response.content.find((b) => b.type === "text");
+    if (!t || t.type !== "text") continue;
+    let parsed: { body: string; headline: string };
+    try {
+      parsed = JSON.parse(t.text);
+    } catch {
+      console.log(`  ${r.slug}: unparseable response`);
+      continue;
+    }
+
+    const num = (r.contract_value.match(/[\d.]+/) ?? [])[0];
+    const bad = reject(parsed.body, r.body) ?? (parsed.body.includes(num) ? null : "does not state the corrected figure");
+    if (bad) {
+      console.log(`  ${r.slug}: ${bad}`);
+      continue;
+    }
+
+    console.log(`— ${r.slug}`);
+    console.log(`  OLD: ${r.headline}\n       ${r.body}`);
+    console.log(`  NEW: ${parsed.headline}\n       ${parsed.body}\n`);
+    if (!dryRun) {
+      await db
+        .update(rumors)
+        .set({ body: parsed.body, headline: parsed.headline.slice(0, 200) })
+        .where(eq(rumors.id, Number(r.id)));
+    }
+  }
 }
 
 main().catch((e) => {

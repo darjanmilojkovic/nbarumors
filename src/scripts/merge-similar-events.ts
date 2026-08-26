@@ -181,9 +181,17 @@ async function main() {
     const dupes = sorted.filter((r) => r.id !== keeper.id);
     const stillPublished = dupes.filter((d) => d.isPublished).length;
     const strandedSources = dupes.some((d) => (srcCount.get(d.id) ?? 0) > 0);
-    if (!stillPublished && !strandedSources) continue;
-    console.log(`  ${dupes.length + 1} → 1  "${keeper.headline}"`);
-    for (const d of dupes) console.log(`      + ${d.headline}`);
+    /*
+     * A group with nothing left to collapse still gets its keeper refreshed.
+     * Skipping it entirely meant a correction filed after the merge could
+     * never reach the survivor: Klay Thompson's post kept quoting $13M for
+     * days while five later reports in its own chain said $11.5M.
+     */
+    const collapsed = !stillPublished && !strandedSources;
+    if (!collapsed) {
+      console.log(`  ${dupes.length + 1} → 1  "${keeper.headline}"`);
+      for (const d of dupes) console.log(`      + ${d.headline}`);
+    }
     removed += stillPublished;
     if (dryRun) continue;
 
@@ -217,16 +225,25 @@ async function main() {
      * report" while the RealGM item merged into it said one year, $3.9M, and
      * the figure was sitting in the duplicate's own row the whole time.
      */
-    const withValue = sorted.find((m) => m.contractValue);
-    const withYears = sorted.find((m) => m.contractYears);
+    /*
+     * The LATEST figure wins, not the first one we happened to store.
+     * Corrections travel forward: Klay Thompson's Heat deal was first reported
+     * at two years and $13M, then filed by five outlets over the next three
+     * days at $11.5M, one of them saying explicitly that it came in $1.5M
+     * below the original number. Keeping the keeper's own value meant the post
+     * went on quoting the figure its own corroboration chain had corrected.
+     */
+    const byNewest = [...sorted].reverse();
+    const withValue = byNewest.find((m) => m.contractValue);
+    const withYears = byNewest.find((m) => m.contractYears);
 
     await db
       .update(rumors)
       .set({
         status: firmest.status,
         eventKey: normalizeEventKey(keeper.eventKey!),
-        ...(keeper.contractValue ? {} : { contractValue: withValue?.contractValue ?? null }),
-        ...(keeper.contractYears ? {} : { contractYears: withYears?.contractYears ?? null }),
+        ...(withValue ? { contractValue: withValue.contractValue } : {}),
+        ...(withYears ? { contractYears: withYears.contractYears } : {}),
         confidence: Math.min(
           1,
           Math.max(...sorted.map((m) => m.confidence)) + 0.05 * dupes.length,
