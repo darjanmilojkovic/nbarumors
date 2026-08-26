@@ -1,7 +1,9 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { WireShell } from "@/components/WireShell";
 import { WireItem } from "@/components/WireItem";
 import { feedPage } from "@/lib/queries";
+import { SITE } from "@/lib/site";
 
 export const revalidate = 300;
 
@@ -49,6 +51,34 @@ const href = (tab: string, cat: string, page = 1) => {
   const q = p.toString();
   return q ? `/?${q}` : "/";
 };
+
+/*
+ * The tabs and categories are the same wire re-ordered and filtered, so they
+ * all point their canonical at "/" rather than competing with it. Pagination
+ * is different — page 7 holds posts page 1 does not — so it gets a canonical
+ * of its own, and a title that says where you are.
+ */
+export async function generateMetadata({
+  searchParams,
+}: PageProps<"/">): Promise<Metadata> {
+  const { tab: rawTab, cat: rawCat, page: rawPage } = await searchParams;
+  const tab = typeof rawTab === "string" ? rawTab : "live";
+  const cat = typeof rawCat === "string" ? rawCat : "";
+  const page = Math.max(1, Number(rawPage) || 1);
+
+  if (page === 1) return { alternates: { canonical: "/" } };
+
+  const label = CHIPS.find((c) => c.key === cat)?.label;
+  const scope = label && cat ? `${label} · ` : "";
+  return {
+    title: {
+      absolute: `${scope}${
+        TABS.find((t) => t.key === tab)?.label ?? "Live"
+      } — page ${page} — ${SITE.name}`,
+    },
+    alternates: { canonical: href(tab, cat, page) },
+  };
+}
 
 export default async function HomePage({ searchParams }: PageProps<"/">) {
   const {

@@ -4,7 +4,8 @@ import { WireShell } from "@/components/WireShell";
 import { SITE, lastUpdated } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Terms of Use — NBA Rumors",
+  title: "Terms of Use",
+  alternates: { canonical: "/terms" },
   description: `The terms that apply to using ${SITE.name}.`,
 };
 

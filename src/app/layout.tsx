@@ -28,7 +28,16 @@ const sans = Noto_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "NBA Rumors — Trades, Signings & Player Movement",
+  /*
+   * The template supplies the suffix, so each page sets only what identifies
+   * it: a headline, a team, a player. Without it every route inherited this
+   * one string, and a browser tab full of posts read "NBA Rumors — Trades,
+   * Signings & Player Movement" nine times over.
+   */
+  title: {
+    default: "NBA Rumors — Trades, Signings & Player Movement",
+    template: `%s — ${SITE.name}`,
+  },
   description:
     "Every NBA trade rumor, signing and player move, gathered from around the league and updated through the day.",
   metadataBase: new URL(SITE.url),

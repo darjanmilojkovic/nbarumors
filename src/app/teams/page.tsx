@@ -1,9 +1,17 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { WireShell } from "@/components/WireShell";
 import { allTeams } from "@/lib/queries";
 
 export const revalidate = 3600;
+
+export const metadata: Metadata = {
+  title: "All teams",
+  description:
+    "Every NBA team, with the latest trade rumors, signings and roster moves for each.",
+  alternates: { canonical: "/teams" },
+};
 
 export default async function TeamsPage() {
   const teams = await allTeams();

@@ -1,21 +1,48 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import { WireItem } from "@/components/WireItem";
 import { WireShell } from "@/components/WireShell";
 import { playerBySlug, rumorsForPlayer } from "@/lib/queries";
+import { SITE } from "@/lib/site";
 
 export const revalidate = 300;
 
+/** Deduped so the metadata lookup is not a second round trip. */
+const getPlayer = cache(playerBySlug);
+
+export async function generateMetadata({
+  params,
+}: PageProps<"/player/[slug]">): Promise<Metadata> {
+  const { slug } = await params;
+  const player = await getPlayer(slug);
+  if (!player) return {};
+
+  const description = `${player.fullName} trade rumors, contract news and signing reports, gathered from around the league and updated through the day.`;
+
+  return {
+    title: `${player.fullName} rumors`,
+    description,
+    alternates: { canonical: `/player/${player.slug}` },
+    openGraph: {
+      title: `${player.fullName} rumors`,
+      description,
+      url: `${SITE.url}/player/${player.slug}`,
+    },
+  };
+}
+
 export default async function PlayerPage({ params }: PageProps<"/player/[slug]">) {
   const { slug } = await params;
-  const player = await playerBySlug(slug);
+  const player = await getPlayer(slug);
   if (!player) notFound();
 
   const rumors = await rumorsForPlayer(slug);
 
   return (
     <WireShell
-      playerLabel={player.fullName}
+      playerLabel={player.fullName}
     >
       {/* Mirrors the team page lockup: mark first, then name and count. */}
       <div className="mb-6 flex items-center gap-4 px-4 pt-8 sm:px-0">

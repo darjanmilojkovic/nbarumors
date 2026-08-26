@@ -1,21 +1,49 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import { WireItem } from "@/components/WireItem";
 import { WireShell } from "@/components/WireShell";
 import { rumorsForTeam, teamBySlug } from "@/lib/queries";
+import { SITE } from "@/lib/site";
 
 export const revalidate = 300;
 
+/** Deduped so the metadata lookup is not a second round trip. */
+const getTeam = cache(teamBySlug);
+
+export async function generateMetadata({
+  params,
+}: PageProps<"/team/[slug]">): Promise<Metadata> {
+  const { slug } = await params;
+  const team = await getTeam(slug);
+  if (!team) return {};
+
+  const name = `${team.city} ${team.name}`;
+  const description = `${name} trade rumors, signings and roster moves, gathered from around the league and updated through the day.`;
+
+  return {
+    title: `${name} rumors`,
+    description,
+    alternates: { canonical: `/team/${team.slug}` },
+    openGraph: {
+      title: `${name} rumors`,
+      description,
+      url: `${SITE.url}/team/${team.slug}`,
+    },
+  };
+}
+
 export default async function TeamPage({ params }: PageProps<"/team/[slug]">) {
   const { slug } = await params;
-  const team = await teamBySlug(slug);
+  const team = await getTeam(slug);
   if (!team) notFound();
 
   const rumors = await rumorsForTeam(slug);
 
   return (
     <WireShell
-      teamLabel={`${team.city} ${team.name}`}
+      teamLabel={`${team.city} ${team.name}`}
       teamSlug={team.slug}
     >
       <div className="mb-6 flex items-center gap-4 px-4 pt-8 sm:px-0">

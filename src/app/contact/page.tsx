@@ -4,7 +4,8 @@ import { WireShell } from "@/components/WireShell";
 import { SITE } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Contact — NBA Rumors",
+  title: "Contact",
+  alternates: { canonical: "/contact" },
   description: `How to reach ${SITE.name}, including corrections and rights enquiries.`,
 };
 

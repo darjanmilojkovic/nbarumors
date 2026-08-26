@@ -4,7 +4,9 @@ import { WireShell } from "@/components/WireShell";
 import { SITE, lastUpdated } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — NBA Rumors",
+  // The layout template appends the site name; spelling it out again doubled it.
+  title: "Privacy Policy",
+  alternates: { canonical: "/privacy" },
   description: `How ${SITE.name} handles personal data.`,
 };
 
