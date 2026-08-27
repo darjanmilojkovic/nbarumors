@@ -13,7 +13,7 @@ export const maxDuration = 60;
  * holding was never taken down. Six posts carried the badge for weeks on the
  * strength of one run.
  *
- * Daily is enough. It compares against Basketball-Reference's log, which
+ * Daily at midnight UTC. It compares against Basketball-Reference's log, which
  * updates once a day, so anything more often would re-read the same rows.
  *
  * Same bearer-token guard as the other crons: it rewrites outcome columns

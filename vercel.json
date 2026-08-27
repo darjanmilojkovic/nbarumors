@@ -15,7 +15,7 @@
     },
     {
       "path": "/api/cron/verify-outcomes",
-      "schedule": "50 9 * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }
