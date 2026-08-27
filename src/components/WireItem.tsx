@@ -59,10 +59,16 @@ const STATE: Record<string, { label: string; cls: string }> = {
  * of a week-old rumour needs, and omitting it avoids picking a timezone that
  * is right for neither the league nor the reader.
  */
+/** Past this the stamp is a calendar date rather than an elapsed time. */
+const RELATIVE_LIMIT_MINS = 1440;
+
+const minutesSince = (d: Date, now: Date) =>
+  Math.max(0, Math.round((now.getTime() - d.getTime()) / 60000));
+
 function ago(d: Date, now = new Date()) {
-  const mins = Math.max(0, Math.round((now.getTime() - d.getTime()) / 60000));
+  const mins = minutesSince(d, now);
   if (mins < 60) return `${mins}m`;
-  if (mins < 1440) return `${Math.round(mins / 60)}h`;
+  if (mins < RELATIVE_LIMIT_MINS) return `${Math.round(mins / 60)}h`;
 
   return d.toLocaleDateString("en-GB", {
     day: "numeric",
@@ -70,6 +76,19 @@ function ago(d: Date, now = new Date()) {
     year: "numeric",
     timeZone: "UTC",
   });
+}
+
+/**
+ * The same stamp as a phrase: "14h ago", but "26 Aug 2026" unchanged.
+ *
+ * Only the relative form takes "ago". Appending it unconditionally reads as
+ * "updated 26 Aug 2026 ago" on anything older than a day, which is most of the
+ * archive — the threshold is shared with `ago` rather than restated so the two
+ * cannot disagree about where the switch happens.
+ */
+function agoPhrase(d: Date, now = new Date()) {
+  const stamp = ago(d, now);
+  return minutesSince(d, now) < RELATIVE_LIMIT_MINS ? `${stamp} ago` : stamp;
 }
 
 const initials = (name: string) =>
@@ -322,8 +341,14 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
                * the summary is not three days old.
                */}
               {updated && (
-                <span className="font-mono text-[11px] text-accent">
-                  · updated {ago(updated)}
+                <span className="font-mono text-[11px] text-muted">
+                  {/*
+                   * The separator stays muted with the rest of the meta row and
+                   * only the phrase takes colour — a coloured dot reads as part
+                   * of the punctuation between chips rather than as part of
+                   * this one.
+                   */}
+                  · <span className="text-confirmed">updated {agoPhrase(updated)}</span>
                 </span>
               )}
             </div>
