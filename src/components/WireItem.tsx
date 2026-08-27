@@ -573,6 +573,17 @@ export function WireItem({
            * has earned none of them shows none, and the strip itself does not
            * render, so it costs no vertical space.
            */}
+          {/*
+           * Order in this strip is fixed, not incidental: money, then the
+           * movement chips, then outcome, and the momentum count last.
+           *
+           * It reads terms first, then who is moving where, then how settled
+           * it is — and the weekly count trails because it describes the
+           * coverage rather than the deal. Left as written, the count landed
+           * between the money and the movement on any hot post, so the same
+           * card carried its facts in a different order depending on how much
+           * had been written that week.
+           */}
           {hasMeta && (
             <div className="mt-3.5 flex flex-wrap items-center gap-x-3 gap-y-2">
               {money && (
@@ -580,6 +591,37 @@ export function WireItem({
                   {money}
                 </span>
               )}
+
+              {/*
+               * One chip per movement, in the same shape as the money chip
+               * beside it.
+               *
+               * These were loose uppercase text, and the legs of a multi-player
+               * deal had to be divided by pipes — "Butler GSW → ATL | Kuminga
+               * GSW → MIL" — because as bare text in a flex row the gap alone
+               * could not hold them apart. A bordered chip draws its own
+               * boundary, so the pipes come out and each leg is its own object.
+               *
+               * Surname alone: the arrow is the point, and full names turn a
+               * two-player deal into two lines of chrome.
+               */}
+              {movements.map((m) => (
+                <span
+                  key={m}
+                  /*
+                   * Byte for byte the money chip's classes. The old movement
+                   * text was 10px uppercase with wide tracking, which as a chip
+                   * stood 21px tall beside the money chip's 23 — a two-pixel
+                   * mismatch that is invisible alone and obvious in a row. The
+                   * team codes are already capitals, so nothing is lost by
+                   * dropping the transform, and the surname reads better set
+                   * normally than shouted.
+                   */
+                  className="rounded-sm border border-rule bg-surface-2 px-2 py-0.5 font-mono text-[11px] font-bold text-body"
+                >
+                  {m}
+                </span>
+              ))}
 
               {/*
                * No "N outlets" badge here any more. The corroboration chain
@@ -617,36 +659,6 @@ export function WireItem({
                 </span>
               )}
 
-              {/*
-               * One chip per movement, in the same shape as the money chip
-               * beside it.
-               *
-               * These were loose uppercase text, and the legs of a multi-player
-               * deal had to be divided by pipes — "Butler GSW → ATL | Kuminga
-               * GSW → MIL" — because as bare text in a flex row the gap alone
-               * could not hold them apart. A bordered chip draws its own
-               * boundary, so the pipes come out and each leg is its own object.
-               *
-               * Surname alone: the arrow is the point, and full names turn a
-               * two-player deal into two lines of chrome.
-               */}
-              {movements.map((m) => (
-                <span
-                  key={m}
-                  /*
-                   * Byte for byte the money chip's classes. The old movement
-                   * text was 10px uppercase with wide tracking, which as a chip
-                   * stood 21px tall beside the money chip's 23 — a two-pixel
-                   * mismatch that is invisible alone and obvious in a row. The
-                   * team codes are already capitals, so nothing is lost by
-                   * dropping the transform, and the surname reads better set
-                   * normally than shouted.
-                   */
-                  className="rounded-sm border border-rule bg-surface-2 px-2 py-0.5 font-mono text-[11px] font-bold text-body"
-                >
-                  {m}
-                </span>
-              ))}
             </div>
           )}
 
