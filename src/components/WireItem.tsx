@@ -278,9 +278,13 @@ export function WireItem({
    */
   const isHot = rumor.hotMentions >= 6;
 
+  /*
+   * sourceCount is deliberately absent: it no longer renders a chip here, so
+   * counting it would open an empty strip on a post whose only distinction is
+   * that two outlets filed it.
+   */
   const hasMeta =
     Boolean(money) ||
-    rumor.sourceCount > 1 ||
     rumor.outcome === "confirmed" ||
     rumor.outcome === "unrecorded" ||
     isHot ||
@@ -554,20 +558,12 @@ export function WireItem({
               )}
 
               {/*
-               * Corroboration is shown only when it exists. 13 posts of ~500
-               * carry more than one outlet, so "single outlet" appeared on 97%
-               * of the site — a label that never varies is wallpaper, not
-               * information. Absence now reads as an ordinary single-source
-               * report, and the badge means something when it appears.
+               * No "N outlets" badge here any more. The corroboration chain
+               * below already opens with "+ 5 reports from 4 outlets", so the
+               * badge restated the same count a few pixels above it — and
+               * unlike the chain it could not be opened to see whose reports
+               * they were. Two labels for one fact, one of which led nowhere.
                */}
-              {rumor.sourceCount > 1 && (
-                <span
-                  className="rounded-sm border border-rule bg-surface-2 px-2 py-0.5 font-mono text-[10px] font-bold tracking-widest text-body uppercase"
-                  title={`Independently reported by ${rumor.alsoReportedBy}`}
-                >
-                  {rumor.sourceCount} outlets
-                </span>
-              )}
 
               {/* Checked against the official transaction log, not modelled. */}
               {rumor.outcome === "confirmed" && (
@@ -641,7 +637,7 @@ export function WireItem({
            */}
           {rumor.chain.length > 1 && (
             <details className="mt-3 group">
-              <summary className="cursor-pointer font-mono text-[11px] tracking-wider text-link uppercase marker:content-[''] hover:text-link/80">
+              <summary className="cursor-pointer font-mono text-[11px] tracking-wider text-corroborated uppercase marker:content-[''] hover:text-corroborated/80">
                 + {rumor.chain.length} reports
                 {rumor.sourceCount > 1 && ` from ${rumor.sourceCount} outlets`}
               </summary>

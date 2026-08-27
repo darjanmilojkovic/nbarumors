@@ -23,6 +23,20 @@
    */
   --color-link: #5e9ad8;
 
+  /*
+   * The corroboration chain, and nothing else.
+   *
+   * Derived from the family rather than picked: every accent here sits at
+   * roughly L 70 and C 0.14 in OKLCH, at hues 22, 53, 85, 160 and 251. This is
+   * the same lightness and chroma at hue 305 — 54 degrees off the link blue and
+   * 77 off the debunked red, so it cannot be misread as either, and 6.17:1 on
+   * the card surface.
+   *
+   * Kept distinct from --color-link on purpose: the chain is the one control on
+   * a card that opens something in place rather than navigating away.
+   */
+  --color-corroborated: #b386e4;
+
   /* State colours sit beside the accent rather than competing with it. */
   --color-confirmed: #3fbe86;
   --color-developing: #5e9ad8;
