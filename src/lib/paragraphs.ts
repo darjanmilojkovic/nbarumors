@@ -55,9 +55,21 @@ export function toParagraphs(body: string): string[] {
     .split(/\n{2,}/)
     .map((p) => p.trim())
     .filter(Boolean);
-  if (authored.length > 1) return authored;
 
-  const text = authored[0] ?? body.trim();
+  /*
+   * Authored breaks are honoured, and then checked.
+   *
+   * Where the writer put a break is better than anywhere a rule would guess,
+   * so those survive — but they are not necessarily enough. A post that has
+   * absorbed two later reports came back as two paragraphs of 477 and 399
+   * characters, which is a wall with a gap in the middle rather than prose a
+   * reader can enter. Anything still over the threshold is divided again at
+   * its own sentence boundaries; anything under it is left exactly as written.
+   */
+  return (authored.length ? authored : [body.trim()]).flatMap(splitParagraph);
+}
+
+function splitParagraph(text: string): string[] {
   if (text.length <= MIN_SPLIT_CHARS) return [text];
 
   const parts = sentences(text);
@@ -107,6 +119,20 @@ export function toParagraphs(body: string): string[] {
     }
   });
   if (current.length) out.push(current.join(" "));
+  if (!out.length) return [text];
 
-  return out.length ? out : [text];
+  /*
+   * Check the work rather than assume it.
+   *
+   * Choosing N cut points across the whole text balances them on average, but
+   * a piece BETWEEN two cuts can still come out long when the sentences are
+   * uneven — a 618-character Kuminga summary split into three and left one of
+   * them at 402, because a single 279-character sentence sat inside it.
+   * Running the rule over its own output settles that.
+   *
+   * It terminates: every pass either divides a piece into strictly smaller
+   * ones or returns it untouched, and a paragraph that is one long sentence
+   * returns untouched immediately.
+   */
+  return out.length > 1 ? out.flatMap(splitParagraph) : out;
 }
