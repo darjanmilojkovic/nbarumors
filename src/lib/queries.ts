@@ -545,22 +545,59 @@ export async function rumorBySlug(slug: string) {
  * out of sequence: a three-week-old trade rumour could sit above the signing
  * that resolved it.
  */
-export async function rumorsForTeam(teamSlug: string, limit = 30) {
+/**
+ * Ten to a page.
+ *
+ * These pages used to take 30 and stop, with nothing to say that a 31st
+ * existed — a heavily covered team simply truncated, and these are the pages
+ * people arrive on from search. Ten is a page you can read to the bottom;
+ * beyond that the reader is scrolling past a story rather than choosing it.
+ */
+const PER_PAGE = 10;
+
+/**
+ * One page of a team's or player's coverage, with the count needed to page
+ * through the rest.
+ *
+ * The count is a second query rather than a window function because the id
+ * subquery already narrows to a few dozen rows, and counting them is cheaper
+ * than carrying a total on every hydrated row.
+ */
+async function pageOf(ids: SQL, page: number) {
+  const [rows, [counted]] = await Promise.all([
+    baseSelect(sql`${rumors.id} in ${ids}`, "chrono")
+      .limit(PER_PAGE)
+      .offset((page - 1) * PER_PAGE),
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(rumors)
+      .where(and(eq(rumors.isPublished, true), sql`${rumors.id} in ${ids}`)),
+  ]);
+
+  const total = counted?.n ?? 0;
+  return {
+    rumors: await hydrate(rows),
+    total,
+    pageCount: Math.max(1, Math.ceil(total / PER_PAGE)),
+  };
+}
+
+export async function rumorsForTeam(teamSlug: string, page = 1) {
   const ids = db
     .select({ id: rumorTeams.rumorId })
     .from(rumorTeams)
     .innerJoin(teams, eq(teams.id, rumorTeams.teamId))
     .where(eq(teams.slug, teamSlug));
-  return hydrate(await baseSelect(sql`${rumors.id} in ${ids}`, "chrono").limit(limit));
+  return pageOf(ids as unknown as SQL, page);
 }
 
-export async function rumorsForPlayer(playerSlug: string, limit = 30) {
+export async function rumorsForPlayer(playerSlug: string, page = 1) {
   const ids = db
     .select({ id: rumorPlayers.rumorId })
     .from(rumorPlayers)
     .innerJoin(players, eq(players.id, rumorPlayers.playerId))
     .where(eq(players.slug, playerSlug));
-  return hydrate(await baseSelect(sql`${rumors.id} in ${ids}`, "chrono").limit(limit));
+  return pageOf(ids as unknown as SQL, page);
 }
 
 /**

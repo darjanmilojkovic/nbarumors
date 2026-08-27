@@ -3,6 +3,7 @@ import Image from "next/image";
 import { notFound, permanentRedirect } from "next/navigation";
 import { cache } from "react";
 import { WireItem } from "@/components/WireItem";
+import { Pager } from "@/components/Pager";
 import { WireShell } from "@/components/WireShell";
 import { playerBySlug, playerRedirectFor, rumorsForPlayer } from "@/lib/queries";
 import { SITE } from "@/lib/site";
@@ -12,28 +13,45 @@ export const revalidate = 300;
 /** Deduped so the metadata lookup is not a second round trip. */
 const getPlayer = cache(playerBySlug);
 
+/** Page 1 is the bare URL, so it never competes with itself in search. */
+const pageHref = (slug: string, page: number) =>
+  page > 1 ? `/player/${slug}?page=${page}` : `/player/${slug}`;
+
 export async function generateMetadata({
   params,
+  searchParams,
 }: PageProps<"/player/[slug]">): Promise<Metadata> {
   const { slug } = await params;
   const player = await getPlayer(slug);
   if (!player) return {};
 
+  const { page: rawPage } = await searchParams;
+  const page = Math.max(1, Number(rawPage) || 1);
+
   const description = `${player.fullName} trade rumors, contract news and signing reports, gathered from around the league and updated through the day.`;
 
+  /*
+   * Page 2 holds posts page 1 does not, so it earns its own canonical and a
+   * title that says where you are — pointing every page at the bare URL would
+   * tell a crawler they are the same document and hide the rest.
+   */
   return {
-    title: `${player.fullName} rumors`,
+    title:
+      page > 1 ? `${player.fullName} rumors — page ${page}` : `${player.fullName} rumors`,
     description,
-    alternates: { canonical: `/player/${player.slug}` },
+    alternates: { canonical: pageHref(player.slug, page) },
     openGraph: {
       title: `${player.fullName} rumors`,
       description,
-      url: `${SITE.url}/player/${player.slug}`,
+      url: `${SITE.url}${pageHref(player.slug, page)}`,
     },
   };
 }
 
-export default async function PlayerPage({ params }: PageProps<"/player/[slug]">) {
+export default async function PlayerPage({
+  params,
+  searchParams,
+}: PageProps<"/player/[slug]">) {
   const { slug } = await params;
   const player = await getPlayer(slug);
   if (!player) {
@@ -49,7 +67,12 @@ export default async function PlayerPage({ params }: PageProps<"/player/[slug]">
     notFound();
   }
 
-  const rumors = await rumorsForPlayer(slug);
+  const { page: rawPage } = await searchParams;
+  const page = Math.max(1, Number(rawPage) || 1);
+  const { rumors, total, pageCount } = await rumorsForPlayer(slug, page);
+
+  // A page past the last one does not exist; it is not an empty page.
+  if (page > pageCount) notFound();
 
   return (
     <WireShell
@@ -83,18 +106,28 @@ export default async function PlayerPage({ params }: PageProps<"/player/[slug]">
             {player.fullName}
           </h1>
           <p className="text-xs text-muted">
-            {rumors.length} update{rumors.length === 1 ? "" : "s"}
+            {/* The whole body of coverage, not the ten on this page. */}
+            {total} update{total === 1 ? "" : "s"}
           </p>
         </div>
       </div>
       {/* Same panel the feed uses, so the column is ruled on all four sides. */}
       <div className="border-x border-rule bg-surface">
-        {rumors.length === 0 ? (
+        {total === 0 ? (
           <p className="px-4 py-16 text-center text-sm text-muted">
             Nothing on this player yet.
           </p>
         ) : (
-          rumors.map((r) => <WireItem key={r.id} rumor={r} />)
+          <>
+            {rumors.map((r) => <WireItem key={r.id} rumor={r} />)}
+            <Pager
+              page={page}
+              pageCount={pageCount}
+              total={total}
+              noun="updates"
+              hrefFor={(p) => pageHref(player.slug, p)}
+            />
+          </>
         )}
       </div>
     </WireShell>

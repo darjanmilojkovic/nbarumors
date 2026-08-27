@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
+import { Pager } from "@/components/Pager";
 import { WireShell } from "@/components/WireShell";
 import { WireItem } from "@/components/WireItem";
 import { feedPage } from "@/lib/queries";
@@ -99,6 +101,14 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   });
 
   /*
+   * A page past the last one does not exist; it is not an empty page. Serving
+   * 200 with no posts told crawlers that /?page=99 and every other number was
+   * a real but thin page, and gave a reader who mistyped a URL a blank column
+   * with no hint of what went wrong.
+   */
+  if (page > pageCount) notFound();
+
+  /*
    * The filter bar below is this page's pinned element, so the masthead
    * scrolls away rather than competing with it. One pinned element per page.
    */
@@ -165,37 +175,12 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
          * 582 others sat in the database with URLs nothing linked to. It now
          * says where you are, and only claims the end when it is the end.
          */}
-        <nav className="flex items-center justify-between gap-3 px-4 py-8 sm:px-5">
-          {page > 1 ? (
-            <Link
-              href={href(tab, cat, page - 1)}
-              rel="prev"
-              className="rounded-sm border border-rule px-3 py-2 font-mono text-[11px] tracking-widest text-body uppercase hover:border-link hover:text-link"
-            >
-              ← Newer
-            </Link>
-          ) : (
-            <span />
-          )}
-
-          <span className="font-mono text-[11px] tracking-widest text-muted uppercase">
-            {total === 0
-              ? "Nothing here"
-              : `Page ${page} of ${pageCount} · ${total} posts`}
-          </span>
-
-          {page < pageCount ? (
-            <Link
-              href={href(tab, cat, page + 1)}
-              rel="next"
-              className="rounded-sm border border-rule px-3 py-2 font-mono text-[11px] tracking-widest text-body uppercase hover:border-link hover:text-link"
-            >
-              Older →
-            </Link>
-          ) : (
-            <span />
-          )}
-        </nav>
+        <Pager
+          page={page}
+          pageCount={pageCount}
+          total={total}
+          hrefFor={(p) => href(tab, cat, p)}
+        />
       </div>
     </WireShell>
   );
