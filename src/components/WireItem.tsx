@@ -283,37 +283,34 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
                * summary here is our words about someone else's reporting, so the
                * link out has to be somewhere obvious rather than absent.
                */}
-              {hasNamedReporter ? (
-                /*
-                 * When a reporter is credited, the byline is theirs and the link
-                 * hangs off their name — that is whose work it is. The outlet
-                 * stays as plain context beside it.
-                 */
-                <>
-                  <a
-                    href={rumor.sourceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer nofollow"
-                    title={`Read ${rumor.reportedBy}'s report at ${rumor.sourceName}`}
-                    className="text-sm font-semibold hover:text-link"
-                  >
-                    {rumor.reportedBy} ↗
-                  </a>
-                  <span className="font-mono text-[11px] text-muted">
-                    · {rumor.sourceName}
-                  </span>
-                </>
-              ) : (
-                <a
-                  href={rumor.sourceUrl}
-                  target="_blank"
-                  rel="noopener noreferrer nofollow"
-                  title={`Read the original at ${rumor.sourceName}`}
-                  className="text-sm font-semibold hover:text-link"
-                >
-                  {rumor.sourceName} ↗
-                </a>
-              )}
+              {/*
+               * The outlet, always — never the reporter's name.
+               *
+               * Crediting the byline where we had one and the outlet where we
+               * did not meant the same slot said different kinds of thing on
+               * different cards: "Jake Fischer ↗ · Bleacher Report" on one and
+               * "Yahoo Sports ↗" on the next, on 83 of 651 posts. A reader
+               * scanning the feed cannot tell whether the bold name is a person
+               * or a publication, which makes it useless as a signal of where
+               * the story came from.
+               *
+               * The reporter is not lost: 73 of those 83 bodies already name
+               * them in the prose, which is where the credit reads as a
+               * sentence rather than as a label.
+               */}
+              <a
+                href={rumor.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer nofollow"
+                title={
+                  hasNamedReporter
+                    ? `Read ${rumor.reportedBy}'s report at ${rumor.sourceName}`
+                    : `Read the original at ${rumor.sourceName}`
+                }
+                className="text-sm font-semibold hover:text-link"
+              >
+                {rumor.sourceName} ↗
+              </a>
               <span className="font-mono text-[11px] text-muted">
                 · {ago(rumor.publishedAt)}
               </span>
