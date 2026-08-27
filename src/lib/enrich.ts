@@ -42,8 +42,13 @@ const MAX_BODY_CHARS = 900;
  *
  * fix:jargon reads the same list, so adding a word here also sweeps the
  * archive for it.
+ *
+ * "in frame" earns its place for a different reason than "framework": it is
+ * not borrowed from executives but from British sportswriting, where "in the
+ * frame" means in contention. With the article dropped, on a US basketball
+ * site, a headline saying two players are "in frame" tells a reader nothing.
  */
-export const JARGON = ["framework"];
+export const JARGON = ["framework", "in frame"];
 
 const JARGON_RE = new RegExp(JARGON.join("|"), "i");
 

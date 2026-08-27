@@ -64,7 +64,9 @@ async function main() {
         {
           role: "user",
           content: [
-            `Rewrite this post so it does not use the word "${JARGON.join('" or "')}". A proposed trade is a trade idea, a proposal, a trade rumor or a deal — say it the way a reader would.`,
+            `Rewrite this post so it uses none of these: "${JARGON.join('", "')}". Say what each one meant in the words a reader would use.`,
+            ``,
+            `For reference: a proposed trade is a trade idea, a proposal, a trade rumor or a deal, never a "framework". A player "in frame" is in contention — the likeliest to go, a candidate to be moved, under consideration.`,
             ``,
             `Change nothing else. Every fact, figure, name and sentence stays exactly as it is; only the jargon is replaced, and only where replacing it reads naturally.`,
             ``,
@@ -88,8 +90,21 @@ async function main() {
       continue;
     }
 
+    /*
+     * A headline-only fix is a real fix. "in frame" appeared in one headline
+     * and nowhere in its summary, so checking the body alone rejected the
+     * corrected headline for being "unchanged" — the body was supposed to be
+     * unchanged. The body guards still run whenever the body did change.
+     */
     const stillJargon = new RegExp(pattern, "i").test(`${parsed.headline} ${parsed.body}`);
-    const bad = stillJargon ? "jargon survived the rewrite" : rejectBody(parsed.body, r.body);
+    const bodyKept = parsed.body === r.body;
+    const bad = stillJargon
+      ? "jargon survived the rewrite"
+      : bodyKept
+        ? parsed.headline === r.headline
+          ? "unchanged"
+          : null
+        : rejectBody(parsed.body, r.body);
     if (bad) {
       skipped.push(`${r.slug}: ${bad}`);
       continue;
