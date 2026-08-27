@@ -574,24 +574,26 @@ export function WireItem({
            * render, so it costs no vertical space.
            */}
           {/*
-           * Order in this strip is fixed, not incidental: money, then the
-           * movement chips, then outcome, and the momentum count last.
+           * Order here is fixed, not incidental. Five slots, always in this
+           * sequence:
            *
-           * It reads terms first, then who is moving where, then how settled
-           * it is — and the weekly count trails because it describes the
-           * coverage rather than the deal. Left as written, the count landed
-           * between the money and the movement on any hot post, so the same
-           * card carried its facts in a different order depending on how much
-           * had been written that week.
+           *   1. movement chips  — who is going where, one chip per leg
+           *   2. money chip      — the terms, when the post carries any
+           *   3. confirmed badge — the league's record caught up with it
+           *   4. unrecorded      — old enough to expect a record, and none
+           *   5. reports count   — how hard the story is being covered
+           *
+           * Movement leads because it is the news: a card answers "who is
+           * moving" before "for how much". The count trails because it is the
+           * only item describing the coverage rather than the deal.
+           *
+           * Left to fall where they were written, the count landed between the
+           * money and the movement on any hot post, so a card carried its facts
+           * in a different order depending on how much had been written that
+           * week.
            */}
           {hasMeta && (
             <div className="mt-3.5 flex flex-wrap items-center gap-x-3 gap-y-2">
-              {money && (
-                <span className="rounded-sm border border-rule bg-surface-2 px-2 py-0.5 font-mono text-[11px] font-bold text-body">
-                  {money}
-                </span>
-              )}
-
               {/*
                * One chip per movement, in the same shape as the money chip
                * beside it.
@@ -622,6 +624,12 @@ export function WireItem({
                   {m}
                 </span>
               ))}
+
+              {money && (
+                <span className="rounded-sm border border-rule bg-surface-2 px-2 py-0.5 font-mono text-[11px] font-bold text-body">
+                  {money}
+                </span>
+              )}
 
               {/*
                * No "N outlets" badge here any more. The corroboration chain
