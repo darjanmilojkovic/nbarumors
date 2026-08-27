@@ -1,7 +1,8 @@
 import type { MetadataRoute } from "next";
 import { db } from "@/db";
-import { players, rumors, teams } from "@/db/schema";
+import { rumors, teams } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { allPlayers } from "@/lib/queries";
 import { SITE } from "@/lib/site";
 
 export const revalidate = 3600;
@@ -19,10 +20,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .from(rumors)
       .where(eq(rumors.isPublished, true)),
     db.select({ slug: teams.slug }).from(teams),
-    db
-      .select({ slug: players.slug })
-      .from(players)
-      .where(eq(players.isActive, true)),
+    /*
+     * The same set /players lists, not `is_active` on its own.
+     *
+     * Those two answered the same question differently: /players was widened
+     * to include anyone carrying a published rumor, and this was left filtering
+     * on roster membership. The result was 118 player pages — Ben Simmons and
+     * Kyrie Irving among them — live, linked from the index, and absent from
+     * the sitemap. Sharing the query is what stops them drifting apart again.
+     */
+    allPlayers(),
   ]);
 
   return [
