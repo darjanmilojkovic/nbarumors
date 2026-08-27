@@ -547,6 +547,57 @@ export function WireItem({
           </div>
 
           {/*
+           * On every card in a list, whether or not the summary was cut.
+           *
+           * It was shown only where a paragraph had been withheld, because on a
+           * card that already carried the chips, the chain and the player links
+           * a "read more" on the other 503 of 654 single-paragraph posts
+           * promised something that was not there. The chain, the rule and the
+           * links now live on the post page, so there is always more.
+           *
+           * It sits directly under the summary and above the meta strip, so it
+           * closes the writing rather than the card — the strip beneath it is
+           * reference, not prose, and reads as a footer to the whole thing.
+           *
+           * Outside the prose block so it can own its spacing. mt-3 matches the
+           * gap between paragraphs, which keeps it attached to the text it
+           * continues, and nothing is set below — whatever follows brings its
+           * own top margin, which is the card's ordinary rhythm.
+           *
+           * It carried mb-6 for a while, twice the gap above. That reads as
+           * deliberate on a card ending in a bordered chip and as a hole on one
+           * ending in loose text, and the strip below is now sometimes one and
+           * sometimes the other.
+           *
+           * Styled as the same bordered control the pager uses. A coloured line
+           * of text reads as one more link among the outlet, the headline and
+           * the player chips; a button is the one thing on the card that looks
+           * pressable.
+           */}
+          {preview && (
+            <div className="mt-3">
+              <Link
+                href={`/rumor/${rumor.slug}`}
+                /*
+                 * Outlined in the link blue at rest, filled on hover.
+                 *
+                 * Filling rather than tinting: `bg-link/10` behind blue text is
+                 * already the site's language for a SELECTED category chip, and
+                 * a hovered button that looks selected says the wrong thing.
+                 *
+                 * Dark text on the fill, not white. #5e9ad8 is light enough
+                 * that white sits at 2.96:1 and fails AA outright, while the
+                 * ink reads at 6.56:1 — the same reason a mid-tone blue button
+                 * usually wants dark type.
+                 */
+                className="inline-block rounded-sm border border-link px-3 py-2 font-mono text-[11px] tracking-widest text-link uppercase transition-colors hover:bg-link hover:text-ink"
+              >
+                Read more →
+              </Link>
+            </div>
+          )}
+
+          {/*
            * One meta strip, and every chip in it is conditional — a post that
            * has earned none of them shows none, and the strip itself does not
            * render, so it costs no vertical space.
@@ -648,55 +699,6 @@ export function WireItem({
           )}
 
           {/*
-           * On every card in a list, whether or not the summary was cut.
-           *
-           * It was shown only where a paragraph had been withheld, because on a
-           * card that already carried the chips, the chain and the player links
-           * a "read more" on the other 503 of 654 single-paragraph posts
-           * promised something that was not there. Now the list card ends here
-           * and all of that lives on the post page, so there is always more —
-           * and a column of cards that each end the same way is easier to scan
-           * than one where the last row changes shape per post.
-           *
-           * Outside the prose block so it can own its spacing. mt-3 matches the
-           * gap between paragraphs, which keeps it attached to the text it
-           * continues, and nothing is set below — whatever follows brings its
-           * own top margin, which is the card's ordinary rhythm.
-           *
-           * It carried mb-6 for a while, twice the gap above. That reads as
-           * deliberate on a card ending in a bordered chip and as a hole on one
-           * ending in loose text, and the strip below is now sometimes one and
-           * sometimes the other.
-           *
-           * Styled as the same bordered control the pager uses. A coloured line
-           * of text reads as one more link among the outlet, the headline and
-           * the player chips; a button is the one thing on the card that looks
-           * pressable.
-           */}
-          {preview && (
-            <div className="mt-3">
-              <Link
-                href={`/rumor/${rumor.slug}`}
-                /*
-                 * Outlined in the link blue at rest, filled on hover.
-                 *
-                 * Filling rather than tinting: `bg-link/10` behind blue text is
-                 * already the site's language for a SELECTED category chip, and
-                 * a hovered button that looks selected says the wrong thing.
-                 *
-                 * Dark text on the fill, not white. #5e9ad8 is light enough
-                 * that white sits at 2.96:1 and fails AA outright, while the
-                 * ink reads at 6.56:1 — the same reason a mid-tone blue button
-                 * usually wants dark type.
-                 */
-                className="inline-block rounded-sm border border-link px-3 py-2 font-mono text-[11px] tracking-widest text-link uppercase transition-colors hover:bg-link hover:text-ink"
-              >
-                Read more →
-              </Link>
-            </div>
-          )}
-
-          {/*
            * In a list the card stops at the button.
            *
            * The corroboration chain, the rule and the player links are detail
@@ -704,10 +706,10 @@ export function WireItem({
            * them under a one-paragraph summary made the card longer than the
            * writing it was advertising. The post page still carries all of it.
            *
-           * The meta strip is the exception, and stays above the button.
-           * "Kuminga GSW → MIN · $13M · 2yr" is the one row that can be read
-           * at a glance, and taking it out of the feed cost more than the
-           * height it saved.
+           * The meta strip is the exception and stays in the feed, below the
+           * button. "Kuminga GSW → MIN · $13M · 2yr" is the one row that can
+           * be read at a glance, and taking it out cost more than the height
+           * it saved.
            */}
           {!preview && (
             <>
