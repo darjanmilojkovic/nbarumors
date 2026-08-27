@@ -376,14 +376,18 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
                 title={`${t.city} ${t.name}`}
                 className="grid h-14 w-14 shrink-0 place-items-center rounded-sm border border-rule bg-surface-2"
               >
-                <Image
-                  src={t.logoUrl}
-                  alt={`${t.city} ${t.name}`}
-                  width={56}
-                  height={56}
-                  className="h-9 w-9 object-contain"
-                  unoptimized
-                />
+                {t.logoUrl ? (
+                  <Image
+                    src={t.logoUrl}
+                    alt={`${t.city} ${t.name}`}
+                    width={56}
+                    height={56}
+                    className="h-9 w-9 object-contain"
+                    unoptimized
+                  />
+                ) : (
+                  <span className="display text-xs text-body">{t.abbreviation}</span>
+                )}
               </Link>
             ))
           ) : faces.length > 0 ? (

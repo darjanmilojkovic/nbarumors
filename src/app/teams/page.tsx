@@ -35,14 +35,20 @@ export default async function TeamsPage() {
                   href={`/team/${t.slug}`}
                   className="flex items-center gap-3 rounded-sm bg-surface px-3 py-2 hover:bg-surface-2"
                 >
-                  <Image
-                    src={t.logoUrl}
-                    alt=""
-                    width={32}
-                    height={32}
-                    className="h-8 w-8 object-contain"
-                    unoptimized
-                  />
+                  {t.logoUrl ? (
+                    <Image
+                      src={t.logoUrl}
+                      alt=""
+                      width={32}
+                      height={32}
+                      className="h-8 w-8 object-contain"
+                      unoptimized
+                    />
+                  ) : (
+                    <span className="grid h-8 w-8 place-items-center text-[10px] text-muted">
+                      {t.abbreviation}
+                    </span>
+                  )}
                   <span className="text-sm">
                     {t.city} {t.name}
                   </span>

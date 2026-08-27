@@ -47,14 +47,23 @@ export default async function TeamPage({ params }: PageProps<"/team/[slug]">) {
       teamSlug={team.slug}
     >
       <div className="mb-6 flex items-center gap-4 px-4 pt-8 sm:px-0">
-        <Image
-          src={team.logoUrl}
-          alt=""
-          width={64}
-          height={64}
-          className="h-12 w-12 object-contain sm:h-16 sm:w-16"
-          unoptimized
-        />
+        {/* Every mark is committed, so the fallback should never render — but
+            the manifest decides what is on disk, and an abbreviation in the
+            right-sized box beats a broken image. */}
+        {team.logoUrl ? (
+          <Image
+            src={team.logoUrl}
+            alt=""
+            width={64}
+            height={64}
+            className="h-12 w-12 object-contain sm:h-16 sm:w-16"
+            unoptimized
+          />
+        ) : (
+          <span className="display grid h-12 w-12 place-items-center rounded-sm bg-surface-2 text-sm text-body sm:h-16 sm:w-16">
+            {team.abbreviation}
+          </span>
+        )}
         <div>
           <h1 className="display text-2xl text-white sm:text-3xl">
             {team.city} {team.name}

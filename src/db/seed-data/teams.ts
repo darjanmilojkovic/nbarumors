@@ -53,4 +53,4 @@ export const SEED_TEAMS: SeedTeam[] = [
 ];
 
 export const teamLogoUrl = (nbaTeamId: string) =>
-  `https://cdn.nba.com/logos/nba/${nbaTeamId}/global/L/logo.svg`;
+  `/logos/${nbaTeamId}.svg`;

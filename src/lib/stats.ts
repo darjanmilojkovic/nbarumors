@@ -317,6 +317,8 @@ export async function fetchPlayerIds(
   return ids;
 }
 
-/** NBA CDN headshot, available once we know the player's NBA id. */
-export const headshotUrl = (nbaPlayerId: string) =>
-  `https://cdn.nba.com/headshots/nba/latest/1040x760/${nbaPlayerId}.png`;
+/*
+ * The CDN headshot builder used to live here as well. Headshots are served
+ * from public/ now, and lib/images owns both the source URL and the cached
+ * path so the two cannot drift apart.
+ */

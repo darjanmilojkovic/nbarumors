@@ -7,7 +7,6 @@ import {
   fetchCareerScoringRanks,
   prominenceScore,
   productionScore,
-  headshotUrl,
   nameKey,
 } from "@/lib/stats";
 
@@ -173,38 +172,41 @@ export async function runStatsSync(): Promise<StatsSyncResult> {
       ppg: season?.points ?? null,
       /*
        * Empty, not null, when the line came from Basketball-Reference — it
-       * carries no player id. Coalescing an empty id into a headshot URL would
-       * write ".../.png" over a photo we already had, so both fall back to null
-       * and the coalesce in SQL keeps the existing value.
+       * carries no player id, and the coalesce in SQL then keeps whatever id
+       * we already had rather than blanking it.
        */
       nbaPlayerId: season?.nbaPlayerId || null,
-      headshot: season?.nbaPlayerId ? headshotUrl(season.nbaPlayerId) : null,
     };
   });
   result.scored = updates.filter((u) => u.score > 0).length;
 
   /*
-   * One UPDATE ... FROM (VALUES ...) for the whole league. nba_player_id and
-   * headshot_url use coalesce so a player who dropped out of the qualified
-   * pool this season keeps the photo we already had — only the rating and the
-   * scoring average are allowed to fall back to nothing.
+   * One UPDATE ... FROM (VALUES ...) for the whole league. nba_player_id uses
+   * coalesce so a player who dropped out of the qualified pool this season
+   * keeps the id we already had — only the rating and the scoring average are
+   * allowed to fall back to nothing.
+   *
+   * headshot_url is deliberately not touched here. This runs as a cron on
+   * Vercel, where the filesystem is read-only, so it cannot download and
+   * resize the image that a URL would promise — and we serve those ourselves
+   * now. It records the NBA id; `npm run sync:images` turns ids into files
+   * and files into URLs, on a machine that can write to public/.
    */
   for (let i = 0; i < updates.length; i += 500) {
     const chunk = updates.slice(i, i + 500);
     const rows = chunk.map(
       (u) =>
         // nba_player_id is varchar(16), not an integer id.
-        sql`(${u.id}::int, ${u.score}::int, ${u.ppg}::real, ${u.nbaPlayerId}::varchar, ${u.headshot}::text)`,
+        sql`(${u.id}::int, ${u.score}::int, ${u.ppg}::real, ${u.nbaPlayerId}::varchar)`,
     );
     await db.execute(sql`
       update ${players} as p set
         prominence = v.prominence,
         points_per_game = v.ppg,
         nba_player_id = coalesce(v.nba_player_id, p.nba_player_id),
-        headshot_url = coalesce(v.headshot_url, p.headshot_url),
         stats_synced_at = now()
       from (values ${sql.join(rows, sql`, `)})
-        as v(id, prominence, ppg, nba_player_id, headshot_url)
+        as v(id, prominence, ppg, nba_player_id)
       where p.id = v.id
     `);
   }
@@ -215,13 +217,30 @@ export async function runStatsSync(): Promise<StatsSyncResult> {
    * rumor already has a rating waiting rather than sorting as prominence 0.
    */
   const seen = new Set<string>();
+  /*
+   * A player the extraction already created is in here under the spelling the
+   * article used — "Bobby Portis Jr." — while the NBA calls him "Bobby Portis".
+   * The slugs differ, so onConflictDoNothing would not see the collision and
+   * we would insert a second row for the same person, splitting his rumors and
+   * his rating across two pages. The nba id is the one identifier both halves
+   * agree on, so anyone already holding it is skipped here.
+   */
+  const claimedIds = new Set(
+    (
+      await db
+        .select({ nbaPlayerId: players.nbaPlayerId })
+        .from(players)
+        .where(sql`${players.nbaPlayerId} is not null`)
+    ).map((r) => r.nbaPlayerId as string),
+  );
   const inserts = [...best.entries()]
     .map(([k, s]) => ({
       slug: slugify(s.name),
       fullName: s.name,
       aliases: [k],
       nbaPlayerId: s.nbaPlayerId || null,
-      headshotUrl: s.nbaPlayerId ? headshotUrl(s.nbaPlayerId) : null,
+      // Filled in by `npm run sync:images` once the file exists; see above.
+      headshotUrl: null,
       prominence: Math.max(
         productionScore(history.get(k) ?? []),
         prominenceScore(s, careerByKey.get(k)),
@@ -229,6 +248,7 @@ export async function runStatsSync(): Promise<StatsSyncResult> {
       pointsPerGame: s.points,
       statsSyncedAt: new Date(),
     }))
+    .filter((r) => !(r.nbaPlayerId && claimedIds.has(r.nbaPlayerId)))
     // Two players can slugify identically; the DB would reject the second.
     .filter((r) => !seen.has(r.slug) && seen.add(r.slug));
 

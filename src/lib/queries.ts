@@ -1,4 +1,5 @@
 import { and, desc, eq, sql, type SQL } from "drizzle-orm";
+import { headshotFor, logoFor } from "@/lib/images";
 import { db } from "@/db";
 import { isSameEvent } from "@/lib/event-key";
 import {
@@ -42,7 +43,7 @@ export type FeedRumor = {
     abbreviation: string;
     city: string;
     name: string;
-    logoUrl: string;
+    logoUrl: string | null;
     primaryColor: string;
     role: string;
   }[];
@@ -86,7 +87,7 @@ async function hydrate(rows: Awaited<ReturnType<typeof baseSelect>>): Promise<Fe
       abbreviation: teams.abbreviation,
       city: teams.city,
       name: teams.name,
-      logoUrl: teams.logoUrl,
+      nbaTeamId: teams.nbaTeamId,
       primaryColor: teams.primaryColor,
     })
     .from(rumorTeams)
@@ -102,7 +103,7 @@ async function hydrate(rows: Awaited<ReturnType<typeof baseSelect>>): Promise<Fe
       toTeamId: rumorPlayers.toTeamId,
       slug: players.slug,
       fullName: players.fullName,
-      headshotUrl: players.headshotUrl,
+      nbaPlayerId: players.nbaPlayerId,
       prominence: players.prominence,
     })
     .from(rumorPlayers)
@@ -133,11 +134,17 @@ async function hydrate(rows: Awaited<ReturnType<typeof baseSelect>>): Promise<Fe
        * filed the same report six times.
        */
       hotMentions: r.hotMentions > 0 ? (stories.get(primary?.playerId ?? -1) ?? 0) : 0,
+      /*
+       * Image paths are derived here rather than read from a column, so they
+       * describe the files this deploy actually carries. See lib/images.
+       */
       teams: teamRows
         .filter((t) => t.rumorId === r.id)
-        .sort((a, b) => TEAM_ROLE_ORDER[a.role] - TEAM_ROLE_ORDER[b.role]),
+        .sort((a, b) => TEAM_ROLE_ORDER[a.role] - TEAM_ROLE_ORDER[b.role])
+        .map((t) => ({ ...t, logoUrl: logoFor(t.nbaTeamId) })),
       players: mine.map((p) => ({
         ...p,
+        headshotUrl: headshotFor(p.nbaPlayerId),
         fromAbbrev: p.fromTeamId ? (abbrevById.get(p.fromTeamId) ?? null) : null,
         toAbbrev: p.toTeamId ? (abbrevById.get(p.toTeamId) ?? null) : null,
       })),
@@ -561,16 +568,33 @@ export async function rumorsForPlayer(playerSlug: string, limit = 30) {
  * rumor — are excluded from the directory but keep their own pages.
  */
 export async function allPlayers() {
-  return db
+  /*
+   * Active players plus anyone we have actually published a rumor about.
+   *
+   * is_active alone means "on a roster at the last sync", which quietly hid
+   * the players most worth reading about: Ben Simmons was on the front page
+   * being watched by a Kings scout and missing from this list, one of 118 in
+   * that state with Kyrie Irving among them. If we wrote about him, he is a
+   * player we track.
+   */
+  const rows = await db
     .select({
       slug: players.slug,
       fullName: players.fullName,
-      headshotUrl: players.headshotUrl,
+      nbaPlayerId: players.nbaPlayerId,
       prominence: players.prominence,
     })
     .from(players)
-    .where(eq(players.isActive, true))
+    .where(
+      sql`${players.isActive} or exists (
+        select 1 from rumor_players rp
+          join rumors r on r.id = rp.rumor_id and r.is_published
+         where rp.player_id = ${players.id}
+      )`,
+    )
     .orderBy(players.fullName);
+
+  return rows.map((p) => ({ ...p, headshotUrl: headshotFor(p.nbaPlayerId) }));
 }
 
 /** Counts per rumor type — the left rail's "Beats" list. */
@@ -607,11 +631,11 @@ export async function activeTeams(limit = 12) {
  * "Insider Board", which needed hit-rate data we do not have.
  */
 export async function mostMentioned(limit = 6) {
-  return db
+  const rows = await db
     .select({
       slug: players.slug,
       fullName: players.fullName,
-      headshotUrl: players.headshotUrl,
+      nbaPlayerId: players.nbaPlayerId,
       prominence: players.prominence,
       mentions: sql<number>`count(*)::int`,
       lastAt: sql<string>`max(${rumors.publishedAt})`,
@@ -623,9 +647,11 @@ export async function mostMentioned(limit = 6) {
       sql`${rumors.id} = ${rumorPlayers.rumorId} and ${rumors.isPublished}`,
     )
     .where(sql`${rumors.publishedAt} > now() - interval '7 days'`)
-    .groupBy(players.slug, players.fullName, players.headshotUrl, players.prominence)
+    .groupBy(players.slug, players.fullName, players.nbaPlayerId, players.prominence)
     .orderBy(sql`count(*) desc, max(${rumors.publishedAt}) desc`)
     .limit(limit);
+
+  return rows.map((p) => ({ ...p, headshotUrl: headshotFor(p.nbaPlayerId) }));
 }
 
 /** Genuinely completed moves — the ticker, without inventing transactions. */
@@ -666,15 +692,16 @@ export async function wireStats() {
 }
 
 export async function allTeams() {
-  return db.select().from(teams).orderBy(teams.conference, teams.city);
+  const rows = await db.select().from(teams).orderBy(teams.conference, teams.city);
+  return rows.map((t) => ({ ...t, logoUrl: logoFor(t.nbaTeamId) }));
 }
 
 export async function teamBySlug(slug: string) {
   const [t] = await db.select().from(teams).where(eq(teams.slug, slug)).limit(1);
-  return t ?? null;
+  return t ? { ...t, logoUrl: logoFor(t.nbaTeamId) } : null;
 }
 
 export async function playerBySlug(slug: string) {
   const [p] = await db.select().from(players).where(eq(players.slug, slug)).limit(1);
-  return p ?? null;
+  return p ? { ...p, headshotUrl: headshotFor(p.nbaPlayerId) } : null;
 }

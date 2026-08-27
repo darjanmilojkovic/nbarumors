@@ -12,6 +12,7 @@ import {
   uniqueIndex,
   pgEnum,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 /** What kind of newsworthy object a rumor is. Drives filtering and card labels. */
 export const rumorTypeEnum = pgEnum("rumor_type", [
@@ -68,7 +69,13 @@ export const teams = pgTable(
     abbreviation: varchar("abbreviation", { length: 4 }).notNull(),
     conference: varchar("conference", { length: 8 }).notNull(),
     division: varchar("division", { length: 16 }).notNull(),
-    /** NBA CDN team logo, e.g. https://cdn.nba.com/logos/nba/1610612755/global/L/logo.svg */
+    /**
+     * DEPRECATED — nothing reads this. Image paths are derived from the NBA
+     * id against the manifest in lib/cached-images, which is generated from
+     * the files in public/ and ships in the same deploy as them. Storing the
+     * path here instead put the shared database and a deploy's files out of
+     * step and blanked every image on the live site.
+     */
     logoUrl: text("logo_url").notNull(),
     primaryColor: varchar("primary_color", { length: 7 }).notNull(),
     /** NBA's stable franchise id, used to build logo + headshot URLs. */
@@ -110,6 +117,13 @@ export const players = pgTable(
      * keep it here as a fast path; richer imagery lives in `player_images`.
      */
     nbaPlayerId: varchar("nba_player_id", { length: 16 }),
+    /**
+     * DEPRECATED — nothing reads this. Image paths are derived from the NBA
+     * id against the manifest in lib/cached-images, which is generated from
+     * the files in public/ and ships in the same deploy as them. Storing the
+     * path here instead put the shared database and a deploy's files out of
+     * step and blanked every image on the live site.
+     */
     headshotUrl: text("headshot_url"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -117,6 +131,16 @@ export const players = pgTable(
   },
   (t) => [
     uniqueIndex("players_slug_idx").on(t.slug),
+    /*
+     * One row per person. The slug cannot enforce that on its own — "Bobby
+     * Portis" and "Bobby Portis Jr." are different slugs and the same player,
+     * and we had five such pairs, each splitting a player's rumors and his
+     * prominence across two pages. Partial, because most rows have no id:
+     * anyone who only ever appeared in a rumor is unconstrained here.
+     */
+    uniqueIndex("players_nba_id_idx")
+      .on(t.nbaPlayerId)
+      .where(sql`${t.nbaPlayerId} is not null`),
     index("players_team_idx").on(t.currentTeamId),
   ],
 );
