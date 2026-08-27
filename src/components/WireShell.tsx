@@ -169,30 +169,45 @@ export function WireShell({
   teamLabel,
   playerLabel,
   teamSlug,
+  pinHeader = true,
 }: {
   children: React.ReactNode;
   teamLabel?: string;
   playerLabel?: string;
   teamSlug?: string;
+  /**
+   * Whether the masthead pins to the top on mobile.
+   *
+   * Exactly one element per page is pinned, which is the whole reason this
+   * works. The feed pins its filter bar and opts out here; every other page
+   * has nothing else pinned, so the masthead takes the job and a reader deep
+   * in an article still has the logo and the way home on screen.
+   */
+  pinHeader?: boolean;
 }) {
   return (
     <>
       {/*
-       * The masthead scrolls away like an ordinary header.
+       * Pinned, or scrolling away, but never hiding itself.
        *
-       * It used to hide itself on scroll and slide back on the way up, with
-       * the filter bar sticking to a CSS variable holding its current height.
-       * One sticky element hiding itself while a second depends on its height
-       * produced four separate faults: a masthead-sized hole when a route
-       * change reused the component, a masthead lost on refresh partway down
-       * a page, a band of background above "Back to the feed" whenever it
-       * slid away before it was pinned, and the filter bar snapping 110px in
-       * one frame while the logo took 200ms to travel.
+       * The masthead used to retract on scroll and slide back on the way up,
+       * with the filter bar sticking to a CSS variable holding its current
+       * height. One sticky element hiding itself while a second depended on
+       * that height produced four separate faults: a masthead-sized hole when
+       * a route change reused the component, a masthead lost on refresh
+       * partway down a page, a band of background above "Back to the feed"
+       * whenever it slid away before it was pinned, and the filter bar
+       * snapping 110px in one frame while the logo took 200ms to travel.
        *
-       * Only the filter bar is pinned now, at top: 0, which is a constant. The
-       * logo is reached by scrolling back to the top.
+       * What is left is a rule rather than a mechanism: one pinned element per
+       * page, at a fixed offset. The feed pins its filter bar, so the masthead
+       * there scrolls away; everywhere else the masthead pins, because nothing
+       * else does. Below sm only — at desktop widths the header scrolls away
+       * on every page, as it always has, and the rails carry the navigation.
        */}
-      <SiteHeader teamLabel={teamLabel} playerLabel={playerLabel} />
+      <div className={pinHeader ? "sticky top-0 z-30 sm:static" : undefined}>
+        <SiteHeader teamLabel={teamLabel} playerLabel={playerLabel} />
+      </div>
       <div className="mx-auto grid max-w-[1280px] grid-cols-1 items-start px-0 sm:px-5 lg:grid-cols-[230px_minmax(0,1fr)] xl:grid-cols-[230px_minmax(0,1fr)_300px]">
         <LeftRail teamSlug={teamSlug} />
         <main className="min-h-screen">{children}</main>

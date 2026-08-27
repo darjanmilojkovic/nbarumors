@@ -98,8 +98,12 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
     perPage: PER_PAGE,
   });
 
+  /*
+   * The filter bar below is this page's pinned element, so the masthead
+   * scrolls away rather than competing with it. One pinned element per page.
+   */
   return (
-    <WireShell>
+    <WireShell pinHeader={false}>
       <h1 className="sr-only">Latest NBA trade rumors and signings</h1>
 
       <div className="border-x border-rule bg-surface sm:mx-0">
