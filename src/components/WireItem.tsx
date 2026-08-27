@@ -91,6 +91,9 @@ function agoPhrase(d: Date, now = new Date()) {
   return minutesSince(d, now) < RELATIVE_LIMIT_MINS ? `${stamp} ago` : stamp;
 }
 
+/** Generational suffixes, which are part of the surname rather than after it. */
+const SUFFIXES = new Set(["jr", "sr", "ii", "iii", "iv", "v"]);
+
 const initials = (name: string) =>
   name
     .split(" ")
@@ -246,7 +249,22 @@ export function WireItem({
    * sorted first and state something the post does not. Two of 200 land in
    * that case, and they keep the bare team arrow.
    */
-  const surname = (name: string) => name.split(" ").slice(-1)[0];
+  /**
+   * The last name, carrying its suffix.
+   *
+   * Taking the final word alone turned 68 players into "Jr." or "III" —
+   * "Jr. MIL → MIA" for Kevin Porter Jr., and the same for Jaren Jackson Jr.,
+   * Michael Porter Jr. and Trey Murphy III. The suffix stays attached because
+   * it is part of how these players are named, and because dropping it would
+   * collapse Michael Porter Jr. and Kevin Porter onto one label.
+   */
+  const surname = (name: string) => {
+    const parts = name.trim().split(/\s+/);
+    const tail = parts[parts.length - 1];
+    return parts.length > 2 && SUFFIXES.has(tail.toLowerCase().replace(/\.$/, ""))
+      ? `${parts[parts.length - 2]} ${tail}`
+      : tail;
+  };
 
   const movements: string[] =
     moves.length > 0
@@ -262,6 +280,28 @@ export function WireItem({
             })(),
           ]
         : [];
+
+  /*
+   * Whose contract this is, when the card can say so without repeating itself.
+   *
+   * On a multi-player deal the terms were unattributed: "[Duren DET → CHA]
+   * [Turner MIL → DET] [Johnson DEN → DET] [$160M · 4yr]" gives no way to tell
+   * which of the three the money belongs to. Naming the subject settles it.
+   *
+   * Two refusals. A post with more than one subject cannot say whose contract
+   * it is — the same guard the movement chips use. And where a single movement
+   * chip already names him, the name is dropped rather than printed twice:
+   * "[Kuminga GSW → MIN] [Kuminga $13M · 2yr]" stutters, while the same
+   * addition beside three movement chips is the thing that makes them legible.
+   */
+  const moneySubject = (() => {
+    if (!money) return null;
+    const primaries = rumor.players.filter((p) => p.isPrimary);
+    if (primaries.length !== 1) return null;
+    const name = surname(primaries[0].fullName);
+    if (movements.length === 1 && movements[0].startsWith(`${name} `)) return null;
+    return name;
+  })();
 
   /*
    * The kicker names the teams in the move, not every team the report happens
@@ -627,7 +667,7 @@ export function WireItem({
 
               {money && (
                 <span className="rounded-sm border border-rule bg-surface-2 px-2 py-0.5 font-mono text-[11px] font-bold text-body">
-                  {money}
+                  {moneySubject ? `${moneySubject} ${money}` : money}
                 </span>
               )}
 
