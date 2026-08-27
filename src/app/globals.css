@@ -128,3 +128,21 @@ body {
     }
   }
 }
+
+/*
+ * The article header sliding back in when the reader scrolls up.
+ *
+ * Only the reveal is animated. Scrolling away is the browser moving an
+ * ordinary block, which no amount of JavaScript can match for smoothness —
+ * every attempt to drive that direction from a scroll handler clung to the top
+ * for a moment before catching up, because a scroll event arrives after the
+ * frame it describes has already been painted.
+ */
+@keyframes reveal {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}

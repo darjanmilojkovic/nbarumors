@@ -1,51 +1,47 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
- * A header that scrolls away like ordinary content and slides back when you
- * scroll up.
+ * A header that scrolls away with the page and comes back when you scroll up.
  *
- * The element is sticky, so it never leaves a hole in the layout, but a sticky
- * element pins from the very first pixel — which made it cling to the top for
- * its own height before finally retracting. Reading down, that reads as the
- * header being stubbornly attached and then giving up.
+ * Scrolling down is not animated, tracked or handled at all: the header is an
+ * ordinary block and the browser scrolls it off natively. Every previous
+ * attempt drove that direction from JavaScript — sticky plus a transform, then
+ * an offset following the scroll — and both clung to the top for a moment
+ * before catching up, because a scroll event arrives after the browser has
+ * already painted, and during a fling the events lag well behind the finger.
+ * Nothing computed on the main thread can keep up with a native scroll.
  *
- * So the offset follows the scroll rather than being an on/off flag. Going
- * down it is translated up by exactly how far the page has moved, which is
- * indistinguishable from the header scrolling away, and it stops once it is
- * fully out of sight. Going up it returns to zero and the transition carries
- * it back in.
- *
- * That also means no separate rule about not hiding before it is pinned: the
- * offset can never exceed the distance actually scrolled, so the element is
- * never lifted out of space that is still on screen. The band of background
- * this used to leave above "Back to the feed" is unreachable by construction.
+ * JavaScript therefore does one thing: on an upward scroll it lifts the header
+ * out of flow and pins it. A spacer takes its place at exactly its own height,
+ * so the swap costs no layout and nothing below it moves.
  *
  * Used only on pages with nothing else pinned. Every fault in this component's
  * previous life came from the filter bar sticking to a CSS variable holding
- * its height; it publishes nothing now.
+ * this element's height; it publishes nothing now.
  */
 
 /**
- * How long after mount a scroll is treated as the browser placing the page
- * rather than the reader moving through it. Scroll position is restored AFTER
- * effects run, and restored by scrolling — without this, refreshing partway
- * down an article retracted the header before the reader touched anything.
+ * Scroll restoration happens after effects run and arrives as a downward
+ * gesture, so a refresh partway down a page must not be read as the reader
+ * moving.
  */
 const RESTORE_WINDOW_MS = 700;
 
-/** Below this the elastic bounce and trackpad jitter would twitch it. */
-const MOVEMENT_THRESHOLD_PX = 2;
+/** Below this the elastic bounce and trackpad jitter would flicker it. */
+const MOVEMENT_THRESHOLD_PX = 6;
 
 export function RevealHeader({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
+  const [pinned, setPinned] = useState(false);
+  const [height, setHeight] = useState(0);
 
   /*
-   * Every page renders the shell at the same position in the tree, so React
-   * reuses this component across a route change rather than remounting it. Any
-   * offset left behind would travel to the next article.
+   * The shell sits at the same position in the tree on every page, so React
+   * reuses this component across a route change rather than remounting it. A
+   * pinned header would otherwise travel to the next article.
    */
   const pathname = usePathname();
 
@@ -56,58 +52,52 @@ export function RevealHeader({ children }: { children: React.ReactNode }) {
     const desktop = window.matchMedia("(min-width: 640px)");
     const mountedAt = performance.now();
     let last = window.scrollY;
-    let offset = 0;
+    let isPinned = false;
 
-    /*
-     * Written straight to the node rather than held in state. This runs on
-     * every scroll event, and a React render per frame is both wasted work and
-     * a source of stutter in the one place it would be most visible.
-     */
-    const draw = (next: number, animated: boolean) => {
-      if (next === offset) return;
-      offset = next;
-      el.style.transitionProperty = animated ? "transform" : "none";
-      el.style.transform = `translateY(${-offset}px)`;
+    const set = (next: boolean) => {
+      if (next === isPinned) return;
+      isPinned = next;
+      setPinned(next);
     };
 
     const onScroll = () => {
-      if (desktop.matches) return draw(0, false);
+      if (desktop.matches) return set(false);
       const y = window.scrollY;
 
       if (performance.now() - mountedAt < RESTORE_WINDOW_MS) {
         last = y;
-        return draw(0, false);
+        return set(false);
       }
 
-      const height = el.offsetHeight;
-      if (y <= 0) {
+      /*
+       * Above its own height the header is still partly on screen where it
+       * belongs, and pinning there would jump it to fully visible. It is also
+       * the point below which taking it out of flow would move what the reader
+       * is looking at, since its slot is no longer entirely above the fold.
+       */
+      const natural = el.offsetHeight || height;
+      if (y <= natural) {
         last = y;
-        return draw(0, false);
+        return set(false);
       }
 
-      if (y > last + MOVEMENT_THRESHOLD_PX) {
-        /*
-         * Never further than the page has actually scrolled, so the header
-         * tracks the content rather than outrunning it, and never further than
-         * its own height, which is where it is fully out of sight.
-         */
-        draw(Math.min(height, y), false);
-        last = y;
-      } else if (y < last - MOVEMENT_THRESHOLD_PX) {
-        draw(0, true);
-        last = y;
-      }
+      if (y < last - MOVEMENT_THRESHOLD_PX) set(true);
+      else if (y > last + MOVEMENT_THRESHOLD_PX) set(false);
+
+      if (Math.abs(y - last) > MOVEMENT_THRESHOLD_PX) last = y;
     };
 
     /*
      * The back/forward cache restores a page without remounting anything or
-     * changing the pathname, so the effect never re-runs and the reader would
-     * return to whatever offset they left.
+     * changing the pathname, so the effect never re-runs.
      */
     const onPageShow = () => {
       last = window.scrollY;
-      draw(0, false);
+      set(false);
     };
+
+    // Measured while in flow, which is the only time it has a natural height.
+    setHeight(el.offsetHeight);
 
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("pageshow", onPageShow);
@@ -117,14 +107,27 @@ export function RevealHeader({ children }: { children: React.ReactNode }) {
       window.removeEventListener("pageshow", onPageShow);
       desktop.removeEventListener("change", onScroll);
     };
+    // height is measured here, not an input to it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
   return (
-    <div
-      ref={ref}
-      className="sticky top-0 z-30 duration-200 ease-out motion-reduce:transition-none sm:static sm:transform-none"
-    >
-      {children}
-    </div>
+    <>
+      {/*
+       * Holds the header's place while it is pinned, so lifting it out of flow
+       * costs no layout and the article does not shift under the reader.
+       */}
+      {pinned && height > 0 ? <div style={{ height }} aria-hidden /> : null}
+      <div
+        ref={ref}
+        className={
+          pinned
+            ? "fixed inset-x-0 top-0 z-30 animate-[reveal_200ms_ease-out] sm:static sm:animate-none"
+            : undefined
+        }
+      >
+        {children}
+      </div>
+    </>
   );
 }
