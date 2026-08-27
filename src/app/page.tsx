@@ -40,7 +40,15 @@ const CHIPS = [
   { key: "draft", label: "Draft" },
 ] as const;
 
-const PER_PAGE = 40;
+/**
+ * Twenty, down from forty.
+ *
+ * Forty made sense when a card was a headline and two sentences. Cards now
+ * show an opening paragraph and a way in, which is a page you choose from
+ * rather than scroll past — and half as many of them is the other half of that
+ * change. Team and player pages sit at ten for the same reason.
+ */
+const PER_PAGE = 20;
 
 /**
  * Page is deliberately dropped when the tab or the category changes: landing

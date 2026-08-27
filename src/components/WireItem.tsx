@@ -499,23 +499,34 @@ export function WireItem({
                 <Quoted text={para} />
               </p>
             ))}
-            {/*
-             * Only where there is genuinely more to read. 503 of 654 posts are
-             * a single paragraph, so a "read more" on every card would be a
-             * promise broken three times in four — and the headline above
-             * already leads to the same place.
-             */}
-            {truncated && (
-              <p>
-                <Link
-                  href={`/rumor/${rumor.slug}`}
-                  className="font-mono text-[11px] tracking-widest text-link uppercase hover:underline"
-                >
-                  Read more →
-                </Link>
-              </p>
-            )}
           </div>
+
+          {/*
+           * Only where there is genuinely more to read. 503 of 654 posts are a
+           * single paragraph, so a "read more" on every card would be a promise
+           * broken three times in four — and the headline above already leads
+           * to the same place.
+           *
+           * Outside the prose block so it can own its spacing. mt-3 matches the
+           * gap between paragraphs, which keeps it attached to the text it
+           * continues; mb-6 is twice that, so the button belongs to the summary
+           * above rather than floating between two cards.
+           *
+           * Styled as the same bordered control the pager uses. A coloured line
+           * of text reads as one more link among the outlet, the headline and
+           * the player chips; a button is the one thing on the card that looks
+           * pressable.
+           */}
+          {truncated && (
+            <div className="mt-3 mb-6">
+              <Link
+                href={`/rumor/${rumor.slug}`}
+                className="inline-block rounded-sm border border-rule px-3 py-2 font-mono text-[11px] tracking-widest text-body uppercase transition-colors hover:border-link hover:bg-surface-2 hover:text-link"
+              >
+                Read more →
+              </Link>
+            </div>
+          )}
 
           {/*
            * One meta strip, and every chip in it is conditional — a post that
