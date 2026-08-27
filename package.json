@@ -47,7 +47,11 @@
     "fix:tags": "tsx src/scripts/prune-tags.ts",
     "fix:hypotheticals": "tsx src/scripts/fix-hypothetical-openers.ts",
     "fix:shorthand": "tsx src/scripts/fix-shorthand-case.ts",
-    "fix:jargon": "tsx src/scripts/fix-jargon.ts"
+    "fix:jargon": "tsx src/scripts/fix-jargon.ts",
+    "compare:models": "tsx src/scripts/compare-models.ts",
+    "sync:images": "tsx src/scripts/sync-images.ts",
+    "merge:players": "tsx src/scripts/merge-duplicate-players.ts",
+    "prebuild": "tsx src/scripts/sync-images.ts || echo \"sync:images failed — building with the committed manifest\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

@@ -52,6 +52,20 @@ async function resolvePlayer(name: string): Promise<number | null> {
     .limit(1);
   if (existing) return existing.id;
 
+  /*
+   * The slug missed, but the name may still be one we know under another
+   * spelling: "Bobby Portis Jr." and "Bobby Portis" slugify apart while both
+   * sit in the aliases of the single row the merge left behind. Without this
+   * the extraction opens a second page for a player who already has one, and
+   * his rumors and his rating split across the two.
+   */
+  const [byAlias] = await db
+    .select({ id: players.id })
+    .from(players)
+    .where(sql`${normalizeName(clean)} = any(${players.aliases})`)
+    .limit(1);
+  if (byAlias) return byAlias.id;
+
   // Extraction met a name we haven't seen — grow the tag vocabulary.
   const [created] = await db
     .insert(players)

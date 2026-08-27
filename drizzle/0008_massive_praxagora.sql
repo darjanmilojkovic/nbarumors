@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "players_nba_id_idx" ON "players" USING btree ("nba_player_id") WHERE "players"."nba_player_id" is not null;
