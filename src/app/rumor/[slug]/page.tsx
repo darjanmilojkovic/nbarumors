@@ -19,6 +19,16 @@ export const revalidate = 300;
  */
 const getRumor = cache(rumorBySlug);
 
+/**
+ * How many further posts to show beneath the one being read.
+ *
+ * These are full cards, not links — headline, summary, faces and badges each —
+ * so four of them ran longer than the article itself and buried the end of it.
+ * Three is enough to offer a way onward without the page becoming a second
+ * feed.
+ */
+const RELATED_LIMIT = 3;
+
 export async function generateMetadata({
   params,
 }: PageProps<"/rumor/[slug]">): Promise<Metadata> {
@@ -109,7 +119,7 @@ export default async function RumorPage({ params }: PageProps<"/rumor/[slug]">) 
         (r.players.some((p) => rumor.players.some((q) => q.slug === p.slug)) ||
           r.teams.some((t) => rumor.teams.some((u) => u.slug === t.slug))),
     )
-    .slice(0, 4);
+    .slice(0, RELATED_LIMIT);
 
   /*
    * The rail names the team and player this post is ABOUT.
@@ -150,7 +160,7 @@ export default async function RumorPage({ params }: PageProps<"/rumor/[slug]">) 
         {related.length > 0 && (
           <section>
             <h2 className="label border-b border-rule px-4 py-3 text-[11px] text-muted sm:px-5">
-              Related rumors
+              Related updates
             </h2>
             {related.map((r) => (
               <WireItem key={r.id} rumor={r} />
