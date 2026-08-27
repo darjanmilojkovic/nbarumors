@@ -1,7 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
-import { StickyMasthead } from "@/components/StickyMasthead";
 import {
   activeTeams,
   beatCounts,
@@ -178,9 +177,22 @@ export function WireShell({
 }) {
   return (
     <>
-      <StickyMasthead>
-        <SiteHeader teamLabel={teamLabel} playerLabel={playerLabel} />
-      </StickyMasthead>
+      {/*
+       * The masthead scrolls away like an ordinary header.
+       *
+       * It used to hide itself on scroll and slide back on the way up, with
+       * the filter bar sticking to a CSS variable holding its current height.
+       * One sticky element hiding itself while a second depends on its height
+       * produced four separate faults: a masthead-sized hole when a route
+       * change reused the component, a masthead lost on refresh partway down
+       * a page, a band of background above "Back to the feed" whenever it
+       * slid away before it was pinned, and the filter bar snapping 110px in
+       * one frame while the logo took 200ms to travel.
+       *
+       * Only the filter bar is pinned now, at top: 0, which is a constant. The
+       * logo is reached by scrolling back to the top.
+       */}
+      <SiteHeader teamLabel={teamLabel} playerLabel={playerLabel} />
       <div className="mx-auto grid max-w-[1280px] grid-cols-1 items-start px-0 sm:px-5 lg:grid-cols-[230px_minmax(0,1fr)] xl:grid-cols-[230px_minmax(0,1fr)_300px]">
         <LeftRail teamSlug={teamSlug} />
         <main className="min-h-screen">{children}</main>

@@ -104,10 +104,14 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
 
       <div className="border-x border-rule bg-surface sm:mx-0">
         {/* tabs */}
-        <div
-          className="sticky z-10 border-b border-rule bg-surface/95 backdrop-blur"
-          style={{ top: "var(--masthead-offset, 0px)" }}
-        >
+        {/*
+         * Pinned to the top of the viewport, full stop. It used to stick to a
+         * CSS variable carrying the masthead's current height, which meant
+         * this bar jumped 110px in one frame whenever the masthead decided to
+         * hide itself. The masthead now scrolls away like an ordinary header,
+         * so this offset is a constant.
+         */}
+        <div className="sticky top-0 z-10 border-b border-rule bg-surface/95 backdrop-blur">
           <div className="flex">
             {TABS.map((t) => (
               <Link
