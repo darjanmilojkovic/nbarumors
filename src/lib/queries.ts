@@ -412,14 +412,22 @@ const baseSelect = (extra?: SQL, order: FeedOrder = "rank") =>
         from rumor_sources rs join sources s2 on s2.id = rs.source_id
         where rs.rumor_id = ${rumors.id}
       )`,
-      /** The corroboration chain: who reported what, oldest first. */
+      /**
+       * The corroboration chain: who reported what, newest first.
+       *
+       * It ran oldest first, on the reasoning that a chain is a sequence and
+       * sequences start at the beginning. But nothing else on the site reads
+       * that way — the feed, the team pages and the player pages are all
+       * newest first — and the row a reader wants is the latest one, which was
+       * buried at the bottom of a five-row list.
+       */
       chain: sql<
         { outlet: string; headline: string; url: string; at: string }[]
       >`(
         select coalesce(json_agg(json_build_object(
           'outlet', case when s2.slug like 'gnews%' then coalesce(nullif(rs.publisher, ''), s2.name) else s2.name end, 'headline', rs.headline,
           'url', rs.source_url, 'at', rs.published_at
-        ) order by rs.published_at), '[]'::json)
+        ) order by rs.published_at desc), '[]'::json)
         from rumor_sources rs join sources s2 on s2.id = rs.source_id
         where rs.rumor_id = ${rumors.id}
       )`,
