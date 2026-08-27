@@ -552,12 +552,10 @@ export function WireItem({
            * It was shown only where a paragraph had been withheld, because on a
            * card that already carried the chips, the chain and the player links
            * a "read more" on the other 503 of 654 single-paragraph posts
-           * promised something that was not there. The chain, the rule and the
-           * links now live on the post page, so there is always more.
-           *
-           * It sits directly under the summary and above the meta strip, so it
-           * closes the writing rather than the card — the strip beneath it is
-           * reference, not prose, and reads as a footer to the whole thing.
+           * promised something that was not there. Now the list card ends here
+           * and all of that lives on the post page, so there is always more —
+           * and a column of cards that each end the same way is easier to scan
+           * than one where the last row changes shape per post.
            *
            * Outside the prose block so it can own its spacing. mt-3 matches the
            * gap between paragraphs, which keeps it attached to the text it
@@ -626,93 +624,89 @@ export function WireItem({
            * the one block at 3.5, which put 14px under the read-more button
            * against the 12 above it.
            */}
-          {hasMeta && (
-            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
-              {money && (
-                <span className="rounded-sm border border-rule bg-surface-2 px-2 py-0.5 font-mono text-[11px] font-bold text-body">
-                  {money}
-                </span>
-              )}
-
-              {/*
-               * Loose text, not chips.
-               *
-               * As chips these competed with the player links two rows below:
-               * a three-player trade printed Herro, White and Scheierman in
-               * bold bordered boxes and then again as plain names underneath,
-               * 75 duplicated names across 200 cards. Chips gave the movement
-               * more weight than the navigation it was repeating.
-               *
-               * One span with pipes between legs. As separate flex children the
-               * gap alone had to carry the division, and "Butler GSW → ATL
-               * Kuminga GSW → MIL" ran together as a single string. A pipe
-               * rather than the byline row's middot: these legs each contain an
-               * arrow already, and the heavier rule reads as a divider between
-               * them rather than more punctuation inside one.
-               *
-               * Surname alone: the arrow is the point, and full names turn a
-               * two-player deal into two lines of chrome.
-               */}
-              {movements.length > 0 && (
-                <span className="font-mono text-[10px] tracking-widest text-muted uppercase">
-                  {movements.join("  |  ")}
-                </span>
-              )}
-
-              {/*
-               * No "N outlets" badge here any more. The corroboration chain
-               * below already opens with "+ 5 reports from 4 outlets", so the
-               * badge restated the same count a few pixels above it — and
-               * unlike the chain it could not be opened to see whose reports
-               * they were. Two labels for one fact, one of which led nowhere.
-               */}
-
-              {/* Checked against the official transaction log, not modelled. */}
-              {rumor.outcome === "confirmed" && (
-                <span
-                  className="rounded-sm bg-confirmed/10 px-2 py-0.5 font-mono text-[10px] font-bold tracking-widest text-confirmed uppercase"
-                  title="A matching move appears in the official transaction log"
-                >
-                  ✓ Confirmed
-                  {confirmedAfter !== null && confirmedAfter > 0
-                    ? ` ${confirmedAfter}d later`
-                    : ""}
-                </span>
-              )}
-              {rumor.outcome === "unrecorded" && (
-                <span
-                  className="font-mono text-[10px] tracking-widest text-muted uppercase"
-                  title="Nothing matching this has appeared in the transaction log yet. Our log covers one season and excludes waivers and two-way deals, so this is not proof it did not happen."
-                >
-                  No transaction on record
-                </span>
-              )}
-
-              {/* Momentum around the player, independent of this one report. */}
-              {isHot && (
-                <span className="font-mono text-[10px] tracking-widest text-accent uppercase">
-                  ▲ {rumor.hotMentions} reports this week
-                </span>
-              )}
-
-            </div>
-          )}
-
           {/*
            * In a list the card stops at the button.
            *
-           * The corroboration chain, the rule and the player links are detail
-           * for someone who has already decided to read the post, and stacking
-           * them under a one-paragraph summary made the card longer than the
-           * writing it was advertising. The post page still carries all of it.
-           *
-           * The meta strip is the exception and stays in the feed, below the
-           * button. "Kuminga GSW → MIN · $13M · 2yr" is the one row that can
-           * be read at a glance, and taking it out cost more than the height
-           * it saved.
+           * Everything below it — the meta strip, the corroboration chain and
+           * the player links — is detail for someone who has decided to read
+           * the post, and stacking three more rows under a one-paragraph
+           * summary made the card longer than the writing it was advertising.
+           * The post page still carries all of it.
            */}
           {!preview && (
             <>
+            {hasMeta && (
+              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+                {money && (
+                  <span className="rounded-sm border border-rule bg-surface-2 px-2 py-0.5 font-mono text-[11px] font-bold text-body">
+                    {money}
+                  </span>
+                )}
+
+                {/*
+                 * Loose text, not chips.
+                 *
+                 * As chips these competed with the player links two rows below:
+                 * a three-player trade printed Herro, White and Scheierman in
+                 * bold bordered boxes and then again as plain names underneath,
+                 * 75 duplicated names across 200 cards. Chips gave the movement
+                 * more weight than the navigation it was repeating.
+                 *
+                 * One span with pipes between legs. As separate flex children the
+                 * gap alone had to carry the division, and "Butler GSW → ATL
+                 * Kuminga GSW → MIL" ran together as a single string. A pipe
+                 * rather than the byline row's middot: these legs each contain an
+                 * arrow already, and the heavier rule reads as a divider between
+                 * them rather than more punctuation inside one.
+                 *
+                 * Surname alone: the arrow is the point, and full names turn a
+                 * two-player deal into two lines of chrome.
+                 */}
+                {movements.length > 0 && (
+                  <span className="font-mono text-[10px] tracking-widest text-muted uppercase">
+                    {movements.join("  |  ")}
+                  </span>
+                )}
+
+                {/*
+                 * No "N outlets" badge here any more. The corroboration chain
+                 * below already opens with "+ 5 reports from 4 outlets", so the
+                 * badge restated the same count a few pixels above it — and
+                 * unlike the chain it could not be opened to see whose reports
+                 * they were. Two labels for one fact, one of which led nowhere.
+                 */}
+
+                {/* Checked against the official transaction log, not modelled. */}
+                {rumor.outcome === "confirmed" && (
+                  <span
+                    className="rounded-sm bg-confirmed/10 px-2 py-0.5 font-mono text-[10px] font-bold tracking-widest text-confirmed uppercase"
+                    title="A matching move appears in the official transaction log"
+                  >
+                    ✓ Confirmed
+                    {confirmedAfter !== null && confirmedAfter > 0
+                      ? ` ${confirmedAfter}d later`
+                      : ""}
+                  </span>
+                )}
+                {rumor.outcome === "unrecorded" && (
+                  <span
+                    className="font-mono text-[10px] tracking-widest text-muted uppercase"
+                    title="Nothing matching this has appeared in the transaction log yet. Our log covers one season and excludes waivers and two-way deals, so this is not proof it did not happen."
+                  >
+                    No transaction on record
+                  </span>
+                )}
+
+                {/* Momentum around the player, independent of this one report. */}
+                {isHot && (
+                  <span className="font-mono text-[10px] tracking-widest text-accent uppercase">
+                    ▲ {rumor.hotMentions} reports this week
+                  </span>
+                )}
+
+              </div>
+            )}
+
             {/*
              * Plain <details>, so it works without JS.
              *
