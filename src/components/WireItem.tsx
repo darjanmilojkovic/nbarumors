@@ -521,7 +521,19 @@ export function WireItem({
             <div className="mt-3 mb-6">
               <Link
                 href={`/rumor/${rumor.slug}`}
-                className="inline-block rounded-sm border border-rule px-3 py-2 font-mono text-[11px] tracking-widest text-body uppercase transition-colors hover:border-link hover:bg-surface-2 hover:text-link"
+                /*
+                 * Outlined in the link blue at rest, filled on hover.
+                 *
+                 * Filling rather than tinting: `bg-link/10` behind blue text is
+                 * already the site's language for a SELECTED category chip, and
+                 * a hovered button that looks selected says the wrong thing.
+                 *
+                 * Dark text on the fill, not white. #5e9ad8 is light enough
+                 * that white sits at 2.96:1 and fails AA outright, while the
+                 * ink reads at 6.56:1 — the same reason a mid-tone blue button
+                 * usually wants dark type.
+                 */
+                className="inline-block rounded-sm border border-link px-3 py-2 font-mono text-[11px] tracking-widest text-link uppercase transition-colors hover:bg-link hover:text-ink"
               >
                 Read more →
               </Link>
