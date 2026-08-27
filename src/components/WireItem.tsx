@@ -282,28 +282,6 @@ export function WireItem({
         : [];
 
   /*
-   * Whose contract this is, when the card can say so without repeating itself.
-   *
-   * On a multi-player deal the terms were unattributed: "[Duren DET → CHA]
-   * [Turner MIL → DET] [Johnson DEN → DET] [$160M · 4yr]" gives no way to tell
-   * which of the three the money belongs to. Naming the subject settles it.
-   *
-   * Two refusals. A post with more than one subject cannot say whose contract
-   * it is — the same guard the movement chips use. And where a single movement
-   * chip already names him, the name is dropped rather than printed twice:
-   * "[Kuminga GSW → MIN] [Kuminga $13M · 2yr]" stutters, while the same
-   * addition beside three movement chips is the thing that makes them legible.
-   */
-  const moneySubject = (() => {
-    if (!money) return null;
-    const primaries = rumor.players.filter((p) => p.isPrimary);
-    if (primaries.length !== 1) return null;
-    const name = surname(primaries[0].fullName);
-    if (movements.length === 1 && movements[0].startsWith(`${name} `)) return null;
-    return name;
-  })();
-
-  /*
    * The kicker names the teams in the move, not every team the report happens
    * to mention. A Josh Hart extension listed "BOS / NYK / PHX" because the
    * piece cites Derrick White and Dillon Brooks as comparables, which reads as
@@ -646,7 +624,7 @@ export function WireItem({
             <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
               {money && (
                 <span className="rounded-sm border border-rule bg-surface-2 px-2 py-0.5 font-mono text-[11px] font-bold text-body">
-                  {moneySubject ? `${moneySubject} ${money}` : money}
+                  {money}
                 </span>
               )}
 
