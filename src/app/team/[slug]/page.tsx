@@ -106,7 +106,7 @@ export default async function TeamPage({
           </p>
         ) : (
           <>
-            {rumors.map((r) => <WireItem key={r.id} rumor={r} />)}
+            {rumors.map((r) => <WireItem key={r.id} rumor={r} preview />)}
             <Pager
               page={page}
               pageCount={pageCount}

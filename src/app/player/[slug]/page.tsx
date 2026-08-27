@@ -119,7 +119,7 @@ export default async function PlayerPage({
           </p>
         ) : (
           <>
-            {rumors.map((r) => <WireItem key={r.id} rumor={r} />)}
+            {rumors.map((r) => <WireItem key={r.id} rumor={r} preview />)}
             <Pager
               page={page}
               pageCount={pageCount}

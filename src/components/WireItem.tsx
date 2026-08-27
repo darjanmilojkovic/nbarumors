@@ -99,8 +99,27 @@ const initials = (name: string) =>
     .slice(0, 2)
     .toUpperCase();
 
-export function WireItem({ rumor }: { rumor: FeedRumor }) {
+/**
+ * @param preview  Show the opening paragraph and link to the rest.
+ *
+ * A card in a list and the post you opened are the same component doing two
+ * jobs. In a list the card is an offer — enough to decide whether to read it —
+ * and forty full summaries stacked up is a page you scroll past rather than
+ * choose from. On its own page the post is the thing you came for and shows
+ * everything.
+ */
+export function WireItem({
+  rumor,
+  preview = false,
+}: {
+  rumor: FeedRumor;
+  preview?: boolean;
+}) {
   const state = STATE[rumor.status] ?? STATE.rumor;
+
+  const paragraphs = toParagraphs(rumor.body);
+  const shownParas = preview ? paragraphs.slice(0, 1) : paragraphs;
+  const truncated = preview && paragraphs.length > shownParas.length;
 
   // Primary player leads, then anyone we have a photo for, then the rest.
   const ordered = [...rumor.players].sort(
@@ -475,11 +494,27 @@ export function WireItem({ rumor }: { rumor: FeedRumor }) {
            * measure with nowhere for the eye to rest.
            */}
           <div className="max-w-[62ch] space-y-3 text-[15.5px] leading-7 text-body">
-            {toParagraphs(rumor.body).map((para, i) => (
+            {shownParas.map((para, i) => (
               <p key={i}>
                 <Quoted text={para} />
               </p>
             ))}
+            {/*
+             * Only where there is genuinely more to read. 503 of 654 posts are
+             * a single paragraph, so a "read more" on every card would be a
+             * promise broken three times in four — and the headline above
+             * already leads to the same place.
+             */}
+            {truncated && (
+              <p>
+                <Link
+                  href={`/rumor/${rumor.slug}`}
+                  className="font-mono text-[11px] tracking-widest text-link uppercase hover:underline"
+                >
+                  Read more →
+                </Link>
+              </p>
+            )}
           </div>
 
           {/*

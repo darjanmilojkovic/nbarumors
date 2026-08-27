@@ -167,7 +167,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
             No rumors match that filter.
           </p>
         ) : (
-          rumors.map((r) => <WireItem key={r.id} rumor={r} />)
+          rumors.map((r) => <WireItem key={r.id} rumor={r} preview />)
         )}
 
         {/*

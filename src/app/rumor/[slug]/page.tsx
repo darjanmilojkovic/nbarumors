@@ -163,7 +163,7 @@ export default async function RumorPage({ params }: PageProps<"/rumor/[slug]">) 
               Related updates
             </h2>
             {related.map((r) => (
-              <WireItem key={r.id} rumor={r} />
+              <WireItem key={r.id} rumor={r} preview />
             ))}
           </section>
         )}
