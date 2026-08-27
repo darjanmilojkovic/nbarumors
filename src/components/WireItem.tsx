@@ -730,17 +730,33 @@ export function WireItem({
           )}
 
           {rumor.players.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {rumor.players.map((p) => (
-                <Link
-                  key={p.slug}
-                  href={`/player/${p.slug}`}
-                  className="rounded-full bg-surface-2 px-2.5 py-0.5 font-mono text-[11px] text-muted hover:text-link"
-                >
-                  {p.fullName}
-                </Link>
-              ))}
-            </div>
+            <>
+              {/*
+               * A rule between the story and the names below it.
+               *
+               * Everything above this line is the report; the chips beneath are
+               * navigation, and they read as a stray third row of chrome
+               * without something marking the change of purpose.
+               *
+               * Deliberately lighter than the rule that closes the card. At
+               * full strength two identical lines sit within about 60px of each
+               * other and the chip row looks like a separate card of its own
+               * rather than the tail of this one. Inset from the left so it
+               * starts where the text does, not where the faces do.
+               */}
+              <hr className="mt-5 mb-3 border-0 border-t border-rule/50" />
+              <div className="flex flex-wrap gap-1.5">
+                {rumor.players.map((p) => (
+                  <Link
+                    key={p.slug}
+                    href={`/player/${p.slug}`}
+                    className="rounded-full bg-surface-2 px-2.5 py-0.5 font-mono text-[11px] text-muted hover:text-link"
+                  >
+                    {p.fullName}
+                  </Link>
+                ))}
+              </div>
+            </>
           )}
         </div>
       </div>
