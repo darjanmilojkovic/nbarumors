@@ -231,12 +231,37 @@ export function WireItem({
     .sort((a, b) => b.prominence - a.prominence)
     .slice(0, 3);
 
-  const primaryContext =
-    moves.length > 1
-      ? null
+  /*
+   * Every movement the post describes, one string per chip.
+   *
+   * Where players carry their own from/to, each gets a chip naming him. Where
+   * only the post does — 40 of 200 feed posts — there is one arrow and no
+   * player attached to it, so the subject supplies the name instead: "Kings
+   * stretch DeRozan's remaining $10M salary" is tagged SAC → DEN and is
+   * plainly about DeRozan.
+   *
+   * That fallback is refused when the post has more than one subject. "Klay
+   * Thompson to Miami, DeRozan to Denver" carries a single DAL → MIA pair and
+   * two primaries, so a surname there would pin the arrow on whichever name
+   * sorted first and state something the post does not. Two of 200 land in
+   * that case, and they keep the bare team arrow.
+   */
+  const surname = (name: string) => name.split(" ").slice(-1)[0];
+
+  const movements: string[] =
+    moves.length > 0
+      ? moves.map((p) => `${surname(p.fullName)} ${p.fromAbbrev} → ${p.toAbbrev}`)
       : movedFrom && movedTo
-        ? `${movedFrom.abbreviation} → ${movedTo.abbreviation}`
-        : null;
+        ? [
+            (() => {
+              const primaries = rumor.players.filter((p) => p.isPrimary);
+              const arrow = `${movedFrom.abbreviation} → ${movedTo.abbreviation}`;
+              return primaries.length === 1
+                ? `${surname(primaries[0].fullName)} ${arrow}`
+                : arrow;
+            })(),
+          ]
+        : [];
 
   /*
    * The kicker names the teams in the move, not every team the report happens
@@ -288,8 +313,7 @@ export function WireItem({
     rumor.outcome === "confirmed" ||
     rumor.outcome === "unrecorded" ||
     isHot ||
-    Boolean(primaryContext) ||
-    moves.length > 1;
+    movements.length > 0;
 
   /*
    * py-7 (28px) rather than 20px: body copy sets ~22px between lines, so
@@ -593,34 +617,36 @@ export function WireItem({
                 </span>
               )}
 
-              {primaryContext && (
-                <span className="font-mono text-[10px] tracking-widest text-muted uppercase">
-                  {primaryContext}
+              {/*
+               * One chip per movement, in the same shape as the money chip
+               * beside it.
+               *
+               * These were loose uppercase text, and the legs of a multi-player
+               * deal had to be divided by pipes — "Butler GSW → ATL | Kuminga
+               * GSW → MIL" — because as bare text in a flex row the gap alone
+               * could not hold them apart. A bordered chip draws its own
+               * boundary, so the pipes come out and each leg is its own object.
+               *
+               * Surname alone: the arrow is the point, and full names turn a
+               * two-player deal into two lines of chrome.
+               */}
+              {movements.map((m) => (
+                <span
+                  key={m}
+                  /*
+                   * Byte for byte the money chip's classes. The old movement
+                   * text was 10px uppercase with wide tracking, which as a chip
+                   * stood 21px tall beside the money chip's 23 — a two-pixel
+                   * mismatch that is invisible alone and obvious in a row. The
+                   * team codes are already capitals, so nothing is lost by
+                   * dropping the transform, and the surname reads better set
+                   * normally than shouted.
+                   */
+                  className="rounded-sm border border-rule bg-surface-2 px-2 py-0.5 font-mono text-[11px] font-bold text-body"
+                >
+                  {m}
                 </span>
-              )}
-
-              {moves.length > 1 && (
-                /*
-                 * One span, with a middot between legs. As separate flex
-                 * children the gap alone had to carry the division, and
-                 * "Butler GSW → ATL Kuminga GSW → MIL" ran together as a
-                 * single string. A pipe rather than the byline row's middot:
-                 * these legs each contain an arrow already, and the heavier
-                 * rule reads as a divider between them rather than more
-                 * punctuation inside one.
-                 *
-                 * Surname alone: the arrow is the point, and full names turn a
-                 * two-player deal into two lines of chrome.
-                 */
-                <span className="font-mono text-[10px] tracking-widest text-muted uppercase">
-                  {moves
-                    .map(
-                      (p) =>
-                        `${p.fullName.split(" ").slice(-1)[0]} ${p.fromAbbrev} → ${p.toAbbrev}`,
-                    )
-                    .join("  |  ")}
-                </span>
-              )}
+              ))}
             </div>
           )}
 
