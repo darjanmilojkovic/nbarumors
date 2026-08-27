@@ -577,8 +577,13 @@ export function WireItem({
            *
            * Outside the prose block so it can own its spacing. mt-3 matches the
            * gap between paragraphs, which keeps it attached to the text it
-           * continues; mb-6 is twice that, so the button belongs to the summary
-           * above rather than floating between two cards.
+           * continues, and nothing is set below — whatever follows brings its
+           * own top margin, which is the card's ordinary rhythm.
+           *
+           * It carried mb-6 for a while, twice the gap above. That reads as
+           * deliberate on a card ending in a bordered chip and as a hole on one
+           * ending in loose text, and the strip below is now sometimes one and
+           * sometimes the other.
            *
            * Styled as the same bordered control the pager uses. A coloured line
            * of text reads as one more link among the outlet, the headline and
@@ -586,7 +591,7 @@ export function WireItem({
            * pressable.
            */}
           {truncated && (
-            <div className="mt-3 mb-6">
+            <div className="mt-3">
               <Link
                 href={`/rumor/${rumor.slug}`}
                 /*
@@ -614,60 +619,59 @@ export function WireItem({
            * render, so it costs no vertical space.
            */}
           {/*
-           * Order here is fixed, not incidental. Five slots, always in this
+           * Order here is fixed, not incidental. Four slots, always in this
            * sequence:
            *
-           *   1. movement chips  — who is going where, one chip per leg
-           *   2. money chip      — the terms, when the post carries any
-           *   3. confirmed badge — the league's record caught up with it
-           *   4. unrecorded      — old enough to expect a record, and none
-           *   5. reports count   — how hard the story is being covered
+           *   1. money chip      — the terms, when the post carries any
+           *   2. movement        — who is going where, as one line
+           *   3. outcome         — confirmed, or old enough to expect a record
+           *   4. reports count   — how hard the story is being covered
            *
-           * Movement leads because it is the news: a card answers "who is
-           * moving" before "for how much". The count trails because it is the
-           * only item describing the coverage rather than the deal.
+           * The chip leads because it is the only bordered object in the row,
+           * and a row that starts with one and then runs into loose text reads
+           * as deliberate where the reverse reads as a stray box. The count
+           * trails because it is the only item describing the coverage rather
+           * than the deal.
            *
            * Left to fall where they were written, the count landed between the
            * money and the movement on any hot post, so a card carried its facts
            * in a different order depending on how much had been written that
            * week.
+           *
+           * mt-3, matching the chain and the player chips below it. This was
+           * the one block at 3.5, which put 14px under the read-more button
+           * against the 12 above it.
            */}
           {hasMeta && (
-            <div className="mt-3.5 flex flex-wrap items-center gap-x-3 gap-y-2">
+            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+              {money && (
+                <span className="rounded-sm border border-rule bg-surface-2 px-2 py-0.5 font-mono text-[11px] font-bold text-body">
+                  {moneySubject ? `${moneySubject} ${money}` : money}
+                </span>
+              )}
+
               {/*
-               * One chip per movement, in the same shape as the money chip
-               * beside it.
+               * Loose text, not chips.
                *
-               * These were loose uppercase text, and the legs of a multi-player
-               * deal had to be divided by pipes — "Butler GSW → ATL | Kuminga
-               * GSW → MIL" — because as bare text in a flex row the gap alone
-               * could not hold them apart. A bordered chip draws its own
-               * boundary, so the pipes come out and each leg is its own object.
+               * As chips these competed with the player links two rows below:
+               * a three-player trade printed Herro, White and Scheierman in
+               * bold bordered boxes and then again as plain names underneath,
+               * 75 duplicated names across 200 cards. Chips gave the movement
+               * more weight than the navigation it was repeating.
+               *
+               * One span with pipes between legs. As separate flex children the
+               * gap alone had to carry the division, and "Butler GSW → ATL
+               * Kuminga GSW → MIL" ran together as a single string. A pipe
+               * rather than the byline row's middot: these legs each contain an
+               * arrow already, and the heavier rule reads as a divider between
+               * them rather than more punctuation inside one.
                *
                * Surname alone: the arrow is the point, and full names turn a
                * two-player deal into two lines of chrome.
                */}
-              {movements.map((m) => (
-                <span
-                  key={m}
-                  /*
-                   * Byte for byte the money chip's classes. The old movement
-                   * text was 10px uppercase with wide tracking, which as a chip
-                   * stood 21px tall beside the money chip's 23 — a two-pixel
-                   * mismatch that is invisible alone and obvious in a row. The
-                   * team codes are already capitals, so nothing is lost by
-                   * dropping the transform, and the surname reads better set
-                   * normally than shouted.
-                   */
-                  className="rounded-sm border border-rule bg-surface-2 px-2 py-0.5 font-mono text-[11px] font-bold text-body"
-                >
-                  {m}
-                </span>
-              ))}
-
-              {money && (
-                <span className="rounded-sm border border-rule bg-surface-2 px-2 py-0.5 font-mono text-[11px] font-bold text-body">
-                  {moneySubject ? `${moneySubject} ${money}` : money}
+              {movements.length > 0 && (
+                <span className="font-mono text-[10px] tracking-widest text-muted uppercase">
+                  {movements.join("  |  ")}
                 </span>
               )}
 
