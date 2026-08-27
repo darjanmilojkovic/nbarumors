@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { RevealHeader } from "@/components/RevealHeader";
 import { SiteHeader } from "@/components/SiteHeader";
 import {
   activeTeams,
@@ -188,26 +189,29 @@ export function WireShell({
   return (
     <>
       {/*
-       * Pinned, or scrolling away, but never hiding itself.
+       * One pinned element per page, and it belongs to whichever page needs it.
        *
-       * The masthead used to retract on scroll and slide back on the way up,
-       * with the filter bar sticking to a CSS variable holding its current
-       * height. One sticky element hiding itself while a second depended on
-       * that height produced four separate faults: a masthead-sized hole when
-       * a route change reused the component, a masthead lost on refresh
-       * partway down a page, a band of background above "Back to the feed"
-       * whenever it slid away before it was pinned, and the filter bar
-       * snapping 110px in one frame while the logo took 200ms to travel.
+       * The feed pins its filter bar, so the masthead there scrolls away like
+       * an ordinary header. Everywhere else nothing is pinned, so the masthead
+       * takes the job — and because it is alone, it can afford to retract as
+       * you read and return when you scroll up.
        *
-       * What is left is a rule rather than a mechanism: one pinned element per
-       * page, at a fixed offset. The feed pins its filter bar, so the masthead
-       * there scrolls away; everywhere else the masthead pins, because nothing
-       * else does. Below sm only — at desktop widths the header scrolls away
-       * on every page, as it always has, and the rails carry the navigation.
+       * That combination is what used to break. The masthead published its
+       * height as a CSS variable and the filter bar stuck to it, so hiding one
+       * moved the other: a masthead-sized hole when a route change reused the
+       * component, a masthead lost on refresh partway down a page, a band of
+       * background above "Back to the feed", and the filter bar snapping 110px
+       * in a frame while the logo took 200ms to travel. Nothing reads this
+       * element's height any more, which is what makes the behaviour safe
+       * rather than the behaviour itself.
        */}
-      <div className={pinHeader ? "sticky top-0 z-30 sm:static" : undefined}>
+      {pinHeader ? (
+        <RevealHeader>
+          <SiteHeader teamLabel={teamLabel} playerLabel={playerLabel} />
+        </RevealHeader>
+      ) : (
         <SiteHeader teamLabel={teamLabel} playerLabel={playerLabel} />
-      </div>
+      )}
       <div className="mx-auto grid max-w-[1280px] grid-cols-1 items-start px-0 sm:px-5 lg:grid-cols-[230px_minmax(0,1fr)] xl:grid-cols-[230px_minmax(0,1fr)_300px]">
         <LeftRail teamSlug={teamSlug} />
         <main className="min-h-screen">{children}</main>
