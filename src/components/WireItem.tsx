@@ -122,7 +122,6 @@ export function WireItem({
 
   const paragraphs = toParagraphs(rumor.body);
   const shownParas = preview ? paragraphs.slice(0, 1) : paragraphs;
-  const truncated = preview && paragraphs.length > shownParas.length;
 
   // Primary player leads, then anyone we have a photo for, then the rest.
   const ordered = [...rumor.players].sort(
@@ -548,10 +547,15 @@ export function WireItem({
           </div>
 
           {/*
-           * Only where there is genuinely more to read. 503 of 654 posts are a
-           * single paragraph, so a "read more" on every card would be a promise
-           * broken three times in four — and the headline above already leads
-           * to the same place.
+           * On every card in a list, whether or not the summary was cut.
+           *
+           * It was shown only where a paragraph had been withheld, because on a
+           * card that already carried the chips, the chain and the player links
+           * a "read more" on the other 503 of 654 single-paragraph posts
+           * promised something that was not there. Now the list card ends here
+           * and all of that lives on the post page, so there is always more —
+           * and a column of cards that each end the same way is easier to scan
+           * than one where the last row changes shape per post.
            *
            * Outside the prose block so it can own its spacing. mt-3 matches the
            * gap between paragraphs, which keeps it attached to the text it
@@ -568,7 +572,7 @@ export function WireItem({
            * the player chips; a button is the one thing on the card that looks
            * pressable.
            */}
-          {truncated && (
+          {preview && (
             <div className="mt-3">
               <Link
                 href={`/rumor/${rumor.slug}`}
@@ -620,142 +624,155 @@ export function WireItem({
            * the one block at 3.5, which put 14px under the read-more button
            * against the 12 above it.
            */}
-          {hasMeta && (
-            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
-              {money && (
-                <span className="rounded-sm border border-rule bg-surface-2 px-2 py-0.5 font-mono text-[11px] font-bold text-body">
-                  {money}
-                </span>
-              )}
-
-              {/*
-               * Loose text, not chips.
-               *
-               * As chips these competed with the player links two rows below:
-               * a three-player trade printed Herro, White and Scheierman in
-               * bold bordered boxes and then again as plain names underneath,
-               * 75 duplicated names across 200 cards. Chips gave the movement
-               * more weight than the navigation it was repeating.
-               *
-               * One span with pipes between legs. As separate flex children the
-               * gap alone had to carry the division, and "Butler GSW → ATL
-               * Kuminga GSW → MIL" ran together as a single string. A pipe
-               * rather than the byline row's middot: these legs each contain an
-               * arrow already, and the heavier rule reads as a divider between
-               * them rather than more punctuation inside one.
-               *
-               * Surname alone: the arrow is the point, and full names turn a
-               * two-player deal into two lines of chrome.
-               */}
-              {movements.length > 0 && (
-                <span className="font-mono text-[10px] tracking-widest text-muted uppercase">
-                  {movements.join("  |  ")}
-                </span>
-              )}
-
-              {/*
-               * No "N outlets" badge here any more. The corroboration chain
-               * below already opens with "+ 5 reports from 4 outlets", so the
-               * badge restated the same count a few pixels above it — and
-               * unlike the chain it could not be opened to see whose reports
-               * they were. Two labels for one fact, one of which led nowhere.
-               */}
-
-              {/* Checked against the official transaction log, not modelled. */}
-              {rumor.outcome === "confirmed" && (
-                <span
-                  className="rounded-sm bg-confirmed/10 px-2 py-0.5 font-mono text-[10px] font-bold tracking-widest text-confirmed uppercase"
-                  title="A matching move appears in the official transaction log"
-                >
-                  ✓ Confirmed
-                  {confirmedAfter !== null && confirmedAfter > 0
-                    ? ` ${confirmedAfter}d later`
-                    : ""}
-                </span>
-              )}
-              {rumor.outcome === "unrecorded" && (
-                <span
-                  className="font-mono text-[10px] tracking-widest text-muted uppercase"
-                  title="Nothing matching this has appeared in the transaction log yet. Our log covers one season and excludes waivers and two-way deals, so this is not proof it did not happen."
-                >
-                  No transaction on record
-                </span>
-              )}
-
-              {/* Momentum around the player, independent of this one report. */}
-              {isHot && (
-                <span className="font-mono text-[10px] tracking-widest text-accent uppercase">
-                  ▲ {rumor.hotMentions} reports this week
-                </span>
-              )}
-
-            </div>
-          )}
-
           {/*
-           * Plain <details>, so it works without JS.
+           * In a list the card stops at the button.
            *
-           * The count says "reports", not "corroboration". The chain holds one
-           * row per article while the badge above counts distinct outlets, so
-           * three separate Yahoo pieces made this read "Corroboration chain
-           * (4)" directly beneath "2 outlets". Both numbers were right and the
-           * labels made them look like a contradiction — corroboration means
-           * independent confirmation, and three articles from one masthead are
-           * not independent of each other. Naming both quantities settles it.
+           * Everything below it — the meta strip, the corroboration chain and
+           * the player links — is detail for someone who has decided to read
+           * the post, and stacking three more rows under a one-paragraph
+           * summary made the card longer than the writing it was advertising.
+           * The post page still carries all of it.
            */}
-          {rumor.chain.length > 1 && (
-            <details className="mt-3 group">
-              <summary className="cursor-pointer font-mono text-[11px] tracking-wider text-corroborated uppercase marker:content-[''] hover:text-corroborated/80">
-                + {rumor.chain.length} reports
-                {rumor.sourceCount > 1 && ` from ${rumor.sourceCount} outlets`}
-              </summary>
-              <div className="mt-2 flex flex-col gap-2 border-l-2 border-rule pl-3">
-                {rumor.chain.map((c, i) => (
-                  <div key={i} className="flex flex-wrap items-baseline gap-2">
-                    <span className="font-mono text-[11px] whitespace-nowrap text-muted">
-                      {c.outlet} · {ago(new Date(c.at))}
-                    </span>
-                    <a
-                      href={c.url}
-                      target="_blank"
-                      rel="noopener noreferrer nofollow"
-                      className="text-[13px] text-body hover:text-link"
-                    >
-                      {c.headline}
-                    </a>
-                  </div>
-                ))}
-              </div>
-            </details>
-          )}
-
-          {rumor.players.length > 0 && (
+          {!preview && (
             <>
-              {/*
-               * A rule between the story and the names below it.
-               *
-               * Everything above this line is the report; the chips beneath are
-               * navigation, and they read as a stray third row of chrome
-               * without something marking the change of purpose.
-               *
-               * Deliberately lighter than the rule that closes the card. At
-               * full strength two identical lines sit within about 60px of each
-               * other and the chip row looks like a separate card of its own
-               * rather than the tail of this one. Inset from the left so it
-               * starts where the text does, not where the faces do.
-               */}
-              <hr className="mt-5 mb-3 border-0 border-t border-rule/50" />
-              <div className="flex flex-wrap gap-1.5">
-                {rumor.players.map((p) => (
-                  <Link
-                    key={p.slug}
-                    href={`/player/${p.slug}`}
-                    className="rounded-full bg-surface-2 px-2.5 py-0.5 font-mono text-[11px] text-muted hover:text-link"
+            {hasMeta && (
+              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+                {money && (
+                  <span className="rounded-sm border border-rule bg-surface-2 px-2 py-0.5 font-mono text-[11px] font-bold text-body">
+                    {money}
+                  </span>
+                )}
+
+                {/*
+                 * Loose text, not chips.
+                 *
+                 * As chips these competed with the player links two rows below:
+                 * a three-player trade printed Herro, White and Scheierman in
+                 * bold bordered boxes and then again as plain names underneath,
+                 * 75 duplicated names across 200 cards. Chips gave the movement
+                 * more weight than the navigation it was repeating.
+                 *
+                 * One span with pipes between legs. As separate flex children the
+                 * gap alone had to carry the division, and "Butler GSW → ATL
+                 * Kuminga GSW → MIL" ran together as a single string. A pipe
+                 * rather than the byline row's middot: these legs each contain an
+                 * arrow already, and the heavier rule reads as a divider between
+                 * them rather than more punctuation inside one.
+                 *
+                 * Surname alone: the arrow is the point, and full names turn a
+                 * two-player deal into two lines of chrome.
+                 */}
+                {movements.length > 0 && (
+                  <span className="font-mono text-[10px] tracking-widest text-muted uppercase">
+                    {movements.join("  |  ")}
+                  </span>
+                )}
+
+                {/*
+                 * No "N outlets" badge here any more. The corroboration chain
+                 * below already opens with "+ 5 reports from 4 outlets", so the
+                 * badge restated the same count a few pixels above it — and
+                 * unlike the chain it could not be opened to see whose reports
+                 * they were. Two labels for one fact, one of which led nowhere.
+                 */}
+
+                {/* Checked against the official transaction log, not modelled. */}
+                {rumor.outcome === "confirmed" && (
+                  <span
+                    className="rounded-sm bg-confirmed/10 px-2 py-0.5 font-mono text-[10px] font-bold tracking-widest text-confirmed uppercase"
+                    title="A matching move appears in the official transaction log"
                   >
-                    {p.fullName}
-                  </Link>
-                ))}
+                    ✓ Confirmed
+                    {confirmedAfter !== null && confirmedAfter > 0
+                      ? ` ${confirmedAfter}d later`
+                      : ""}
+                  </span>
+                )}
+                {rumor.outcome === "unrecorded" && (
+                  <span
+                    className="font-mono text-[10px] tracking-widest text-muted uppercase"
+                    title="Nothing matching this has appeared in the transaction log yet. Our log covers one season and excludes waivers and two-way deals, so this is not proof it did not happen."
+                  >
+                    No transaction on record
+                  </span>
+                )}
+
+                {/* Momentum around the player, independent of this one report. */}
+                {isHot && (
+                  <span className="font-mono text-[10px] tracking-widest text-accent uppercase">
+                    ▲ {rumor.hotMentions} reports this week
+                  </span>
+                )}
+
               </div>
+            )}
+
+            {/*
+             * Plain <details>, so it works without JS.
+             *
+             * The count says "reports", not "corroboration". The chain holds one
+             * row per article while the badge above counts distinct outlets, so
+             * three separate Yahoo pieces made this read "Corroboration chain
+             * (4)" directly beneath "2 outlets". Both numbers were right and the
+             * labels made them look like a contradiction — corroboration means
+             * independent confirmation, and three articles from one masthead are
+             * not independent of each other. Naming both quantities settles it.
+             */}
+            {rumor.chain.length > 1 && (
+              <details className="mt-3 group">
+                <summary className="cursor-pointer font-mono text-[11px] tracking-wider text-corroborated uppercase marker:content-[''] hover:text-corroborated/80">
+                  + {rumor.chain.length} reports
+                  {rumor.sourceCount > 1 && ` from ${rumor.sourceCount} outlets`}
+                </summary>
+                <div className="mt-2 flex flex-col gap-2 border-l-2 border-rule pl-3">
+                  {rumor.chain.map((c, i) => (
+                    <div key={i} className="flex flex-wrap items-baseline gap-2">
+                      <span className="font-mono text-[11px] whitespace-nowrap text-muted">
+                        {c.outlet} · {ago(new Date(c.at))}
+                      </span>
+                      <a
+                        href={c.url}
+                        target="_blank"
+                        rel="noopener noreferrer nofollow"
+                        className="text-[13px] text-body hover:text-link"
+                      >
+                        {c.headline}
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
+
+            {rumor.players.length > 0 && (
+              <>
+                {/*
+                 * A rule between the story and the names below it.
+                 *
+                 * Everything above this line is the report; the chips beneath are
+                 * navigation, and they read as a stray third row of chrome
+                 * without something marking the change of purpose.
+                 *
+                 * Deliberately lighter than the rule that closes the card. At
+                 * full strength two identical lines sit within about 60px of each
+                 * other and the chip row looks like a separate card of its own
+                 * rather than the tail of this one. Inset from the left so it
+                 * starts where the text does, not where the faces do.
+                 */}
+                <hr className="mt-5 mb-3 border-0 border-t border-rule/50" />
+                <div className="flex flex-wrap gap-1.5">
+                  {rumor.players.map((p) => (
+                    <Link
+                      key={p.slug}
+                      href={`/player/${p.slug}`}
+                      className="rounded-full bg-surface-2 px-2.5 py-0.5 font-mono text-[11px] text-muted hover:text-link"
+                    >
+                      {p.fullName}
+                    </Link>
+                  ))}
+                </div>
+              </>
+            )}
             </>
           )}
         </div>
