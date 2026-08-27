@@ -53,7 +53,9 @@ type PlayerRow = {
 async function main() {
   const dryRun = process.argv.includes("--dry");
   const { db } = await import("@/db");
-  const { players, playerImages, rumorPlayers } = await import("@/db/schema");
+  const { players, playerImages, playerSlugRedirects, rumorPlayers } = await import(
+    "@/db/schema"
+  );
 
   const groupRes = await db.execute(sql`
     select nba_player_id from players
@@ -258,11 +260,37 @@ async function main() {
         if (!demote && img.isPrimary) keeperPrimaryKinds.add(img.kind);
       }
 
-      if (!dryRun) await db.delete(players).where(eq(players.id, loser.id));
+      if (!dryRun) {
+        /*
+         * Keep the URL alive before the row that owned it goes.
+         *
+         * The loser's slug was a real page, and may be indexed or linked. It
+         * now belongs to the keeper, so it redirects there permanently rather
+         * than 404ing. Recorded here, at the moment the slug is retired, so a
+         * later merge cannot forget to do it.
+         *
+         * Any redirect already aimed at the loser is re-aimed at the keeper in
+         * the same breath — otherwise merging a player who had himself
+         * absorbed another would leave a redirect pointing at a deleted row,
+         * and the cascade would silently drop it.
+         */
+        await db
+          .update(playerSlugRedirects)
+          .set({ playerId: keeper.id })
+          .where(eq(playerSlugRedirects.playerId, loser.id));
+        await db
+          .insert(playerSlugRedirects)
+          .values({ fromSlug: loser.slug, playerId: keeper.id })
+          .onConflictDoUpdate({
+            target: playerSlugRedirects.fromSlug,
+            set: { playerId: keeper.id },
+          });
+        await db.delete(players).where(eq(players.id, loser.id));
+      }
       summary.deleted++;
       console.log(
         `     ${dryRun ? "would delete" : "deleted"} player #${loser.id} ${loser.slug}` +
-          ` — /player/${loser.slug} will 404 from here on`,
+          ` — /player/${loser.slug} now redirects to /player/${keeper.slug}`,
       );
     }
 

@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { isSameEvent } from "@/lib/event-key";
 import {
   feedItems,
+  playerSlugRedirects,
   playerImages,
   players,
   rumorPlayers,
@@ -704,4 +705,20 @@ export async function teamBySlug(slug: string) {
 export async function playerBySlug(slug: string) {
   const [p] = await db.select().from(players).where(eq(players.slug, slug)).limit(1);
   return p ? { ...p, headshotUrl: headshotFor(p.nbaPlayerId) } : null;
+}
+
+/**
+ * The surviving slug for a retired one, or null.
+ *
+ * Only consulted when a player page misses, so the ordinary request pays
+ * nothing for it.
+ */
+export async function playerRedirectFor(slug: string): Promise<string | null> {
+  const [row] = await db
+    .select({ slug: players.slug })
+    .from(playerSlugRedirects)
+    .innerJoin(players, eq(players.id, playerSlugRedirects.playerId))
+    .where(eq(playerSlugRedirects.fromSlug, slug))
+    .limit(1);
+  return row?.slug ?? null;
 }

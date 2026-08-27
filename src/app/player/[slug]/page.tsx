@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { cache } from "react";
 import { WireItem } from "@/components/WireItem";
 import { WireShell } from "@/components/WireShell";
-import { playerBySlug, rumorsForPlayer } from "@/lib/queries";
+import { playerBySlug, playerRedirectFor, rumorsForPlayer } from "@/lib/queries";
 import { SITE } from "@/lib/site";
 
 export const revalidate = 300;
@@ -36,7 +36,18 @@ export async function generateMetadata({
 export default async function PlayerPage({ params }: PageProps<"/player/[slug]">) {
   const { slug } = await params;
   const player = await getPlayer(slug);
-  if (!player) notFound();
+  if (!player) {
+    /*
+     * A slug we retired when two rows turned out to be the same person, rather
+     * than a slug that never existed. /player/bobby-portis-jr and four others
+     * were live pages until the merge deleted the duplicate row; sending them
+     * to the survivor keeps whatever standing they had, where a 404 discards
+     * it. Checked only on a miss, so the normal request never pays for it.
+     */
+    const target = await playerRedirectFor(slug);
+    if (target) permanentRedirect(`/player/${target}`);
+    notFound();
+  }
 
   const rumors = await rumorsForPlayer(slug);
 

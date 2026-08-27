@@ -399,9 +399,42 @@ export const rumorPlayers = pgTable(
   ],
 );
 
+/**
+ * Slugs that used to be a player page and now belong to someone else's row.
+ *
+ * Merging the five duplicate players deleted the losing rows, and with them
+ * five URLs that had been live and indexed — /player/bobby-portis-jr and
+ * /player/aj-green among them. A 404 throws away whatever standing those
+ * pages had; a permanent redirect hands it to the row that survived.
+ *
+ * Written by the merge script rather than kept as a list in the code, so a
+ * future merge cannot forget to add one.
+ */
+export const playerSlugRedirects = pgTable(
+  "player_slug_redirects",
+  {
+    /** The retired slug, as it appeared in the URL. */
+    fromSlug: varchar("from_slug", { length: 128 }).primaryKey(),
+    /*
+     * Cascade: if the surviving player is himself merged away later, this row
+     * would point at nothing. The merge script repoints existing redirects
+     * onto the new survivor before deleting, so the cascade is a backstop
+     * against a stale chain rather than the normal path.
+     */
+    playerId: integer("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("player_slug_redirects_player_idx").on(t.playerId)],
+);
+
 export type Team = typeof teams.$inferSelect;
 export type Player = typeof players.$inferSelect;
 export type PlayerImage = typeof playerImages.$inferSelect;
 export type Source = typeof sources.$inferSelect;
 export type FeedItem = typeof feedItems.$inferSelect;
 export type Rumor = typeof rumors.$inferSelect;
+export type PlayerSlugRedirect = typeof playerSlugRedirects.$inferSelect;
