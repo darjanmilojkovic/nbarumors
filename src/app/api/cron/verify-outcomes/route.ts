@@ -13,8 +13,10 @@ export const maxDuration = 60;
  * holding was never taken down. Six posts carried the badge for weeks on the
  * strength of one run.
  *
- * Daily at midnight UTC. It compares against Basketball-Reference's log, which
- * updates once a day, so anything more often would re-read the same rows.
+ * Daily at midnight UTC, half an hour after the transaction sync at 23:30, so
+ * each run reads a feed that already carries the day's moves. The evidence is
+ * the NBA's own player movement feed, which updates once a day — anything more
+ * frequent would re-read the same rows.
  *
  * Same bearer-token guard as the other crons: it rewrites outcome columns
  * across every published post, so it must not be publicly triggerable.

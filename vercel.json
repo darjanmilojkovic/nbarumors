@@ -14,6 +14,10 @@
       "schedule": "20 9 * * 1"
     },
     {
+      "path": "/api/cron/sync-transactions",
+      "schedule": "30 23 * * *"
+    },
+    {
       "path": "/api/cron/verify-outcomes",
       "schedule": "0 0 * * *"
     },

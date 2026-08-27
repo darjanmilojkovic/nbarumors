@@ -431,6 +431,48 @@ export const playerSlugRedirects = pgTable(
   (t) => [index("player_slug_redirects_player_idx").on(t.playerId)],
 );
 
+/**
+ * The league's own record of completed player movement.
+ *
+ * Confirmations used to be judged against Basketball-Reference's season page,
+ * scraped, run through extraction to become posts, and then compared to our
+ * rumors by player slug. Three weaknesses, all of which this fixes: it was
+ * imported by hand and had been frozen since 20 August, so nothing reported
+ * after that could ever be confirmed; matching went through names, which is
+ * exactly where "Bobby Portis" and "Bobby Portis Jr." come apart; and every
+ * row cost an extraction call to become a comparison record.
+ *
+ * The NBA publishes the same thing as JSON with PLAYER_ID and TEAM_ID on every
+ * row, so a confirmation is now an id match. Nothing here is rendered; it is
+ * evidence, not content.
+ */
+export const transactions = pgTable(
+  "transactions",
+  {
+    id: serial("id").primaryKey(),
+    /** Stable hash of the row, so a re-sync of the full feed cannot duplicate. */
+    externalId: varchar("external_id", { length: 40 }).notNull(),
+    /** Signing, Waive, Trade, AwardOnWaivers, ContractConverted. */
+    kind: varchar("kind", { length: 24 }).notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+    /*
+     * The NBA's own ids, kept as the feed gives them rather than resolved to
+     * our rows. A transaction can name a player we have never heard of, and
+     * the join should find nothing rather than fail to import.
+     */
+    nbaPlayerId: varchar("nba_player_id", { length: 16 }),
+    nbaTeamId: varchar("nba_team_id", { length: 16 }),
+    description: text("description").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("transactions_external_idx").on(t.externalId),
+    index("transactions_player_idx").on(t.nbaPlayerId, t.occurredAt),
+  ],
+);
+
 export type Team = typeof teams.$inferSelect;
 export type Player = typeof players.$inferSelect;
 export type PlayerImage = typeof playerImages.$inferSelect;
@@ -438,3 +480,4 @@ export type Source = typeof sources.$inferSelect;
 export type FeedItem = typeof feedItems.$inferSelect;
 export type Rumor = typeof rumors.$inferSelect;
 export type PlayerSlugRedirect = typeof playerSlugRedirects.$inferSelect;
+export type Transaction = typeof transactions.$inferSelect;

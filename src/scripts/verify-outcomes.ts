@@ -14,9 +14,9 @@ async function main() {
   const r = await runOutcomeCheck({ dryRun });
 
   console.log(
-    `${r.posts} posts · ${r.transactions} from the transaction log · ${r.reports} from news feeds\n`,
+    `${r.posts} published posts checked against ${r.transactions} recorded arrivals\n`,
   );
-  console.log(`  confirmed by the transaction log: ${r.confirmed}`);
+  console.log(`  confirmed by the league's record: ${r.confirmed}`);
   console.log(`  speculative and unrecorded: ${r.unrecorded}`);
   console.log(`  confirmations withdrawn: ${r.cleared}`);
   if (r.samples.length) console.log(`\n${r.samples.map((s) => `  ${s}`).join("\n")}`);

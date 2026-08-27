@@ -20,7 +20,6 @@
     "sync:roster": "tsx src/scripts/sync-roster.ts",
     "dedupe": "tsx src/scripts/dedupe.ts",
     "sync:headshots": "tsx src/scripts/sync-headshots.ts",
-    "import:transactions": "tsx src/scripts/import-transactions.ts",
     "backfill:contracts": "tsx src/scripts/backfill-contracts.ts",
     "verify:outcomes": "tsx src/scripts/verify-outcomes.ts",
     "fix:headlines": "tsx src/scripts/strip-headline-prefix.ts",
@@ -51,7 +50,8 @@
     "compare:models": "tsx src/scripts/compare-models.ts",
     "sync:images": "tsx src/scripts/sync-images.ts",
     "merge:players": "tsx src/scripts/merge-duplicate-players.ts",
-    "prebuild": "tsx src/scripts/sync-images.ts || echo \"sync:images failed — building with the committed manifest\""
+    "prebuild": "tsx src/scripts/sync-images.ts || echo \"sync:images failed — building with the committed manifest\"",
+    "sync:transactions": "tsx src/scripts/sync-transactions.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
