@@ -7,7 +7,10 @@ async function main() {
   const { runExtraction } = await import("@/lib/process");
   const r = await runExtraction(limit);
 
-  console.log(`\nmodel: ${r.model}`);
+  const split = Object.entries(r.byModel)
+    .map(([m, n]) => [m, n].join(" "))
+    .join(" · ");
+  console.log(`\nmodels: ${split || "none"}`);
   console.log(`examined ${r.examined} items in ${(r.durationMs / 1000).toFixed(1)}s\n`);
   console.log(`  published: ${r.published}`);
   console.log(`  merged into existing: ${r.merged}`);

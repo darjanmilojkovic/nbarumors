@@ -2,11 +2,11 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { feedItems, rumors, sources } from "@/db/schema";
 import { FETCH_ARTICLE_SOURCES, bestText } from "@/lib/article";
-import { extractRumor, extractionModel } from "@/lib/extract";
+import { extractRumor, modelFor } from "@/lib/extract";
 import { pendingItems, publishExtraction } from "@/lib/publish";
 
 export type ProcessResult = {
-  model: string;
+  byModel: Record<string, number>;
   examined: number;
   published: number;
   merged: number;
@@ -68,6 +68,13 @@ export async function runExtraction(limit = 50): Promise<ProcessResult> {
   let errors = 0;
   let fetched = 0;
   const fetchFailures: string[] = [];
+  /*
+   * How the run split across models. Worth reporting: the split is the whole
+   * cost story now, and it moves on its own as the fetchers succeed or fail —
+   * a night where the article fetches all time out sends everything to the
+   * cheap model, which looks like a saving and is really a loss of detail.
+   */
+  const byModel = new Map<string, number>();
 
   await pool(items, 4, async (item) => {
     try {
@@ -85,6 +92,9 @@ export async function runExtraction(limit = 50): Promise<ProcessResult> {
       else if (FETCH_ARTICLE_SOURCES.has(sourceSlug.get(item.sourceId) ?? "")) {
         fetchFailures.push(`${item.url.slice(0, 60)}: ${source.reason}`);
       }
+
+      const model = modelFor();
+      byModel.set(model, (byModel.get(model) ?? 0) + 1);
 
       const extraction = await extractRumor({
         title: item.title,
@@ -127,7 +137,7 @@ export async function runExtraction(limit = 50): Promise<ProcessResult> {
   });
 
   return {
-    model: extractionModel(),
+    byModel: Object.fromEntries(byModel),
     examined: items.length,
     published,
     merged,

@@ -2,10 +2,24 @@ import Anthropic from "@anthropic-ai/sdk";
 import { SEED_TEAMS } from "@/db/seed-data/teams";
 
 /**
- * Default to Opus 5. Override with EXTRACTION_MODEL in .env.local to trade
- * quality for cost — this is the single biggest lever on the monthly bill.
+ * One model for every item. Override with EXTRACTION_MODEL in .env.local and
+ * in the Vercel project to trade quality for cost — the single biggest lever
+ * on the monthly bill, and a one-line change in both places.
+ *
+ * This routed by input length for a while, on the theory that Opus only pulls
+ * ahead where there is a long article to mine. `npm run compare:models` on
+ * items that actually became posts does not support it: across 400-char
+ * teasers and 3,000-char articles alike the two land in the same place, and
+ * where they differ it does not track length. Opus writes the sharper
+ * headline and honours the paragraph-break rule; Sonnet packs slightly more
+ * fact into the body and writes it as one block. Neither is a length effect,
+ * so there was nothing for a length threshold to key on.
  */
 const MODEL = process.env.EXTRACTION_MODEL ?? "claude-opus-5";
+
+export function modelFor(): string {
+  return MODEL;
+}
 
 export type Extraction = {
   isRumor: boolean;
@@ -183,7 +197,7 @@ export const SCHEMA = {
  * Stable across every request, so it caches. Volatile per-item content goes in
  * the user turn, after the cache breakpoint.
  */
-const SYSTEM = `You extract NBA transfer news for nbarumors.cc.
+export const SYSTEM = `You extract NBA transfer news for nbarumors.cc.
 
 You are given the headline and summary of a news item from a sports feed. Your job:
 
@@ -229,7 +243,7 @@ export async function extractRumor(item: {
   recentHeadlines?: string[];
 }): Promise<Extraction> {
   const response = await client.messages.create({
-    model: MODEL,
+    model: modelFor(),
     max_tokens: 2000,
     output_config: {
       effort: "low",
@@ -269,4 +283,4 @@ export async function extractRumor(item: {
   return JSON.parse(text.text) as Extraction;
 }
 
-export const extractionModel = () => MODEL;
+
