@@ -89,22 +89,87 @@ const FLOORS: { match: RegExp; floor: number; requiresFirstTeam?: boolean }[] = 
   { match: /All-Star Most Valuable Player/i, floor: 85 },
 ];
 
-/** The highest rating any of these honours guarantees. */
-export function prominenceFloorFor(awards: Award[]): number {
+/**
+ * How much of its tier an honour still guarantees, by age.
+ *
+ * A floor that never fades says an All-NBA First Team from 2015 makes the same
+ * claim about who matters now as one from 2025. It does not: DeAndre Jordan
+ * was floored at 100 on a 2015 selection while averaging 4.4 points, level
+ * with Nikola Jokic.
+ *
+ * Full weight for three years, then straight down to nothing at twelve. The
+ * genuine stars lose nothing to this — Kevin Durant's last All-NBA is 2017,
+ * but with 30 accolades and 26.6 points his computed rating already reaches
+ * 100 and the floor was never doing the work. What falls away is exactly the
+ * case being complained about: a role player carrying one decade-old honour.
+ */
+const FULL_YEARS = 3;
+const EXPIRES_AT = 12;
+
+function floorDecay(season: number, nowYear: number): number {
+  if (!Number.isFinite(season)) return 0;
+  const age = Math.max(0, nowYear - season);
+  if (age <= FULL_YEARS) return 1;
+  if (age >= EXPIRES_AT) return 0;
+  return 1 - (age - FULL_YEARS) / (EXPIRES_AT - FULL_YEARS);
+}
+
+/**
+ * The highest rating any honour still guarantees.
+ *
+ * Note that Conference Finals MVP is deliberately in the top tier alongside
+ * the Finals award. It began as a regex matching more than it meant to, and
+ * was kept on purpose: winning a conference final is a comparable claim on a
+ * reader's attention, and this is a site about who matters now rather than a
+ * record book.
+ */
+export function prominenceFloorFor(
+  awards: Award[],
+  now = new Date(),
+): number {
+  const nowYear = now.getUTCFullYear();
   let floor = 0;
   for (const a of awards) {
     for (const rule of FLOORS) {
       if (!rule.match.test(a.description)) continue;
       if (rule.requiresFirstTeam && String(a.allNbaTeamNumber) !== "1") continue;
-      floor = Math.max(floor, rule.floor);
+      const season = Number((a.season ?? "").slice(0, 4));
+      floor = Math.max(floor, rule.floor * floorDecay(season, nowYear));
     }
   }
-  return floor;
+  return Math.round(floor);
 }
 
-/** Distinct honour names, kept so weights can change without re-reading. */
+/**
+ * The honours, each carrying the season it was won.
+ *
+ * Stored as "2015|All-NBA" rather than the bare name. The season is what makes
+ * the floor recomputable: without it, changing how honours age means reading
+ * 1,163 players again, one request each, to recover a number the league had
+ * already told us.
+ */
 export function honorNames(awards: Award[]): string[] {
-  return [...new Set(awards.map((a) => a.description).filter(Boolean))].sort();
+  return [
+    ...new Set(
+      awards
+        .filter((a) => a.description)
+        .map((a) => `${(a.season ?? "").slice(0, 4)}|${a.description}`),
+    ),
+  ].sort();
+}
+
+/** Read back what honorNames wrote, for recomputing without a fetch. */
+export function parseHonors(stored: string[]): Award[] {
+  return stored.map((s) => {
+    const i = s.indexOf("|");
+    return i < 0
+      ? { description: s, season: null, allNbaTeamNumber: null }
+      : {
+          description: s.slice(i + 1),
+          season: s.slice(0, i) || null,
+          allNbaTeamNumber: null,
+        };
+  });
 }
 
 /**
@@ -153,6 +218,63 @@ export function accoladeScore(awards: Award[], now = new Date()): number {
    * genuine all-time career approaches the ceiling.
    */
   return Math.round(35 * (1 - Math.exp(-raw / 130)));
+}
+
+/**
+ * Where a player stands on the league's all-time lists.
+ *
+ * This does not decay, and that is the point. An honour is something that
+ * happened in a season and fades as the league moves on; being third on the
+ * all-time scoring list is a fact about today, and it stays true whether the
+ * player retired last year or in 2003. Carmelo Anthony is a top-ten scorer
+ * now, in the present tense.
+ *
+ * Counting stats only. The endpoint also ranks turnovers, personal fouls and
+ * shooting percentages — leading the league in fouls all-time is longevity
+ * rather than distinction, and a percentage list is topped by specialists with
+ * short careers.
+ */
+const ALL_TIME_LISTS = [
+  "PTSLeaders",
+  "REBLeaders",
+  "ASTLeaders",
+  "STLLeaders",
+  "BLKLeaders",
+  "FG3MLeaders",
+] as const;
+
+/** Top ten on any of those lists, then a step down for the rest of the top twenty. */
+function allTimeFloorFor(rank: number): number {
+  if (rank <= 10) return 100;
+  if (rank <= 20) return 90;
+  return 0;
+}
+
+export async function fetchAllTimeFloors(): Promise<Map<string, number>> {
+  const res = await fetch(
+    "https://stats.nba.com/stats/alltimeleadersgrids?LeagueID=00" +
+      "&PerMode=Totals&SeasonType=Regular+Season&TopX=20",
+    { headers: HEADERS },
+  );
+  if (!res.ok) throw new Error(`alltimeleadersgrids: HTTP ${res.status}`);
+  const json = (await res.json()) as {
+    resultSets: { name: string; headers: string[]; rowSet: unknown[][] }[];
+  };
+
+  const floors = new Map<string, number>();
+  for (const name of ALL_TIME_LISTS) {
+    const rs = json.resultSets.find((r) => r.name === name);
+    if (!rs) continue;
+    const iId = rs.headers.indexOf("PLAYER_ID");
+    const iRank = rs.headers.findIndex((h) => /_RANK$/.test(h));
+    if (iId < 0 || iRank < 0) continue;
+    for (const row of rs.rowSet) {
+      const id = String(row[iId]);
+      const floor = allTimeFloorFor(Number(row[iRank]));
+      if (floor > (floors.get(id) ?? 0)) floors.set(id, floor);
+    }
+  }
+  return floors;
 }
 
 export async function fetchPlayerAwards(
@@ -231,6 +353,18 @@ export async function syncAwards(limit = 150): Promise<AwardsSyncResult> {
   let failed = 0;
   const now = new Date();
 
+  /*
+   * One request for the whole run. An all-time standing outranks a decayed
+   * honour, so the two are compared rather than added: a top-ten scorer
+   * floors at 100 whether or not his last All-NBA has aged out.
+   */
+  let allTime = new Map<string, number>();
+  try {
+    allTime = await fetchAllTimeFloors();
+  } catch {
+    // A missing list costs the standing, not the sweep.
+  }
+
   for (const p of due) {
     try {
       const awards = await fetchPlayerAwards(String(p.nbaPlayerId));
@@ -239,7 +373,10 @@ export async function syncAwards(limit = 150): Promise<AwardsSyncResult> {
         .set({
           accolades: accoladeScore(awards, now),
           honors: honorNames(awards),
-          prominenceFloor: prominenceFloorFor(awards),
+          prominenceFloor: Math.max(
+            prominenceFloorFor(awards, now),
+            allTime.get(String(p.nbaPlayerId)) ?? 0,
+          ),
           awardsSyncedAt: now,
         })
         .where(eq(players.id, p.id));
