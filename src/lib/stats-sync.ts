@@ -2,9 +2,8 @@ import { sql } from "drizzle-orm";
 import { db } from "@/db";
 import { players } from "@/db/schema";
 import {
-  fetchBrefSeason,
+  fetchLeagueBoxScore,
   fetchSeasonLeaders,
-  fetchCareerScoringRanks,
   prominenceScore,
   productionScore,
   nameKey,
@@ -12,7 +11,10 @@ import {
 
 export type StatsSyncResult = {
   seasons: Record<string, number | string>;
-  careerRanks: number | string;
+  /** Players whose accolade score contributed. */
+  withAccolades: number;
+  /** Every rating that moves, largest change first. */
+  changes: { name: string; from: number; to: number; accolades: number }[];
   playersInDb: number;
   scored: number;
   inserted: number;
@@ -67,10 +69,21 @@ const slugify = (s: string) =>
  * loop — against serverless Postgres, 600 sequential round trips took longer
  * than a cron invocation is allowed to run.
  */
-export async function runStatsSync(): Promise<StatsSyncResult> {
+/**
+ * @param opts.dryRun  Compute every score and write nothing.
+ *
+ * Prominence decides feed ranking and which player a card leads with, so a
+ * change to the formula is visible on every page at once. Being able to read
+ * the diff before applying it is the difference between a considered change
+ * and a surprise.
+ */
+export async function runStatsSync(
+  opts: { dryRun?: boolean } = {},
+): Promise<StatsSyncResult> {
   const result: StatsSyncResult = {
     seasons: {},
-    careerRanks: 0,
+    withAccolades: 0,
+    changes: [],
     playersInDb: 0,
     scored: 0,
     inserted: 0,
@@ -89,16 +102,6 @@ export async function runStatsSync(): Promise<StatsSyncResult> {
     }
   }
 
-  let career = new Map<string, number>();
-  try {
-    career = await fetchCareerScoringRanks();
-    result.careerRanks = career.size;
-  } catch (err) {
-    result.careerRanks = `failed: ${err instanceof Error ? err.message : err}`;
-  }
-  const careerByKey = new Map(
-    [...career.entries()].map(([name, rank]) => [nameKey(name), rank]),
-  );
 
   // Best season line per player across the seasons we fetched.
   const best = new Map<string, Awaited<ReturnType<typeof fetchSeasonLeaders>>[number]>();
@@ -111,28 +114,30 @@ export async function runStatsSync(): Promise<StatsSyncResult> {
   }
 
   /*
-   * Then everyone the league's own leaderboard leaves out. It lists only
-   * players who met a games threshold, so a former MVP who missed half a
-   * season scored 0 and ranked below two-way signings. Basketball-Reference
-   * publishes all 963 players who appeared, which is the population we
-   * actually want to rate.
+   * Then everyone the leaderboard leaves out, and every stat it omits.
    *
-   * NBA rows win where both exist — they carry the player id — so this only
-   * ever fills gaps.
+   * `leagueLeaders` returns only players who met a games threshold — a former
+   * MVP who missed half a season scored 0 and ranked below two-way signings —
+   * and only points. `leaguedashplayerstats` has no threshold and carries the
+   * whole line, so assists, rebounds, steals and blocks reach productionScore
+   * from the league rather than from a scrape.
+   *
+   * This was Basketball-Reference until 28 Aug 2026. The note saying the
+   * endpoint refused us was stale.
    */
-  const history = new Map<string, Awaited<ReturnType<typeof fetchBrefSeason>>>();
+  const history = new Map<string, Awaited<ReturnType<typeof fetchLeagueBoxScore>>>();
   for (const season of seasonHistory()) {
     try {
-      const rows = await fetchBrefSeason(season);
+      const rows = await fetchLeagueBoxScore(season);
       for (const r of rows) {
         const k = nameKey(r.name);
         history.set(k, [...(history.get(k) ?? []), r]);
         const prev = best.get(k);
         if (!prev || (!prev.nbaPlayerId && r.points > prev.points)) best.set(k, r);
       }
-      result.seasons[`${season} (bref)`] = rows.length;
+      result.seasons[`${season} (box)`] = rows.length;
     } catch (err) {
-      result.seasons[`${season} (bref)`] =
+      result.seasons[`${season} (box)`] =
         `failed: ${err instanceof Error ? err.message : err}`;
     }
   }
@@ -145,40 +150,115 @@ export async function runStatsSync(): Promise<StatsSyncResult> {
     throw new Error("no season data fetched — refusing to zero prominence");
   }
 
+  /*
+   * Indexed by NBA player id as well as by name.
+   *
+   * Matching on name alone broke the moment the box score moved from
+   * Basketball-Reference to the league: the NBA writes "Jimmy Butler III"
+   * where the scrape said "Jimmy Butler", and "Xavier Tillman Sr." where
+   * it said "Xavier Tillman". Every player carrying a suffix silently lost
+   * their entire history — Butler fell from 90 to 18 in a dry run. The id
+   * is exact where we have one; the name is the fallback for players the
+   * league has never given us an id for.
+   */
+  const bestById = new Map(
+    [...best.values()].filter((s) => s.nbaPlayerId).map((s) => [s.nbaPlayerId, s]),
+  );
+  const historyById = new Map<string, typeof history extends Map<string, infer V> ? V : never>();
+  for (const rows of history.values()) {
+    const withId = rows.find((r) => r.nbaPlayerId);
+    if (withId) historyById.set(withId.nbaPlayerId, rows);
+  }
+
   const existing = await db
-    .select({ id: players.id, fullName: players.fullName })
+    .select({
+      id: players.id,
+      fullName: players.fullName,
+      nbaPlayerId: players.nbaPlayerId,
+      accolades: players.accolades,
+      prominenceFloor: players.prominenceFloor,
+      prominence: players.prominence,
+    })
     .from(players);
   result.playersInDb = existing.length;
 
   const updates = existing.map((p) => {
     const k = nameKey(p.fullName);
-    const season = best.get(k);
+    const id = p.nbaPlayerId ?? "";
+    const season = bestById.get(id) ?? best.get(k);
     /*
      * Production history first, since it reads the whole box score over six
-     * seasons. The single-season formula is the fallback for anyone
-     * Basketball-Reference does not cover, and the all-time scoring rank still
-     * lifts the handful of players who have one.
+     * seasons. The single-season formula is the fallback for anyone the
+     * league box score does not cover.
      */
-    const seasons = history.get(k);
-    const score = seasons?.length
-      ? Math.max(
-          productionScore(seasons),
-          prominenceScore(season, careerByKey.get(k)),
+    const seasons = historyById.get(id) ?? history.get(k);
+    /*
+     * Accolades are the career half now, replacing all-time scoring rank.
+     * That rank could only see points, so it gave nothing to a Defensive
+     * Player of the Year or a career playmaker — the players a trade rumor is
+     * most often about. Read from the row rather than fetched here; awards
+     * change a few times a season and have their own slower sync.
+     */
+    const career = p.accolades;
+    const computed = seasons?.length
+      ? Math.min(
+          100,
+          Math.max(
+            productionScore(seasons) + career,
+            prominenceScore(season, career),
+          ),
         )
-      : prominenceScore(season, careerByKey.get(k));
+      : prominenceScore(season, career);
+
+    /*
+     * An honour is a permanent fact about a career, so it sets a floor the
+     * rating cannot fall below. Without it Carmelo Anthony — a top-ten
+     * all-time scorer with no current season — would have dropped to 51.
+     */
+    const score = Math.max(computed, p.prominenceFloor);
     return {
       id: p.id,
       score,
       ppg: season?.points ?? null,
       /*
-       * Empty, not null, when the line came from Basketball-Reference — it
+       * Empty, not null, when a line carries no player id — the
        * carries no player id, and the coalesce in SQL then keeps whatever id
        * we already had rather than blanking it.
        */
       nbaPlayerId: season?.nbaPlayerId || null,
     };
   });
+  /*
+   * An NBA id belongs to one row. Two of ours can still resolve to the same
+   * player — "Gary Payton Jr." and "Gary Payton II" are one man under two
+   * names — and proposing his id for both aborts the whole statement on a
+   * unique violation, halfway through the league. Whoever already holds it
+   * keeps it; the other row simply keeps whatever id it had.
+   */
+  const idOwner = new Map<string, number>();
+  for (const p of existing) {
+    if (p.nbaPlayerId) idOwner.set(String(p.nbaPlayerId), p.id);
+  }
+  for (const u of updates) {
+    if (!u.nbaPlayerId) continue;
+    const owner = idOwner.get(u.nbaPlayerId);
+    if (owner !== undefined && owner !== u.id) u.nbaPlayerId = null;
+    else idOwner.set(u.nbaPlayerId, u.id);
+  }
+
   result.scored = updates.filter((u) => u.score > 0).length;
+  result.withAccolades = existing.filter((p) => p.accolades > 0).length;
+  result.changes = updates
+    .map((u, i) => ({
+      name: existing[i].fullName,
+      from: existing[i].prominence,
+      to: u.score,
+      accolades: existing[i].accolades,
+    }))
+    .filter((c) => c.from !== c.to)
+    .sort((a, b) => Math.abs(b.to - b.from) - Math.abs(a.to - a.from));
+
+  if (opts.dryRun) return result;
 
   /*
    * One UPDATE ... FROM (VALUES ...) for the whole league. nba_player_id uses
@@ -241,9 +321,13 @@ export async function runStatsSync(): Promise<StatsSyncResult> {
       nbaPlayerId: s.nbaPlayerId || null,
       // Filled in by `npm run sync:images` once the file exists; see above.
       headshotUrl: null,
+      /*
+       * No accolades yet: this player has never been seen, so the awards
+       * sync has not read them. The next run rates them properly.
+       */
       prominence: Math.max(
         productionScore(history.get(k) ?? []),
-        prominenceScore(s, careerByKey.get(k)),
+        prominenceScore(s),
       ),
       pointsPerGame: s.points,
       statsSyncedAt: new Date(),

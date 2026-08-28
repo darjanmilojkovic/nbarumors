@@ -110,6 +110,35 @@ export const players = pgTable(
      */
     rosterSyncedAt: timestamp("roster_synced_at", { withTimezone: true }),
     /**
+     * 0-35 career standing, from the league's own awards record.
+     *
+     * Replaces all-time scoring rank as the career half of prominence. That
+     * rank could only see points, so it blanked the players who move most
+     * often in trades — a Defensive Player of the Year scored nothing from it,
+     * and neither did a career playmaker.
+     */
+    accolades: integer("accolades").notNull().default(0),
+    /**
+     * The distinct honours the league records for this player.
+     *
+     * Stored rather than derived away, so changing how honours are weighted
+     * costs a recompute instead of re-reading 1,163 players one request at a
+     * time — which is both slow and enough traffic to get refused.
+     */
+    honors: text("honors").array().notNull().default([]),
+    /**
+     * A rating this player cannot fall below, earned by an honour.
+     *
+     * An MVP or an All-NBA First Team is a permanent fact about a career, and
+     * a top-ten all-time scorer sorting below a rotation guard because he is
+     * retired reads as a bug. A floor fixes that without flattening the top:
+     * a one-time All-Star from 2011 lands at 85, and a current star whose
+     * season form computes to 100 still outranks him.
+     */
+    prominenceFloor: integer("prominence_floor").notNull().default(0),
+    /** When the awards record was last read for this player. */
+    awardsSyncedAt: timestamp("awards_synced_at", { withTimezone: true }),
+    /**
      * 0-100 editorial weight, from season scoring stats plus all-time standing.
      * Drives feed ranking so a LeBron rumor outranks a fringe roster move.
      */

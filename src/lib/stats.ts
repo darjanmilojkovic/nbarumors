@@ -1,15 +1,22 @@
 /**
- * Player prominence inputs.
+ * Player prominence inputs, all from the league itself.
  *
- * Two sources, because they answer different questions:
- *  - Current-season leaders (stats.nba.com) — who matters *now*.
- *  - All-time scoring (Wikipedia) — who matters regardless of this season's
- *    box score. A 40-year-old legend on a minutes limit still outranks a
- *    high-usage role player.
+ *  - `leaguedashplayerstats` — every player's full per-game line, no
+ *    qualification threshold. The main input, and the answer to who matters
+ *    now.
+ *  - `leagueLeaders` — kept for recovering NBA player ids across categories,
+ *    since each leaderboard lists a different subset.
  *
- * Endpoints deliberately NOT used: stats.nba.com `leaguedashplayerstats` and
- * `alltimeleadersgrids` both refuse our requests regardless of headers, and
- * nba.com/stats/* pages are client-rendered so there is nothing in the HTML.
+ * Career standing lives in lib/awards, read from the league's own record of
+ * who won what. It used to be all-time scoring rank scraped from Wikipedia,
+ * which could only see points.
+ *
+ * This file previously scraped Basketball-Reference for the full box score and
+ * carried a note that `leaguedashplayerstats` refuses us regardless of
+ * headers. That was simply out of date — the same Referer and Origin sent
+ * below are enough — and so were the equivalent notes about `playerindex` and
+ * `commonallplayers`. Re-test before believing a comment that an endpoint is
+ * closed.
  */
 
 const NBA_HEADERS = {
@@ -27,8 +34,9 @@ export type SeasonStat = {
   minutes: number;
   points: number;
   /*
-   * Only Basketball-Reference fills these in. Scoring alone ranked a volume
-   * shooter above a triple-double guard, so prominence reads the whole line.
+   * Filled by the league box score, absent from the leaders endpoint. Scoring
+   * alone ranked a volume shooter above a triple-double guard, so prominence
+   * reads the whole line.
    */
   assists?: number;
   rebounds?: number;
@@ -37,76 +45,6 @@ export type SeasonStat = {
   season?: string;
 };
 
-/**
- * Per-game stats for everyone who appeared, from Basketball-Reference.
- *
- * The NBA's own leaderboard lists only players who met a games/minutes
- * threshold, which quietly erased anyone who missed a stretch of the season.
- * Joel Embiid — a former MVP averaging 26.9 points — scored 0 prominence and
- * ranked below two-way signings, because as far as our data was concerned he
- * had not played. This page carries all 963 players instead of ~230.
- *
- * No NBA player id here, so this fills stats only; ids come from the league
- * leaders and, failing that, from Wikidata.
- */
-export async function fetchBrefSeason(season: string): Promise<SeasonStat[]> {
-  // "2025-26" is the 2026 season file.
-  const endYear = Number(season.slice(0, 4)) + 1;
-  const res = await fetch(
-    `https://www.basketball-reference.com/leagues/NBA_${endYear}_per_game.html`,
-    { headers: { "User-Agent": NBA_HEADERS["User-Agent"] } },
-  );
-  if (!res.ok) throw new Error(`bref ${season}: HTTP ${res.status}`);
-  const html = await res.text();
-
-  /*
-   * Read to the end of the cell and strip any markup, rather than taking the
-   * text immediately after ">".
-   *
-   * Basketball-Reference bolds whoever led the league in a category:
-   *   data-stat="pts_per_g" ><strong>33.1</strong></td>
-   * A regex stopping at the first "<" captured an empty string there, so every
-   * category leader in every season parsed as zero — the bug silently erased
-   * exactly the players it mattered most to get right. Joel Embiid led scoring
-   * in 2021-22 and 2022-23 and was recorded with 0 points in both.
-   */
-  const stat = (row: string, name: string) => {
-    const m = row.match(new RegExp(`data-stat="${name}"[^>]*>(.*?)</td>`, "s"));
-    return m ? Number(m[1].replace(/<[^>]*>/g, "").trim()) : NaN;
-  };
-
-  const best = new Map<string, SeasonStat>();
-  for (const row of html.split('data-append-csv="').slice(1)) {
-    const name = row.match(/">([^<]+)<\/a><\/td>/)?.[1];
-    if (!name) continue;
-    const points = stat(row, "pts_per_g");
-    const games = stat(row, "games");
-    if (!Number.isFinite(points) || !Number.isFinite(games)) continue;
-
-    /*
-     * A player traded mid-season gets one row per club plus a combined row.
-     * Keeping the row with the most games takes the combined one, which is the
-     * season we actually want to score.
-     */
-    const key = nameKey(name);
-    const prev = best.get(key);
-    if (!prev || games > prev.gamesPlayed) {
-      best.set(key, {
-        nbaPlayerId: "",
-        name,
-        gamesPlayed: games,
-        minutes: stat(row, "mp_per_g") || 0,
-        points,
-        assists: stat(row, "ast_per_g") || 0,
-        rebounds: stat(row, "trb_per_g") || 0,
-        steals: stat(row, "stl_per_g") || 0,
-        blocks: stat(row, "blk_per_g") || 0,
-        season,
-      });
-    }
-  }
-  return [...best.values()];
-}
 
 /**
  * Prominence from a player's production over several seasons.
@@ -166,17 +104,94 @@ export function productionScore(seasons: SeasonStat[]): number {
    * That compression is why the Marquee badge keys off the ceiling itself
    * rather than an arbitrary cut-off — see WireItem.
    */
-  const core = 88 * Math.min(1, production / 40);
+  /*
+   * How much of a career this actually is.
+   *
+   * The per-season weight above discounts a short season, but it appears in
+   * both the numerator and the denominator of the average, so with a single
+   * season it cancels out completely. Elijah Bryant played one game in 2020-21,
+   * scored 16 in it, and rated 62 — ahead of rotation regulars — because one
+   * game of 16 points averages exactly as well as eighty do.
+   *
+   * Basketball-Reference hid this by not matching those players; the league's
+   * box score lists everyone who appeared, so it surfaced immediately.
+   */
+  const totalGames = seasons.reduce((n, s) => n + s.gamesPlayed, 0);
+  const reliability = Math.min(1, totalGames / 40);
+
+  const core = 88 * Math.min(1, production / 40) * reliability;
   const longevity = 12 * Math.min(1, seasons.length / 6);
 
   return Math.max(0, Math.min(100, Math.round(core + longevity)));
 }
 
 /**
- * Season scoring leaders. Returns qualified players only (~230), which is the
- * right shape for prominence: a player who never qualified is, by definition,
- * not prominent this season.
+ * Every player's full per-game line for a season, from the league.
+ *
+ * This is what `leagueLeaders` is not: 582 rows against ~230, because it does
+ * not apply a qualification threshold, and every counting stat rather than
+ * points alone. Both of those were the reasons Basketball-Reference was being
+ * scraped, so this replaces it outright.
+ *
+ * The comment above NBA_HEADERS used to say this endpoint refuses us
+ * regardless of headers. It does not, and has not for some time — the same
+ * Referer and Origin the rest of this file sends are enough. That claim was
+ * the third of its kind found stale in one afternoon, alongside `playerindex`
+ * and `commonallplayers`. Re-test before believing a note that an endpoint is
+ * closed.
  */
+export async function fetchLeagueBoxScore(
+  season: string,
+): Promise<SeasonStat[]> {
+  const url =
+    `https://stats.nba.com/stats/leaguedashplayerstats?LeagueID=00` +
+    `&Season=${season}&SeasonType=Regular%20Season&PerMode=PerGame` +
+    `&MeasureType=Base&PaceAdjust=N&PlusMinus=N&Rank=N&Month=0&Period=0` +
+    `&LastNGames=0&TeamID=0&OpponentTeamID=0&GameScope=&PlayerExperience=` +
+    `&PlayerPosition=&StarterBench=&Outcome=&Location=&SeasonSegment=` +
+    `&DateFrom=&DateTo=&VsConference=&VsDivision=&Conference=&Division=` +
+    `&DraftYear=&DraftPick=&College=&Country=&Height=&Weight=&TwoWay=0` +
+    `&ShotClockRange=&ISTRound=`;
+
+  const res = await fetch(url, { headers: NBA_HEADERS });
+  if (!res.ok) throw new Error(`nba box score ${season}: HTTP ${res.status}`);
+
+  const data = (await res.json()) as {
+    resultSets?: { headers: string[]; rowSet: unknown[][] }[];
+  };
+  const rs = data.resultSets?.[0];
+  if (!rs) throw new Error(`nba box score ${season}: unexpected shape`);
+
+  const col = (n: string) => rs.headers.indexOf(n);
+  const iId = col("PLAYER_ID");
+  const iName = col("PLAYER_NAME");
+  const iGp = col("GP");
+  const iMin = col("MIN");
+  const iPts = col("PTS");
+  const iAst = col("AST");
+  const iReb = col("REB");
+  const iStl = col("STL");
+  const iBlk = col("BLK");
+  if (iId < 0 || iPts < 0) {
+    throw new Error(`nba box score ${season}: columns ${rs.headers.join(",")}`);
+  }
+
+  const num = (row: unknown[], i: number) => (i >= 0 ? Number(row[i]) || 0 : 0);
+
+  return rs.rowSet.map((r) => ({
+    nbaPlayerId: String(r[iId]),
+    name: String(r[iName]),
+    gamesPlayed: num(r, iGp),
+    minutes: num(r, iMin),
+    points: num(r, iPts),
+    assists: num(r, iAst),
+    rebounds: num(r, iReb),
+    steals: num(r, iStl),
+    blocks: num(r, iBlk),
+    season,
+  }));
+}
+
 export async function fetchSeasonLeaders(
   season: string,
   statCategory = "PTS",
@@ -211,36 +226,6 @@ export async function fetchSeasonLeaders(
   }));
 }
 
-/**
- * All-time scoring rank, by name. Wikipedia's table is stable enough to parse
- * and is the only one of the suggested sources that serves career totals in
- * plain HTML.
- */
-export async function fetchCareerScoringRanks(): Promise<Map<string, number>> {
-  const res = await fetch(
-    "https://en.wikipedia.org/wiki/List_of_NBA_career_scoring_leaders",
-    { headers: { "User-Agent": "nbarumors.cc/0.1 (+https://nbarumors.cc)" } },
-  );
-  if (!res.ok) throw new Error(`wikipedia: HTTP ${res.status}`);
-  const html = await res.text();
-
-  const ranks = new Map<string, number>();
-  let rank = 0;
-
-  // Rows look like: <tr>...<td><a href="/wiki/LeBron_James" title="LeBron James">
-  for (const row of html.split("<tr")) {
-    const link = row.match(/\/wiki\/[^"]+"\s+title="([^"]+)"/);
-    if (!link) continue;
-    const name = link[1];
-    // Skip footnote/reference and non-player links.
-    if (/^(List|NBA|National|Basketball|\d)/.test(name)) continue;
-    if (!/^[A-Z][\p{L}'.\- ]+ [\p{L}'.\- ]+$/u.test(name)) continue;
-    if (ranks.has(name)) continue;
-    ranks.set(name, ++rank);
-    if (rank >= 250) break;
-  }
-  return ranks;
-}
 
 /** Normalized for matching — "Luka Dončić" and "Luka Doncic" collapse. */
 export const nameKey = (s: string) =>
@@ -256,12 +241,22 @@ export const nameKey = (s: string) =>
  * Blend the two signals into 0-100.
  *
  * Season form dominates (up to 65) because the site is about who is moving
- * now; career standing adds up to 35 so that an aging star or a recently
- * retired name still ranks above a journeyman having a hot month.
+ * now, and a rising star leading the league in scoring should rank on that
+ * alone with no career behind him at all.
+ *
+ * Career standing adds up to 35 so an aging star or a recently retired name
+ * still ranks above a journeyman having a hot month. That used to be all-time
+ * scoring rank, which could only see points and so gave nothing to a Defensive
+ * Player of the Year or a career playmaker. It is now the accolade score from
+ * lib/awards, already on the same 0-35 scale, so it arrives ready to add
+ * rather than needing tiers here.
+ *
+ * The season half still weights points most heavily; the rest of the box score
+ * reaches the rating through productionScore, which reads six seasons of it.
  */
 export function prominenceScore(
   season: SeasonStat | undefined,
-  careerRank: number | undefined,
+  accolades = 0,
 ): number {
   let score = 0;
 
@@ -273,13 +268,7 @@ export function prominenceScore(
     score += 65 * (0.65 * pts + 0.25 * min + 0.1 * played);
   }
 
-  if (careerRank != null) {
-    if (careerRank <= 10) score += 35;
-    else if (careerRank <= 25) score += 30;
-    else if (careerRank <= 50) score += 24;
-    else if (careerRank <= 100) score += 16;
-    else score += 8;
-  }
+  score += Math.max(0, Math.min(35, accolades));
 
   return Math.max(0, Math.min(100, Math.round(score)));
 }

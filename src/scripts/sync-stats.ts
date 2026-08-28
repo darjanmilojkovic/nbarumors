@@ -15,9 +15,7 @@ async function main() {
   for (const [season, n] of Object.entries(r.seasons)) {
     console.log(`  ${season}: ${typeof n === "number" ? `${n} qualified players` : n}`);
   }
-  console.log(
-    `  all-time scoring: ${typeof r.careerRanks === "number" ? `${r.careerRanks} players` : r.careerRanks}`,
-  );
+  console.log(`  players with accolades: ${r.withAccolades}`);
   console.log(`\n  players in db: ${r.playersInDb}`);
   console.log(`  scored: ${r.scored} of ${r.playersInDb}`);
   console.log(`  new players added from leaders: ${r.inserted}`);
