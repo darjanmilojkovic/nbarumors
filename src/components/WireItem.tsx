@@ -79,16 +79,28 @@ function ago(d: Date, now = new Date()) {
 }
 
 /**
- * The same stamp as a phrase: "14h ago", but "26 Aug 2026" unchanged.
+ * Elapsed time, always: "14m ago", "7h ago", "2d ago".
  *
- * Only the relative form takes "ago". Appending it unconditionally reads as
- * "updated 26 Aug 2026 ago" on anything older than a day, which is most of the
- * archive — the threshold is shared with `ago` rather than restated so the two
- * cannot disagree about where the switch happens.
+ * Deliberately unlike `ago`, which switches to a calendar date after a day.
+ * That is right for the byline, where the publication date is a fact about the
+ * story. It is wrong here: the update stamp answers "how stale is what I am
+ * reading", and a card that said "updated 7h ago" beside another saying
+ * "updated 27 Aug 2026" made the reader convert one of them to compare.
+ *
+ * Days floor rather than round, so "1d ago" covers everything from 24 to 47
+ * hours. That is how the phrase is read — a day old means a day has passed,
+ * not that the midpoint has been crossed.
+ *
+ * No upper bound. The staleness argument that pushed `ago` onto dates was
+ * about hours drifting inside a five-minute page cache; a day-grain figure
+ * cannot drift enough to be wrong, so there is no size at which this needs to
+ * become a date.
  */
 function agoPhrase(d: Date, now = new Date()) {
-  const stamp = ago(d, now);
-  return minutesSince(d, now) < RELATIVE_LIMIT_MINS ? `${stamp} ago` : stamp;
+  const mins = minutesSince(d, now);
+  if (mins < 60) return `${mins}m ago`;
+  if (mins < RELATIVE_LIMIT_MINS) return `${Math.round(mins / 60)}h ago`;
+  return `${Math.floor(mins / RELATIVE_LIMIT_MINS)}d ago`;
 }
 
 /** Generational suffixes, which are part of the surname rather than after it. */
