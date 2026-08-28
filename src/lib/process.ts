@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { feedItems, rumors, sources } from "@/db/schema";
 import { FETCH_ARTICLE_SOURCES, bestText } from "@/lib/article";
 import { extractRumor, modelFor } from "@/lib/extract";
+import { syncCurrentTeams } from "@/lib/current-team";
 import { GATE_REASON, worthExtracting } from "@/lib/gate";
 import { pendingItems, publishExtraction } from "@/lib/publish";
 
@@ -15,6 +16,8 @@ export type ProcessResult = {
   rejected: number;
   /** Screened out before extraction, so never sent to the expensive model. */
   gated: number;
+  /** Players whose club changed as a result of this run. */
+  movedTeams: number;
   errors: number;
   /** Items whose article was fetched because the feed only gave a teaser. */
   fetched: number;
@@ -171,9 +174,17 @@ export async function runExtraction(limit = 50): Promise<ProcessResult> {
   if (first) await handle(first);
   await pool(rest, 4, handle);
 
+  /*
+   * A completed move should show on the player before the nightly feed sync
+   * gets to it. One statement, and a pass with nothing to correct writes
+   * nothing, so this is cheap enough to run every time.
+   */
+  const movedTeams = await syncCurrentTeams();
+
   return {
     byModel: Object.fromEntries(byModel),
     gated,
+    movedTeams,
     examined: items.length,
     published,
     merged,

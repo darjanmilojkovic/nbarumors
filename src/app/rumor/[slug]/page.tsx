@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { rumorSources, rumors } from "@/db/schema";
 import { WireItem } from "@/components/WireItem";
 import { WireShell } from "@/components/WireShell";
+import { surname } from "@/lib/names";
 import { latestRumors, rumorBySlug } from "@/lib/queries";
 import { SITE } from "@/lib/site";
 
@@ -134,16 +135,38 @@ export default async function RumorPage({ params }: PageProps<"/rumor/[slug]">) 
    * Same for the player: several posts mark more than one subject, and taking
    * the first row picked between them arbitrarily. The biggest name wins.
    */
-  const subjectTeam = rumor.teams.find((t) => t.role !== "mentioned");
   const subjectPlayer = [...rumor.players]
     .filter((p) => p.isPrimary)
     .sort((a, b) => b.prominence - a.prominence)[0];
+
+  /*
+   * The club the subject plays for, not a club this post names.
+   *
+   * It used to take the first team whose role was not "mentioned", and the
+   * roles sort from-before-to, so the rail reliably announced the team the
+   * player was LEAVING. A post about Anthony Davis read Philadelphia 76ers
+   * while he played in Washington, and one about LeBron James read Los Angeles
+   * Lakers a month after he signed in Philadelphia. That is the wrong question
+   * asked consistently rather than an ordering accident: 159 of 679 posts
+   * carry both a from and a to team.
+   *
+   * Falling back to the post's own teams when the subject has no club on
+   * record — a draft pick, or a name we have never resolved — and to nothing
+   * at all when every team is merely mentioned, which is the case a roundup
+   * naming four clubs and involving none used to get wrong.
+   */
+  const subjectTeam =
+    subjectPlayer?.currentTeam ??
+    rumor.teams.find((t) => t.role === "to") ??
+    rumor.teams.find((t) => t.role !== "mentioned");
 
   return (
     <WireShell
       teamSlug={subjectTeam?.slug}
       teamLabel={subjectTeam ? `${subjectTeam.city} ${subjectTeam.name}` : undefined}
+      teamShort={subjectTeam?.name}
       playerLabel={subjectPlayer?.fullName}
+      playerShort={subjectPlayer ? surname(subjectPlayer.fullName) : undefined}
     >
       <div className="border-x border-b border-rule bg-surface">
         <div className="border-b border-rule px-4 py-3 sm:px-5">

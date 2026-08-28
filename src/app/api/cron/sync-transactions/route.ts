@@ -1,3 +1,4 @@
+import { syncCurrentTeams } from "@/lib/current-team";
 import { syncTransactions } from "@/lib/transactions";
 
 export const runtime = "nodejs";
@@ -28,7 +29,14 @@ export async function GET(request: Request) {
   }
 
   try {
-    return Response.json(await syncTransactions());
+    const synced = await syncTransactions();
+    /*
+     * The feed is the best evidence for where a player now plays, so the
+     * roster is refreshed in the same breath rather than drifting until
+     * some other job happens to notice.
+     */
+    const movedTeams = await syncCurrentTeams();
+    return Response.json({ ...synced, movedTeams });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return Response.json({ error: message }, { status: 500 });

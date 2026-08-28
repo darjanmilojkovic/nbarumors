@@ -1,4 +1,5 @@
 import { and, desc, eq, sql, type SQL } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { headshotFor, logoFor } from "@/lib/images";
 import { db } from "@/db";
 import { isSameEvent } from "@/lib/event-key";
@@ -57,6 +58,8 @@ export type FeedRumor = {
     /** Where this player goes, on a post that moves more than one. */
     fromAbbrev: string | null;
     toAbbrev: string | null;
+    /** The club the player actually plays for, independent of this post. */
+    currentTeam: { slug: string; city: string; name: string } | null;
   }[];
 };
 
@@ -75,6 +78,13 @@ export type FeedRumor = {
  * be team 1 in the table. Hart's actual team came second, in a post about him.
  */
 const TEAM_ROLE_ORDER: Record<string, number> = { from: 0, to: 1, mentioned: 2 };
+
+/*
+ * The club a player actually plays for, which is not the same thing as a team
+ * this post happens to name. A second alias on teams is needed because the
+ * query already joins that table for the post’s own teams.
+ */
+const currentTeam = alias(teams, "current_team");
 
 async function hydrate(rows: Awaited<ReturnType<typeof baseSelect>>): Promise<FeedRumor[]> {
   if (rows.length === 0) return [];
@@ -106,9 +116,13 @@ async function hydrate(rows: Awaited<ReturnType<typeof baseSelect>>): Promise<Fe
       fullName: players.fullName,
       nbaPlayerId: players.nbaPlayerId,
       prominence: players.prominence,
+      currentTeamSlug: currentTeam.slug,
+      currentTeamCity: currentTeam.city,
+      currentTeamName: currentTeam.name,
     })
     .from(rumorPlayers)
     .innerJoin(players, eq(players.id, rumorPlayers.playerId))
+    .leftJoin(currentTeam, eq(currentTeam.id, players.currentTeamId))
     .where(sql`${rumorPlayers.rumorId} in ${ids}`)
     /*
      * Alphabetical by full name, which is first name — the order the chips at
@@ -164,6 +178,13 @@ async function hydrate(rows: Awaited<ReturnType<typeof baseSelect>>): Promise<Fe
         headshotUrl: headshotFor(p.nbaPlayerId),
         fromAbbrev: p.fromTeamId ? (abbrevById.get(p.fromTeamId) ?? null) : null,
         toAbbrev: p.toTeamId ? (abbrevById.get(p.toTeamId) ?? null) : null,
+        currentTeam: p.currentTeamSlug
+          ? {
+              slug: p.currentTeamSlug,
+              city: p.currentTeamCity as string,
+              name: p.currentTeamName as string,
+            }
+          : null,
       })),
     };
   });
