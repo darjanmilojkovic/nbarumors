@@ -109,7 +109,23 @@ async function hydrate(rows: Awaited<ReturnType<typeof baseSelect>>): Promise<Fe
     })
     .from(rumorPlayers)
     .innerJoin(players, eq(players.id, rumorPlayers.playerId))
-    .where(sql`${rumorPlayers.rumorId} in ${ids}`);
+    .where(sql`${rumorPlayers.rumorId} in ${ids}`)
+    /*
+     * Alphabetical by full name, which is first name — the order the chips at
+     * the foot of a post are read in.
+     *
+     * There was no ORDER BY here at all, so the rows arrived in whatever order
+     * Postgres produced them: "Domantas Sabonis, Rudy Gobert, Donte DiVincenzo,
+     * Isaiah Evans" on one post and something else on the next. Not sorted by
+     * anything a reader could name, and not even stable — the face stack sorts
+     * primary-first and then by whether we hold a photo, so two players tied on
+     * both fell back to this order and could swap places between builds.
+     *
+     * Sorting here rather than in the component fixes both at once: the chips
+     * get an order someone can predict, and every consumer that sorts this
+     * array by something else now has a deterministic tiebreak underneath it.
+     */
+    .orderBy(players.fullName);
 
   /*
    * All 30 rows, once. A player's from/to team is usually tagged on the post
