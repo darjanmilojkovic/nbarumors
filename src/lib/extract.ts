@@ -21,6 +21,29 @@ export function modelFor(): string {
   return MODEL;
 }
 
+/**
+ * Turn a leftover \uXXXX sequence back into the character it names.
+ *
+ * JSON.parse already handles escapes, so nothing should reach this. But the
+ * model occasionally emits the escape doubled — \\u00f3 rather than ó —
+ * and parsing that correctly yields six literal characters instead of "ó".
+ * One post in 688 shipped reading "Vaqueros de Bayamón"; the source it was
+ * written from had the accent intact, so this was our own output, not theirs.
+ *
+ * Applied only to the headline and body, the two fields a reader sees. A story
+ * that genuinely wanted to print an escape sequence would be mangled by this,
+ * which is not a trade worth worrying about on a basketball wire.
+ */
+export function decodeStrayEscapes(text: string): string {
+  const pattern = new RegExp(
+    `${String.fromCharCode(92, 92)}u([0-9a-fA-F]{4})`,
+    "g",
+  );
+  return text.replace(pattern, (_, hex: string) =>
+    String.fromCharCode(parseInt(hex, 16)),
+  );
+}
+
 export type Extraction = {
   isRumor: boolean;
   rejectedReason: string | null;
@@ -300,7 +323,22 @@ export async function extractRumor(item: {
   if (!text || text.type !== "text") {
     throw new Error(`no text block in response (stop: ${response.stop_reason})`);
   }
-  return JSON.parse(text.text) as Extraction;
+  const parsed = JSON.parse(text.text) as Extraction;
+  /*
+   * Every field a person's name can reach, not only the two a reader sees.
+   * A mangled body is a typo; a mangled name becomes a slug, and that is a
+   * duplicate player and a dead URL that outlive the post.
+   */
+  return {
+    ...parsed,
+    headline: decodeStrayEscapes(parsed.headline),
+    body: decodeStrayEscapes(parsed.body),
+    reportedBy: parsed.reportedBy && decodeStrayEscapes(parsed.reportedBy),
+    players: parsed.players?.map((p) => ({
+      ...p,
+      name: decodeStrayEscapes(p.name),
+    })),
+  };
 }
 
 
