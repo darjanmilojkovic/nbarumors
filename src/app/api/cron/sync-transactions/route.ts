@@ -1,4 +1,5 @@
 import { syncCurrentTeams } from "@/lib/current-team";
+import { syncOfficialRoster } from "@/lib/roster-nba";
 import { syncTransactions } from "@/lib/transactions";
 
 export const runtime = "nodejs";
@@ -35,8 +36,19 @@ export async function GET(request: Request) {
      * roster is refreshed in the same breath rather than drifting until
      * some other job happens to notice.
      */
+    /*
+     * The league states its own rosters, so ask before ranking. A failure
+     * here must not lose the transactions we just imported, and the roster
+     * being a day stale is a smaller problem than the sync erroring out.
+     */
+    let roster = null;
+    try {
+      roster = await syncOfficialRoster();
+    } catch (err) {
+      roster = { error: err instanceof Error ? err.message : String(err) };
+    }
     const movedTeams = await syncCurrentTeams();
-    return Response.json({ ...synced, movedTeams });
+    return Response.json({ ...synced, roster, movedTeams });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return Response.json({ error: message }, { status: 500 });

@@ -11,18 +11,23 @@ import { db } from "@/db";
  * Philadelphia, and Anthony Davis read Dallas Mavericks two moves after
  * leaving. 101 players were wrong.
  *
- * Two sources, and neither is a superset of the other:
+ * Three sources, ranked by date rather than by authority, because the most
+ * authoritative is also the slowest:
  *
- *   The NBA transaction feed is official and broad — it resolves 543 players
- *   against 145 from our own posts — but it syncs once a day, so a signing
- *   reported this afternoon is not in it yet.
+ *   nba.com's own player index states each club outright. It is the best
+ *   answer available and it lags — a signing takes days to appear, so on the
+ *   day Jonathan Kuminga agreed terms in Minnesota it still had him in
+ *   Atlanta. Written by roster-nba.ts along with the moment it said so.
  *
- *   Our own completed posts are immediate but sparse, and only cover players
+ *   The NBA transaction feed is official too but inferred from: we take the
+ *   latest arrival row and conclude a team. Syncs nightly.
+ *
+ *   Our own completed posts are immediate and fallible, and only cover players
  *   a story happened to move.
  *
- * On the 130 players both can answer they disagree 23 times, and the direction
- * varies: the feed is fresher for Norman Powell, our posts are fresher for
- * Jonathan Kuminga. So neither wins outright — the later date does.
+ * Ranking by date means the official roster wins everywhere except the day or
+ * so where our own reporting is ahead of it, which for a rumors site is the
+ * point rather than a compromise.
  *
  * Recomputed rather than accumulated, so a corrected post or a re-synced
  * transaction heals the row on the next run instead of leaving it stranded.
@@ -30,6 +35,20 @@ import { db } from "@/db";
 
 /** Kinds where the feed's TEAM_ID is the club the player joins. */
 const ARRIVAL_KINDS = ["Signing", "Trade", "AwardOnWaivers", "ContractConverted"];
+
+/**
+ * How far behind the official roster is assumed to run.
+ *
+ * A guess, and one worth revisiting with evidence: Jonathan Kuminga agreed
+ * terms in Minnesota on 26 August and the index still had him in Atlanta two
+ * days later, but nothing here measures the true distribution. Too short and
+ * the site trails its own reporting; too long and a post we got wrong outranks
+ * the league for over a week.
+ *
+ * Seven days matches the confirmation window used elsewhere, which is the only
+ * reason to prefer it to six or eight.
+ */
+const ROSTER_LAG_DAYS = 7;
 
 /*
  * Waive is deliberately absent: on that row TEAM_ID names the club letting the
@@ -56,17 +75,48 @@ const BEST_TEAM = sql`
       and rp.to_team_id is not null
     order by rp.player_id, r.published_at desc, r.id desc
   ),
+  /*
+   * The league's own roster, written onto the player by the roster sync along
+   * with the moment it answered — deliberately backdated before it competes.
+   *
+   * roster_synced_at records when we ASKED, not when the league learned, and
+   * those are days apart. Taken at face value a fetch from five minutes ago
+   * beats a report from two days ago every time, which is how a post reading
+   * "Kuminga reaches 2-year deal with Timberwolves" sat above a masthead
+   * saying Atlanta Hawks: the index had not caught up, and won anyway for
+   * having been asked recently.
+   *
+   * Backdating by the lag we actually observe lets our own reporting hold the
+   * ground it has earned and no more. A post inside the window is newer than
+   * the league's knowledge and takes it; an older one has had long enough to
+   * be contradicted, and loses.
+   */
+  official as (
+    select
+      id as player_id,
+      current_team_id as team_id,
+      roster_synced_at - interval '${sql.raw(String(ROSTER_LAG_DAYS))} days' as at
+    from players
+    where roster_synced_at is not null
+  ),
   best as (
     select
-      coalesce(f.player_id, s.player_id) as player_id,
-      case
-        when f.at is null then s.team_id
-        when s.at is null then f.team_id
-        when f.at >= s.at then f.team_id
-        else s.team_id
-      end as team_id
-    from feed f
-    full outer join posts s on s.player_id = f.player_id
+      coalesce(o.player_id, f.player_id, s.player_id) as player_id,
+      (
+        select x.team_id
+        from (
+          select o.team_id, o.at union all
+          select f.team_id, f.at union all
+          select s.team_id, s.at
+        ) as x
+        where x.at is not null
+        order by x.at desc
+        limit 1
+      ) as team_id
+    from official o
+    full outer join feed f on f.player_id = o.player_id
+    full outer join posts s
+      on s.player_id = coalesce(o.player_id, f.player_id)
   )
 `;
 

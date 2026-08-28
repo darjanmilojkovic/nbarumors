@@ -99,6 +99,17 @@ export const players = pgTable(
     position: varchar("position", { length: 8 }),
     currentTeamId: integer("current_team_id").references(() => teams.id),
     /**
+     * When nba.com's own player index last stated this player's club.
+     *
+     * The official roster is the better source and the slower one: a signing
+     * takes days to appear there, so on the day Jonathan Kuminga agreed terms
+     * in Minnesota the index still had him in Atlanta. Our own completed posts
+     * are faster and less reliable. This is what lets the two be ranked
+     * instead of one blindly overwriting the other — a post only wins if it
+     * was published after the roster last spoke.
+     */
+    rosterSyncedAt: timestamp("roster_synced_at", { withTimezone: true }),
+    /**
      * 0-100 editorial weight, from season scoring stats plus all-time standing.
      * Drives feed ranking so a LeBron rumor outranks a fringe roster move.
      */

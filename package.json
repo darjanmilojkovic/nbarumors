@@ -17,7 +17,6 @@
     "extract": "tsx src/scripts/extract.ts",
     "peek:rumors": "tsx src/scripts/peek-rumors.ts",
     "sync:stats": "tsx src/scripts/sync-stats.ts",
-    "sync:roster": "tsx src/scripts/sync-roster.ts",
     "dedupe": "tsx src/scripts/dedupe.ts",
     "sync:headshots": "tsx src/scripts/sync-headshots.ts",
     "backfill:contracts": "tsx src/scripts/backfill-contracts.ts",
