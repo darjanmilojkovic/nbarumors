@@ -48,24 +48,6 @@ const STALE_DAYS = 45;
 const MATCH_WINDOW_DAYS = 120;
 
 /**
- * The same window for a post that already reports the move as done.
- *
- * A completed report is not predicting anything — it is saying this happened —
- * so the league's own record of it should follow within days, not months. Given
- * the longer window these picked up a later, unrelated transaction involving
- * the same player and team: "Seven-team megatrade sends Durant to Houston" was
- * confirmed by Houston re-signing Durant to an extension 105 days on, "Warriors
- * add Charles Bassey on 10-day deal" by a re-signing at 95 days, and "Celtics
- * add Dalano Banton on 10-day deal" by a rest-of-season contract at 51. A
- * 10-day deal becoming a full contract is a different event, and the badge
- * would be dating the report to the wrong one.
- *
- * A week absorbs a weekend and the lag between a deal being agreed and being
- * filed, which is all this needs to cover.
- */
-const COMPLETED_WINDOW_DAYS = 7;
-
-/**
  * Transaction kinds where TEAM_ID is where the player ARRIVED.
  *
  * Waive is excluded on purpose: there the team is the one letting him go, so
@@ -91,8 +73,7 @@ type Row = {
   status: string;
   published_at: string;
   outcome: string | null;
-  nba_player_id: string | null;
-  primaries: number;
+  primary_ids: string | null;
   to_team_ids: string | null;
 };
 
@@ -116,10 +97,9 @@ export async function runOutcomeCheck(
    */
   const rows = await db.execute(sql`
     select r.id, r.headline, r.status, r.published_at, r.outcome,
-           (select p.nba_player_id from rumor_players rp join players p on p.id = rp.player_id
-             where rp.rumor_id = r.id and rp.is_primary limit 1) as nba_player_id,
-           (select count(*) from rumor_players rp
-             where rp.rumor_id = r.id and rp.is_primary) as primaries,
+           (select string_agg(p.nba_player_id, ',')
+              from rumor_players rp join players p on p.id = rp.player_id
+             where rp.rumor_id = r.id and rp.is_primary) as primary_ids,
            (select string_agg(t.nba_team_id, ',')
               from rumor_teams rt join teams t on t.id = rt.team_id
              where rt.rumor_id = r.id and rt.role = 'to') as to_team_ids
@@ -153,26 +133,27 @@ export async function runOutcomeCheck(
     const reportedAt = new Date(r.published_at).getTime();
 
     /*
-     * A post has to make ONE claim before it can be shown to have come true.
+     * EVERY player the post is about has to have landed, not just one.
      *
-     * "Rumor roundup ties Beal, Harden and LeBron to trade chatter" named
-     * three players and predicted nothing about any of them, and was labelled
-     * "Confirmed 20d later" because Bradley Beal signed with the Clippers
-     * three weeks on. The roundup was not confirmed; a player it mentioned
-     * did something.
+     * The guard used to be "exactly one primary", written to stop a roundup
+     * claiming a confirmation: "Rumor roundup ties Beal, Harden and LeBron to
+     * trade chatter" named three players, predicted nothing about any of them,
+     * and was labelled "Confirmed 20d later" because Beal signed with the
+     * Clippers three weeks on.
+     *
+     * But that refuses honest multi-player reports too. "Warriors add Georges
+     * Niang and Brandon Williams on one-year deals" names two players; the NBA
+     * recorded both signings to Golden State, on the 25th and the 26th. Every
+     * claim the post made came true and it still could not be confirmed.
+     *
+     * Requiring ALL of them keeps the roundup out — only Beal of those three
+     * moved, so it fails — while letting a report that named two moves be
+     * confirmed once both are on record.
      */
-    const single = Number(r.primaries ?? 0) === 1 && r.nba_player_id;
+    const primaryIds = (r.primary_ids ?? "").split(",").filter(Boolean);
 
-    /*
-     * How long this particular post is allowed to wait for its move.
-     *
-     * A rumor predicts something and may need weeks to come true; a completed
-     * report says it already happened, so the record should follow within
-     * days. Using one window for both is what let a year-old signing report be
-     * "confirmed" by the same player re-signing with the same team.
-     */
+    // Governs both outcomes: a post is eligible for each, or for neither.
     const isSpeculative = r.status === "rumor" || r.status === "reported";
-    const windowDays = isSpeculative ? MATCH_WINDOW_DAYS : COMPLETED_WINDOW_DAYS;
 
     /*
      * The DESTINATION the report named, not every team it mentioned. That
@@ -182,17 +163,57 @@ export async function runOutcomeCheck(
      */
     const wanted = new Set((r.to_team_ids ?? "").split(",").filter(Boolean));
 
-    const match =
-      !single || wanted.size === 0
-        ? undefined
-        : (byPlayer.get(r.nba_player_id as string) ?? []).find((t) => {
-            const at = new Date(t.occurred_at).getTime();
-            // The move has to follow the report, or it confirms nothing.
-            if (at < reportedAt - 36e5) return false;
-            // ...and follow it closely enough to be the same event.
-            if (at > reportedAt + windowDays * 864e5) return false;
-            return t.nba_team_id !== null && wanted.has(t.nba_team_id);
-          });
+    /*
+     * The arrival for one player, or undefined.
+     *
+     * The lower bound is a full day, not an hour. The feed dates every
+     * transaction at midnight UTC of the day it happened — there is no time
+     * component — so a move recorded on the 25th carries 25 Aug 00:00 while
+     * the report of it was published at 23:10 that evening. With an hour of
+     * tolerance the record appeared to PRECEDE the story by 23 hours and was
+     * thrown out. A day of slack is the smallest window that survives the
+     * feed's own precision.
+     */
+    const arrivalFor = (playerId: string) =>
+      (byPlayer.get(playerId) ?? []).find((t) => {
+        const at = new Date(t.occurred_at).getTime();
+        if (at < reportedAt - 864e5) return false;
+        // ...and close enough afterwards to be the same event.
+        if (at > reportedAt + MATCH_WINDOW_DAYS * 864e5) return false;
+        return t.nba_team_id !== null && wanted.has(t.nba_team_id);
+      });
+
+    /*
+     * Only a post that PREDICTED something can be confirmed.
+     *
+     * A completed report already carries the "Done deal" badge, so a second
+     * badge saying the league agrees is the same fact twice. It is also almost
+     * always the same day: of 456 completed posts with a matching arrival, 433
+     * were recorded within 24 hours of us publishing, which would have put
+     * "Confirmed 0d later" on two-thirds of the site. A label that never varies
+     * is wallpaper, which is exactly why the old "single outlet" badge came out.
+     *
+     * That leaves the badge doing one job: a rumour we ran turned out to be
+     * right. Rare on purpose — three posts today — and worth something when it
+     * appears.
+     */
+    const arrivals =
+      !isSpeculative || primaryIds.length === 0 || wanted.size === 0
+        ? []
+        : primaryIds.map(arrivalFor);
+
+    /*
+     * All or nothing, and the badge dates from the LAST one to land — the post
+     * is only true once every move it named is on record.
+     */
+    const allLanded = arrivals.length > 0 && arrivals.every(Boolean);
+    const match = allLanded
+      ? arrivals
+          .filter((a): a is Tx => Boolean(a))
+          .reduce((latest, a) =>
+            new Date(a.occurred_at) > new Date(latest.occurred_at) ? a : latest,
+          )
+      : undefined;
 
     if (match) {
       confirmed++;
