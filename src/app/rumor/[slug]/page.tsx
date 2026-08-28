@@ -145,7 +145,7 @@ export default async function RumorPage({ params }: PageProps<"/rumor/[slug]">) 
       teamLabel={subjectTeam ? `${subjectTeam.city} ${subjectTeam.name}` : undefined}
       playerLabel={subjectPlayer?.fullName}
     >
-      <div className="border-x border-rule bg-surface">
+      <div className="border-x border-b border-rule bg-surface">
         <div className="border-b border-rule px-4 py-3 sm:px-5">
           <Link
             href="/"

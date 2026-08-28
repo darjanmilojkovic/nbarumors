@@ -124,7 +124,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
     <WireShell pinHeader={false}>
       <h1 className="sr-only">Latest NBA trade rumors and signings</h1>
 
-      <div className="border-x border-rule bg-surface sm:mx-0">
+      <div className="border-x border-b border-rule bg-surface sm:mx-0">
         {/* tabs */}
         {/*
          * Pinned to the top of the viewport, full stop. It used to stick to a
