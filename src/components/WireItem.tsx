@@ -78,8 +78,12 @@ function ago(d: Date, now = new Date()) {
   });
 }
 
+/** A month here is 30 days flat. See agoPhrase. */
+const DAYS_PER_MONTH = 30;
+const MONTHS_PER_YEAR = 12;
+
 /**
- * Elapsed time, always: "14m ago", "7h ago", "2d ago".
+ * Elapsed time, always: "14m ago", "7h ago", "2d ago", "3mo ago", "1y ago".
  *
  * Deliberately unlike `ago`, which switches to a calendar date after a day.
  * That is right for the byline, where the publication date is a fact about the
@@ -87,20 +91,31 @@ function ago(d: Date, now = new Date()) {
  * reading", and a card that said "updated 7h ago" beside another saying
  * "updated 27 Aug 2026" made the reader convert one of them to compare.
  *
- * Days floor rather than round, so "1d ago" covers everything from 24 to 47
- * hours. That is how the phrase is read — a day old means a day has passed,
- * not that the midpoint has been crossed.
+ * Every unit floors, so "1d ago" covers 24 to 47 hours and "1y ago" covers a
+ * year to two. That is how the phrase is read — a day old means a day has
+ * passed, not that the midpoint has been crossed.
  *
- * No upper bound. The staleness argument that pushed `ago` onto dates was
- * about hours drifting inside a five-minute page cache; a day-grain figure
- * cannot drift enough to be wrong, so there is no size at which this needs to
- * become a date.
+ * Months are "mo", never "m", because "m" is minutes three lines above. "2m
+ * ago" would mean two minutes on one card and two months on another, and the
+ * clash is silent: both render, both look fine, and only the reader is wrong.
+ * Two letters is a small price for that.
+ *
+ * A month is 30 days flat rather than a calendar month. Calendar months are
+ * more correct and worse to read: the same post would say "1mo ago" for 28
+ * days in February and 31 in March, and nothing on a card explains why.
  */
 function agoPhrase(d: Date, now = new Date()) {
   const mins = minutesSince(d, now);
   if (mins < 60) return `${mins}m ago`;
   if (mins < RELATIVE_LIMIT_MINS) return `${Math.round(mins / 60)}h ago`;
-  return `${Math.floor(mins / RELATIVE_LIMIT_MINS)}d ago`;
+
+  const days = Math.floor(mins / RELATIVE_LIMIT_MINS);
+  if (days < DAYS_PER_MONTH) return `${days}d ago`;
+
+  const months = Math.floor(days / DAYS_PER_MONTH);
+  return months < MONTHS_PER_YEAR
+    ? `${months}mo ago`
+    : `${Math.floor(months / MONTHS_PER_YEAR)}y ago`;
 }
 
 /** Generational suffixes, which are part of the surname rather than after it. */
