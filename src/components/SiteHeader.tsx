@@ -6,8 +6,17 @@ import { Logo } from "@/components/Logo";
  * on the right depends on which team or player you're looking at — something
  * a layout has no way to know.
  *
- * The inner grid mirrors WireShell's so the lockup and nav sit above the main
- * column on desktop rather than floating out over the left rail.
+ * The inner grid mirrors WireShell's so the lockup sits above the main column
+ * on desktop rather than floating out over the left rail.
+ *
+ * From xl the row spans the right rail as well. It is the labels that force
+ * this: "Minnesota Timberwolves" beside "Giannis Antetokounmpo" needs 798px,
+ * and the middle column alone offers 654 — so the nav wrapped to a second line
+ * and the header grew from 90px to 122px. Worse, that only happened on WIDE
+ * screens, because the right rail appears at xl and takes 300px away from the
+ * column the header was confined to; a 1200px laptop was fine and a 1440px
+ * monitor was not. Spanning it costs nothing, since the rail is empty at this
+ * height, and the lockup does not move — only the right edge does.
  */
 export function SiteHeader({
   teamLabel,
@@ -28,9 +37,9 @@ export function SiteHeader({
          * the lockup left and the nav pushed right, which is what lines it up
          * with the column of cards below.
          */}
-        <div className="flex flex-col items-center gap-3 px-4 py-4 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-6 sm:gap-y-2 sm:px-5 lg:col-start-2">
+        <div className="flex flex-col items-center gap-3 px-4 py-4 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-6 sm:gap-y-2 sm:border-l sm:border-transparent sm:px-5 lg:col-start-2 xl:col-end-4">
           <Link href="/" className="group flex items-center gap-2.5">
-            <Logo className="h-12 w-12 transition-transform duration-200 group-hover:scale-105" />
+            <Logo className="h-12 w-12 transition-transform duration-200 group-hover:scale-105 sm:h-14 sm:w-14" />
             <span className="label text-3xl leading-none font-semibold sm:text-2xl">
               <span className="text-white">NBA</span>
               <span className="text-accent">Rumors</span>
