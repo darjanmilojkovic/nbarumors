@@ -111,8 +111,14 @@ export default async function PlayerPage({
           </p>
         </div>
       </div>
-      {/* Same panel the feed uses, so the column is ruled on all four sides. */}
-      <div className="border-x border-rule bg-surface">
+      {/*
+       * border-t as well as border-x. On the feed this panel opens with the
+       * sticky filter bar, which carries its own bottom rule, so the chrome
+       * above is always divided from the first card. Here it opens straight
+       * onto a card, and the lockup ran into the list on nothing but a change
+       * of background.
+       */}
+      <div className="border-x border-t border-rule bg-surface">
         {total === 0 ? (
           <p className="px-4 py-16 text-center text-sm text-muted">
             Nothing on this player yet.
