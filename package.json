@@ -51,7 +51,8 @@
     "sync:images": "tsx src/scripts/sync-images.ts",
     "merge:players": "tsx src/scripts/merge-duplicate-players.ts",
     "prebuild": "tsx src/scripts/sync-images.ts || echo \"sync:images failed — building with the committed manifest\"",
-    "sync:transactions": "tsx src/scripts/sync-transactions.ts"
+    "sync:transactions": "tsx src/scripts/sync-transactions.ts",
+    "make:icons": "tsx src/scripts/make-icons.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
