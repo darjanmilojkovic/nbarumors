@@ -86,11 +86,181 @@ export async function fetchOfficialRoster(
   });
 }
 
+/**
+ * Fill in NBA player ids we are missing, from the league's all-time index.
+ *
+ * `Historical=1` returns 5,208 players rather than the 582 on current rosters,
+ * which is the difference between rating a retired star and rating him zero.
+ * Carmelo Anthony had no id, so his awards were never read and he scored
+ * nothing at all on the career half — a top-ten all-time scorer sorting below
+ * two-way signings.
+ *
+ * Matched on name, since an id is exactly what we lack. Suffixes are tolerated
+ * in both directions: the league writes "Marcus Morris Sr." where we hold
+ * "Marcus Morris", and only one of the two spellings can be right.
+ */
+export async function backfillPlayerIds(): Promise<{
+  indexed: number;
+  matched: number;
+}> {
+  const season = nbaSeason();
+  const res = await fetch(
+    `https://stats.nba.com/stats/playerindex?LeagueID=00&Season=${season}` +
+      `&Historical=1&TeamID=0`,
+    { headers: HEADERS },
+  );
+  if (!res.ok) throw new Error(`playerindex historical: HTTP ${res.status}`);
+  const json = (await res.json()) as {
+    resultSets: { headers: string[]; rowSet: unknown[][] }[];
+  };
+  const set = json.resultSets[0];
+  const iId = set.headers.indexOf("PERSON_ID");
+  const iFirst = set.headers.indexOf("PLAYER_FIRST_NAME");
+  const iLast = set.headers.indexOf("PLAYER_LAST_NAME");
+
+  const SUFFIX = /\s+(jr|sr|ii|iii|iv|v)\.?$/i;
+  const key = (name: string) =>
+    name
+      .normalize("NFKD")
+      .replace(/[̀-ͯ]/g, "")
+      .toLowerCase()
+      .replace(SUFFIX, "")
+      .replace(/[^a-z ]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  /*
+   * Two indexes, and the loose one refuses ambiguity.
+   *
+   * Suffix-stripping exists because the league writes "Marcus Morris Sr."
+   * where we hold "Marcus Morris". It also collapses fathers onto sons, and
+   * the NBA is full of those: Payton, Hardaway, Porter, Wade, Rivers, Barry.
+   * Taking the first match gave Gary Payton Jr. the 1996 Defensive Player of
+   * the Year and Tim Hardaway Jr. his father's five All-Star selections —
+   * both jumped from 0 to a floored 100 in a dry run.
+   *
+   * So an exact name wins outright, and a suffix-insensitive match is only
+   * used when it lands on exactly one player.
+   */
+  const exact = new Map<string, string>();
+  const loose = new Map<string, Set<string>>();
+  const strict = (name: string) =>
+    name
+      .normalize("NFKD")
+      .replace(/[̀-ͯ]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z ]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  for (const row of set.rowSet) {
+    const name = `${row[iFirst]} ${row[iLast]}`;
+    const id = String(row[iId]);
+    if (!exact.has(strict(name))) exact.set(strict(name), id);
+    const k = key(name);
+    const seen = loose.get(k) ?? new Set<string>();
+    seen.add(id);
+    loose.set(k, seen);
+  }
+
+  const lookup = (name: string): string | undefined => {
+    const hit = exact.get(strict(name));
+    if (hit) return hit;
+    const candidates = loose.get(key(name));
+    return candidates?.size === 1 ? [...candidates][0] : undefined;
+  };
+
+  const missing = await db
+    .select({ id: players.id, fullName: players.fullName })
+    .from(players)
+    .where(sql`${players.nbaPlayerId} is null`);
+
+  /*
+   * The id is unique, and stripping suffixes to match names means two of our
+   * rows can land on one player: "Marcus Morris" and "Marcus Morris Sr." are
+   * the same person, and one of them is a duplicate we have not merged yet.
+   * Taking every id already in use, plus the ones assigned during this run,
+   * makes the second claim a no-op rather than a crash.
+   */
+  const used = new Set(
+    (
+      await db
+        .select({ nbaPlayerId: players.nbaPlayerId })
+        .from(players)
+        .where(sql`${players.nbaPlayerId} is not null`)
+    ).map((r) => String(r.nbaPlayerId)),
+  );
+
+  let matched = 0;
+  for (const p of missing) {
+    const nbaId = lookup(p.fullName);
+    if (!nbaId || used.has(nbaId)) continue;
+    used.add(nbaId);
+    await db
+      .update(players)
+      .set({ nbaPlayerId: nbaId })
+      .where(eq(players.id, p.id));
+    matched++;
+  }
+
+  return { indexed: set.rowSet.length, matched };
+}
+
+export type RosterStatus = {
+  nbaPlayerId: string;
+  active: boolean;
+  /** Last season the player appeared in, e.g. 2025. */
+  toYear: number | null;
+};
+
+/**
+ * Who is currently on an NBA roster, as the league states it.
+ *
+ * `commonallplayers` carries a ROSTERSTATUS flag across all 5,208 players it
+ * has ever listed, which is the one thing no amount of inference gets right.
+ * Absence from the current roster index cannot tell a retirement from an
+ * unsigned free agent, and both are common in an offseason: Chris Paul and
+ * Russell Westbrook retired, while a free agent who signs next week is just as
+ * absent today. Guessing either way mislabels the other.
+ *
+ * TO_YEAR comes along for free and says when a career ended.
+ */
+export async function fetchRosterStatus(
+  season = nbaSeason(),
+): Promise<RosterStatus[]> {
+  const res = await fetch(
+    `https://stats.nba.com/stats/commonallplayers?LeagueID=00` +
+      `&Season=${season}&IsOnlyCurrentSeason=0`,
+    { headers: HEADERS },
+  );
+  if (!res.ok) throw new Error(`commonallplayers: HTTP ${res.status}`);
+
+  const json = (await res.json()) as {
+    resultSets: { headers: string[]; rowSet: unknown[][] }[];
+  };
+  const set = json.resultSets[0];
+  const at = (n: string) => set.headers.indexOf(n);
+  const iId = at("PERSON_ID");
+  const iStatus = at("ROSTERSTATUS");
+  const iTo = at("TO_YEAR");
+  if (iId < 0 || iStatus < 0) {
+    throw new Error(`commonallplayers: columns ${set.headers.join(",")}`);
+  }
+
+  return set.rowSet.map((row) => ({
+    nbaPlayerId: String(row[iId]),
+    active: Number(row[iStatus]) === 1,
+    toYear: iTo >= 0 ? (Number(row[iTo]) || null) : null,
+  }));
+}
+
 export type RosterSyncResult = {
   listed: number;
   matched: number;
   moved: number;
   season: string;
+  /** Players whose active flag changed. */
+  statusChanged: number;
 };
 
 /**
@@ -142,6 +312,89 @@ export async function syncOfficialRoster(
       .where(eq(players.id, player.id));
   }
 
+  /*
+   * Then the active flag, straight from ROSTERSTATUS.
+   *
+   * is_active was orphaned when the Basketball-Reference roster scraper went,
+   * exactly as current_team_id had been, and it decides who appears on
+   * /players. Frozen, it had Damian Lillard, Kyrie Irving and Tyrese
+   * Haliburton down as inactive while they were on rosters.
+   *
+   * Read rather than inferred. Absence from a roster cannot separate a
+   * retirement from an unsigned free agent — Chris Paul and Russell Westbrook
+   * retired, and both look identical to a free agent who signs next week. The
+   * league states which is which, so nothing here has to guess.
+   *
+   * Players we hold no NBA id for are left alone: the feed never had a chance
+   * to mention them, and marking them inactive on that basis is what the old
+   * scraper did when it opened by setting the whole table false.
+   */
+  let statusChanged = 0;
+  try {
+    const status = await fetchRosterStatus(season);
+    const active = new Set(
+      status.filter((s) => s.active).map((s) => s.nbaPlayerId),
+    );
+    if (active.size === 0) throw new Error("no active players in the response");
+
+    /*
+     * Plus anyone our own completed reporting has just signed somewhere.
+     *
+     * ROSTERSTATUS lags the same way the roster does. DeMar DeRozan signed for
+     * Denver in a post dated 21 August and the league still had him at
+     * status 0, last season 2025 — indistinguishable from Chris Paul, who
+     * actually retired. The difference is that DeRozan has a completed signing
+     * behind him and Paul does not, which is a question our own data answers.
+     */
+    const recentlySigned = await db.execute(sql`
+      select distinct p.nba_player_id
+      from players p
+      join rumor_players rp on rp.player_id = p.id
+      join rumors r on r.id = rp.rumor_id
+      where p.nba_player_id is not null
+        and r.is_published
+        and r.status in ('completed', 'confirmed')
+        and r.published_at > now() - interval '30 days'
+        and (
+          rp.to_team_id is not null
+          or exists (
+            select 1 from rumor_teams rt
+            where rt.rumor_id = r.id and rt.role = 'to'
+          )
+        )
+    `);
+    for (const row of (recentlySigned.rows ?? recentlySigned) as unknown as {
+      nba_player_id: string;
+    }[]) {
+      active.add(String(row.nba_player_id));
+    }
+
+    const known = status.map((s) => s.nbaPlayerId);
+    const rows = await db
+      .select({
+        id: players.id,
+        nbaPlayerId: players.nbaPlayerId,
+        isActive: players.isActive,
+      })
+      .from(players)
+      .where(inArray(players.nbaPlayerId, known));
+
+    for (const p of rows) {
+      const should = active.has(String(p.nbaPlayerId));
+      if (p.isActive === should) continue;
+      statusChanged++;
+      await db
+        .update(players)
+        .set({ isActive: should })
+        .where(eq(players.id, p.id));
+    }
+  } catch {
+    /*
+     * The team assignments above are already written and are the more valuable
+     * half. A failure here leaves the flag as it was rather than losing both.
+     */
+  }
+
   void sql;
-  return { listed: roster.length, matched: byNbaId.size, moved, season };
+  return { listed: roster.length, matched: byNbaId.size, moved, season, statusChanged };
 }

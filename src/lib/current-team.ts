@@ -65,15 +65,60 @@ const BEST_TEAM = sql`
     where tr.kind in ${ARRIVAL_KINDS}
     order by p.id, tr.occurred_at desc
   ),
-  posts as (
-    select distinct on (rp.player_id)
-      rp.player_id, rp.to_team_id as team_id, r.published_at as at
+  /*
+   * Our own completed reporting, taking the destination from the post when the
+   * player row does not carry one.
+   *
+   * rumor_players.to_team_id is only filled when a post moves more than one
+   * player; on an ordinary signing the destination lives on the post itself.
+   * Reading only the player column therefore threw away most of the evidence
+   * we had: of 568 completed posts with a primary player, 70 carried a
+   * player-level destination and 484 carried it on the post. DeMar DeRozan
+   * signed for Denver in a post dated 21 August and still read Sacramento.
+   *
+   * The post-level team is used only when there is exactly ONE primary player.
+   * A trade names both a from and a to and moves two people in opposite
+   * directions, so attributing its destination to everyone in it would send
+   * both sides to the same club.
+   */
+  post_moves as (
+    select
+      rp.player_id,
+      coalesce(
+        rp.to_team_id,
+        case
+          when (
+            select count(*) from rumor_players x
+            where x.rumor_id = r.id and x.is_primary
+          ) = 1 and rp.is_primary
+          then (
+            select rt.team_id from rumor_teams rt
+            where rt.rumor_id = r.id and rt.role = 'to'
+            limit 1
+          )
+        end
+      ) as team_id,
+      r.published_at as at,
+      r.id as rumor_id
     from rumor_players rp
     join rumors r on r.id = rp.rumor_id
     where r.is_published
       and r.status in ('completed', 'confirmed')
-      and rp.to_team_id is not null
-    order by rp.player_id, r.published_at desc, r.id desc
+  ),
+  /*
+   * Only rows that actually name a destination.
+   *
+   * Filtering after the coalesce rather than before it, because a completed
+   * post can resolve no team at all — a two-way trade, or a signing whose club
+   * was never tagged. Letting those into the ranking made the newest such post
+   * win and answer "nowhere": Anthony Davis, Giannis Antetokounmpo and Stephen
+   * Curry all lost their club to a later post that named none.
+   */
+  posts as (
+    select distinct on (player_id) player_id, team_id, at
+    from post_moves
+    where team_id is not null
+    order by player_id, at desc, rumor_id desc
   ),
   /*
    * The league's own roster, written onto the player by the roster sync along
