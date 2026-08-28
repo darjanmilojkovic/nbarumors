@@ -41,7 +41,9 @@ export function SiteHeader({
           <Link href="/" className="group flex items-center gap-2.5">
             <Logo className="h-12 w-12 transition-transform duration-200 group-hover:scale-105 sm:h-14 sm:w-14" />
             <span className="label text-3xl leading-none font-semibold sm:text-2xl">
-              <span className="text-white">NBA</span>
+              <span className="text-white transition-colors group-hover:text-link">
+                NBA
+              </span>
               <span className="text-accent">Rumors</span>
             </span>
           </Link>
