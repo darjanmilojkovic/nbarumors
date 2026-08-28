@@ -67,7 +67,6 @@ export default async function TeamPage({
   return (
     <WireShell
       teamLabel={`${team.city} ${team.name}`}
-      teamLogoUrl={team.logoUrl}
       teamSlug={team.slug}
     >
       <div className="mb-6 flex items-center gap-4 px-4 pt-8 sm:px-0">

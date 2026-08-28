@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
 
@@ -12,12 +11,9 @@ import { Logo } from "@/components/Logo";
  */
 export function SiteHeader({
   teamLabel,
-  teamLogoUrl,
   playerLabel,
 }: {
   teamLabel?: string;
-  /** Shown in place of the team name on phones only. See the nav below. */
-  teamLogoUrl?: string | null;
   playerLabel?: string;
 }) {
   return (
@@ -47,38 +43,12 @@ export function SiteHeader({
            * current page instead made it a link that does nothing.
            */}
           <nav className="label flex w-full min-w-0 justify-center gap-6 text-sm text-body sm:ml-auto sm:w-auto sm:justify-end sm:gap-8 sm:text-base">
-            {/*
-             * On a phone the team is its mark, not its name.
-             *
-             * Two labels and a lockup do not fit one line at 390px, so
-             * "Minnesota Timberwolves" rendered as "MINNESOTA TIMBERW…" — a
-             * truncation that costs the reader the only word that identifies
-             * the team. The logo says it in 20 pixels and cannot be cut off.
-             *
-             * Phones only. From sm up there is room for the full name, and a
-             * word is easier to aim at with a mouse than a small mark.
-             */}
             <Link
               href="/teams"
               title={teamLabel ? "Back to all teams" : undefined}
-              aria-label={teamLabel ? `${teamLabel} — back to all teams` : undefined}
-              className={`flex items-center truncate hover:text-link ${teamLabel ? "text-link" : ""}`}
+              className={`truncate hover:text-link ${teamLabel ? "text-link" : ""}`}
             >
-              {teamLogoUrl && teamLabel ? (
-                <>
-                  <Image
-                    src={teamLogoUrl}
-                    alt=""
-                    width={32}
-                    height={32}
-                    className="h-6 w-6 object-contain sm:hidden"
-                    unoptimized
-                  />
-                  <span className="hidden truncate sm:inline">{teamLabel}</span>
-                </>
-              ) : (
-                teamLabel ?? "All Teams"
-              )}
+              {teamLabel ?? "All Teams"}
             </Link>
             <Link
               href="/players"

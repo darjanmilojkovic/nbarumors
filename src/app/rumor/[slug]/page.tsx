@@ -143,7 +143,6 @@ export default async function RumorPage({ params }: PageProps<"/rumor/[slug]">) 
     <WireShell
       teamSlug={subjectTeam?.slug}
       teamLabel={subjectTeam ? `${subjectTeam.city} ${subjectTeam.name}` : undefined}
-      teamLogoUrl={subjectTeam?.logoUrl}
       playerLabel={subjectPlayer?.fullName}
     >
       <div className="border-x border-b border-rule bg-surface">

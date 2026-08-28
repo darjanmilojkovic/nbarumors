@@ -168,15 +168,12 @@ async function RightRail() {
 export function WireShell({
   children,
   teamLabel,
-  teamLogoUrl,
   playerLabel,
   teamSlug,
   pinHeader = true,
 }: {
   children: React.ReactNode;
   teamLabel?: string;
-  /** Passed straight to SiteHeader, which shows it on phones only. */
-  teamLogoUrl?: string | null;
   playerLabel?: string;
   teamSlug?: string;
   /**
@@ -210,10 +207,10 @@ export function WireShell({
        */}
       {pinHeader ? (
         <RevealHeader>
-          <SiteHeader teamLabel={teamLabel} teamLogoUrl={teamLogoUrl} playerLabel={playerLabel} />
+          <SiteHeader teamLabel={teamLabel} playerLabel={playerLabel} />
         </RevealHeader>
       ) : (
-        <SiteHeader teamLabel={teamLabel} teamLogoUrl={teamLogoUrl} playerLabel={playerLabel} />
+        <SiteHeader teamLabel={teamLabel} playerLabel={playerLabel} />
       )}
       <div className="mx-auto grid max-w-[1280px] grid-cols-1 items-start px-0 sm:px-5 lg:grid-cols-[230px_minmax(0,1fr)] xl:grid-cols-[230px_minmax(0,1fr)_300px]">
         <LeftRail teamSlug={teamSlug} />
