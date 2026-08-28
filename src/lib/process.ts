@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { feedItems, rumors, sources } from "@/db/schema";
 import { FETCH_ARTICLE_SOURCES, bestText } from "@/lib/article";
 import { extractRumor, modelFor } from "@/lib/extract";
+import { GATE_REASON, worthExtracting } from "@/lib/gate";
 import { pendingItems, publishExtraction } from "@/lib/publish";
 
 export type ProcessResult = {
@@ -12,6 +13,8 @@ export type ProcessResult = {
   merged: number;
   held: number;
   rejected: number;
+  /** Screened out before extraction, so never sent to the expensive model. */
+  gated: number;
   errors: number;
   /** Items whose article was fetched because the feed only gave a teaser. */
   fetched: number;
@@ -65,6 +68,7 @@ export async function runExtraction(limit = 50): Promise<ProcessResult> {
   let merged = 0;
   let held = 0;
   let rejected = 0;
+  let gated = 0;
   let errors = 0;
   let fetched = 0;
   const fetchFailures: string[] = [];
@@ -78,6 +82,25 @@ export async function runExtraction(limit = 50): Promise<ProcessResult> {
 
   const handle = async (item: (typeof items)[number]) => {
     try {
+      /*
+       * Screen before the article fetch, not just before extraction. An MLB
+       * broadcast listing should cost neither an Opus call nor a page load.
+       *
+       * The teaser is all this sees, which is the point — it is the same
+       * headline and 200 characters the evaluation scored, where it blocked
+       * 81% of what extraction went on to reject and passed 99% of what it
+       * kept. Recorded with its own reason rather than dropped, so the 1% it
+       * turns away wrongly can be found later instead of vanishing.
+       */
+      if (!(await worthExtracting(item))) {
+        gated++;
+        await db
+          .update(feedItems)
+          .set({ processedAt: new Date(), rejectedReason: GATE_REASON })
+          .where(eq(feedItems.id, item.id));
+        return;
+      }
+
       /*
        * Read the article rather than the teaser, where the outlet's feed only
        * carries one. Never fatal: a fetch that fails returns the teaser, so a
@@ -150,6 +173,7 @@ export async function runExtraction(limit = 50): Promise<ProcessResult> {
 
   return {
     byModel: Object.fromEntries(byModel),
+    gated,
     examined: items.length,
     published,
     merged,
