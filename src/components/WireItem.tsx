@@ -747,7 +747,24 @@ export function WireItem({
              */}
             {rumor.chain.length > 1 && (
               <details className="mt-3 group">
-                <summary className="cursor-pointer font-mono text-[11px] tracking-wider text-corroborated uppercase marker:content-[''] hover:text-corroborated/80">
+                {/*
+                 * Three rules to hide one triangle, because the browsers
+                 * disagree about what the triangle is.
+                 *
+                 * Chrome and Firefox expose it as ::marker, which
+                 * marker:content-[''] empties. Tailwind does also emit a
+                 * ::-webkit-details-marker selector for that variant — checking
+                 * the built CSS confirms it — but it sets `content`, and WebKit
+                 * ignores content on that pseudo-element. It only honours
+                 * display, so Safari went on drawing the disclosure arrow and
+                 * rotating it on open. That is what the explicit hidden rule is
+                 * for; list-none covers the standards path, where the marker
+                 * comes from summary being display:list-item.
+                 *
+                 * It reads as a mobile-only bug because desktop testing happens
+                 * in Chrome. Desktop Safari has always done the same thing.
+                 */}
+                <summary className="cursor-pointer list-none font-mono text-[11px] tracking-wider text-corroborated uppercase marker:content-[''] [&::-webkit-details-marker]:hidden hover:text-corroborated/80">
                   + {rumor.chain.length} reports
                   {rumor.sourceCount > 1 && ` from ${rumor.sourceCount} outlets`}
                 </summary>
