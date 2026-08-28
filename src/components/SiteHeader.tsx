@@ -18,12 +18,38 @@ import { Logo } from "@/components/Logo";
  * monitor was not. Spanning it costs nothing, since the rail is empty at this
  * height, and the lockup does not move — only the right edge does.
  */
+/**
+ * One label, two lengths.
+ *
+ * Both are rendered and CSS picks; the alternative is measuring the viewport,
+ * which the server cannot do and which would flip the label after hydration.
+ *
+ * Below sm the nav sits on its own centred line with two labels sharing it, and
+ * the full versions do not fit: "Minnesota Timberwolves" and "Donte
+ * DiVincenzo" both truncated to an ellipsis, which is the one outcome worse
+ * than shortening, because the reader cannot tell which team or which player.
+ */
+function Label({ short, full }: { short: string; full: string }) {
+  return (
+    <>
+      <span className="sm:hidden">{short}</span>
+      <span className="hidden sm:inline">{full}</span>
+    </>
+  );
+}
+
 export function SiteHeader({
   teamLabel,
+  teamShort,
   playerLabel,
+  playerShort,
 }: {
   teamLabel?: string;
+  /** Nickname alone — "Timberwolves" rather than "Minnesota Timberwolves". */
+  teamShort?: string;
   playerLabel?: string;
+  /** Surname alone — "DiVincenzo" rather than "Donte DiVincenzo". */
+  playerShort?: string;
 }) {
   return (
     <header className="border-b-2 border-rule bg-ink">
@@ -59,14 +85,22 @@ export function SiteHeader({
               title={teamLabel ? "Back to all teams" : undefined}
               className={`truncate hover:text-link ${teamLabel ? "text-link" : ""}`}
             >
-              {teamLabel ?? "All Teams"}
+              {teamLabel ? (
+                <Label short={teamShort ?? teamLabel} full={teamLabel} />
+              ) : (
+                "All Teams"
+              )}
             </Link>
             <Link
               href="/players"
               title={playerLabel ? "Back to all players" : undefined}
               className={`truncate hover:text-link ${playerLabel ? "text-link" : ""}`}
             >
-              {playerLabel ?? "All Players"}
+              {playerLabel ? (
+                <Label short={playerShort ?? playerLabel} full={playerLabel} />
+              ) : (
+                "All Players"
+              )}
             </Link>
           </nav>
         </div>

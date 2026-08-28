@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Quoted } from "@/components/Quoted";
+import { surname } from "@/lib/names";
 import { toParagraphs } from "@/lib/paragraphs";
 import type { FeedRumor } from "@/lib/queries";
 
@@ -117,9 +118,6 @@ function agoPhrase(d: Date, now = new Date()) {
     ? `${months}mo ago`
     : `${Math.floor(months / MONTHS_PER_YEAR)}y ago`;
 }
-
-/** Generational suffixes, which are part of the surname rather than after it. */
-const SUFFIXES = new Set(["jr", "sr", "ii", "iii", "iv", "v"]);
 
 const initials = (name: string) =>
   name
@@ -275,23 +273,6 @@ export function WireItem({
    * sorted first and state something the post does not. Two of 200 land in
    * that case, and they keep the bare team arrow.
    */
-  /**
-   * The last name, carrying its suffix.
-   *
-   * Taking the final word alone turned 68 players into "Jr." or "III" —
-   * "Jr. MIL → MIA" for Kevin Porter Jr., and the same for Jaren Jackson Jr.,
-   * Michael Porter Jr. and Trey Murphy III. The suffix stays attached because
-   * it is part of how these players are named, and because dropping it would
-   * collapse Michael Porter Jr. and Kevin Porter onto one label.
-   */
-  const surname = (name: string) => {
-    const parts = name.trim().split(/\s+/);
-    const tail = parts[parts.length - 1];
-    return parts.length > 2 && SUFFIXES.has(tail.toLowerCase().replace(/\.$/, ""))
-      ? `${parts[parts.length - 2]} ${tail}`
-      : tail;
-  };
-
   const movements: string[] =
     moves.length > 0
       ? moves.map((p) => `${surname(p.fullName)} ${p.fromAbbrev} → ${p.toAbbrev}`)

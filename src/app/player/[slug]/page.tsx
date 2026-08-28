@@ -5,6 +5,7 @@ import { cache } from "react";
 import { WireItem } from "@/components/WireItem";
 import { Pager } from "@/components/Pager";
 import { WireShell } from "@/components/WireShell";
+import { surname } from "@/lib/names";
 import { playerBySlug, playerRedirectFor, rumorsForPlayer } from "@/lib/queries";
 import { SITE } from "@/lib/site";
 
@@ -77,6 +78,7 @@ export default async function PlayerPage({
   return (
     <WireShell
       playerLabel={player.fullName}
+      playerShort={surname(player.fullName)}
     >
       {/* Mirrors the team page lockup: mark first, then name and count. */}
       <div className="mb-6 flex items-center gap-4 px-4 pt-8 sm:px-0">

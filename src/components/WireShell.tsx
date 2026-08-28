@@ -168,13 +168,19 @@ async function RightRail() {
 export function WireShell({
   children,
   teamLabel,
+  teamShort,
   playerLabel,
+  playerShort,
   teamSlug,
   pinHeader = true,
 }: {
   children: React.ReactNode;
   teamLabel?: string;
+  /** Nickname alone, shown in place of the full name on phones. */
+  teamShort?: string;
   playerLabel?: string;
+  /** Surname alone, shown in place of the full name on phones. */
+  playerShort?: string;
   teamSlug?: string;
   /**
    * Whether the masthead pins to the top on mobile.
@@ -207,10 +213,20 @@ export function WireShell({
        */}
       {pinHeader ? (
         <RevealHeader>
-          <SiteHeader teamLabel={teamLabel} playerLabel={playerLabel} />
+          <SiteHeader
+            teamLabel={teamLabel}
+            teamShort={teamShort}
+            playerLabel={playerLabel}
+            playerShort={playerShort}
+          />
         </RevealHeader>
       ) : (
-        <SiteHeader teamLabel={teamLabel} playerLabel={playerLabel} />
+        <SiteHeader
+            teamLabel={teamLabel}
+            teamShort={teamShort}
+            playerLabel={playerLabel}
+            playerShort={playerShort}
+          />
       )}
       <div className="mx-auto grid max-w-[1280px] grid-cols-1 items-start px-0 sm:px-5 lg:grid-cols-[230px_minmax(0,1fr)] xl:grid-cols-[230px_minmax(0,1fr)_300px]">
         <LeftRail teamSlug={teamSlug} />
