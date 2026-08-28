@@ -249,8 +249,28 @@ export async function extractRumor(item: {
       effort: "low",
       format: { type: "json_schema", schema: SCHEMA },
     },
+    /*
+     * A one-hour cache, not the five-minute default.
+     *
+     * The system prompt and the schema are ~6,400 tokens and cache together,
+     * but the extract cron fires every 30 minutes and a default entry has
+     * expired long before the next run reaches it, so every run started cold.
+     * Measured over three days, 311 of 901 calls paid the cache WRITE rate of
+     * 1.25x rather than the read rate of 0.1x, and that was most of the bill.
+     * An hour outlives the gap between runs, so a run inherits the entry the
+     * last one wrote. A 1h write costs 2x rather than 1.25x; at one write an
+     * hour against roughly a hundred, that trade is heavily one-sided.
+     *
+     * Deliberately not applied to enrich.ts or same-story.ts. Both are called
+     * only on merge paths, far less often than hourly, so a longer entry there
+     * would pay the higher write price and expire unread.
+     */
     system: [
-      { type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } },
+      {
+        type: "text",
+        text: SYSTEM,
+        cache_control: { type: "ephemeral", ttl: "1h" },
+      },
     ],
     messages: [
       {

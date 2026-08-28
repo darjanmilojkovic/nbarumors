@@ -76,7 +76,7 @@ export async function runExtraction(limit = 50): Promise<ProcessResult> {
    */
   const byModel = new Map<string, number>();
 
-  await pool(items, 4, async (item) => {
+  const handle = async (item: (typeof items)[number]) => {
     try {
       /*
        * Read the article rather than the teaser, where the outlet's feed only
@@ -134,7 +134,19 @@ export async function runExtraction(limit = 50): Promise<ProcessResult> {
         })
         .where(eq(feedItems.id, item.id));
     }
-  });
+  };
+
+  /*
+   * One item first, alone, then the rest four at a time.
+   *
+   * The four workers used to start together on a cold cache, so all four
+   * missed and all four WROTE the same ~6,400-token prefix at 1.25x. Priming
+   * it with a single call means the other three read it at 0.1x instead. With
+   * a median batch of five, that was three redundant writes in every run.
+   */
+  const [first, ...rest] = items;
+  if (first) await handle(first);
+  await pool(rest, 4, handle);
 
   return {
     byModel: Object.fromEntries(byModel),
