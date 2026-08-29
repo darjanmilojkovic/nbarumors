@@ -304,11 +304,19 @@ export function outletName(
 
   /*
    * A known host resolves to its masthead regardless of how the item reached
-   * us. Deferring to `sources.name` alone was not enough: gnews-woj-shams is
-   * still enabled and carried 132 items in the last thirty days, thirty of
-   * them from heavy.com — and for those the source row says "Google News", so
-   * the fallback handed the model the hostname anyway. The exact case this was
-   * meant to fix, arriving by the other door.
+   * us, rather than depending on the source row being well named.
+   *
+   * Correcting what this comment said first: it claimed gnews-woj-shams
+   * carried thirty heavy.com items, which was three Google News sources added
+   * together and attributed to one. That feed is a search for "NBA sources
+   * tell ESPN trade OR sign" and has delivered fifteen items, every one of
+   * them ESPN. The thirty heavy.com items came through gnews-trade-rumors,
+   * which has been off since 26 August.
+   *
+   * The volume that matters is on the direct feeds, all enabled: yahoo 608,
+   * heavy 212, sportando 143, fadeaway 109, realgm 106. Those already resolved
+   * through `sources.name`. What the map adds is the Google News tail —
+   * espn.in, bballrumors.com — and independence from source naming.
    */
   const known = HOST_NAMES[name.toLowerCase()];
   if (known) return known;
