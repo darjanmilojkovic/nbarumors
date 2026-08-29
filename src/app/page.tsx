@@ -11,47 +11,40 @@ import { CHIP_LABEL, CHIP_ORDER } from "@/lib/beats";
 export const revalidate = 300;
 
 /*
- * Four views, three of them genuinely different questions:
+ * Four tabs, four different questions — the labels were three variations on
+ * "the important ones" before:
  *
- *   live       shown as Trending: what matters right now, prominence decayed by age
- *   latest     the wire as it came in, newest first, nothing weighted
- *   top        the biggest stories, with recency deliberately absent
- *   confirmed  a filter rather than an ordering
+ *   Trending    what matters now, prominence decayed by age
+ *   Latest      the wire as it came in, newest first, nothing weighted
+ *   Top Rated   the biggest stories, with recency deliberately absent
+ *   Confirmed   the ones that actually happened — a filter, not an ordering
+ *
+ * Trending leads and is the default, so the highlighted tab is the first one.
+ * Keys are frozen: "live", "top" and "confirmed" appear in every /?tab= link
+ * ever shared, so only the labels move.
+ *
+ * Confirmed stays Confirmed. "Done Deals" was considered and rejected: it is
+ * the badge these posts already carry and the heading the right rail already
+ * uses for them, so all three would have agreed — but that rail card sits
+ * beside this column on the feed, and a tab echoing it a few hundred pixels
+ * away reads as redundancy rather than consistency.
  *
  * Trending and Latest were briefly the same thing. The left rail links to
  * "/", which is Trending, so making the rail chronological quietly took the
  * ranking away from the default landing page — the one most people ever see.
- */
-/*
- * Latest sits first, Trending second, and Trending is still the default.
  *
- * Position and default are independent here: `href` omits the parameter when
- * the tab is "live", so "/" is Trending wherever the tab is drawn. The one
- * thing to know is that landing on "/" now highlights the SECOND tab rather
- * than the first, which is unusual — first position normally implies default.
- * That is the trade being made, not an oversight.
+ * On Top Rated, corroboration does most of the separating: it is worth up to
+ * 36 points, and the prominence floors put around 35 players at exactly 100,
+ * so prominence saturates at the top and the outlet count decides. That is a
+ * proxy for importance rather than a contradiction of it — seven of the first
+ * ten are the biggest stories of the period, the other three well-covered
+ * trivia. If those grate, the corroboration multiplier is the lever, not
+ * prominence. See TOP in lib/queries.
  */
 const TABS = [
-  { key: "latest", label: "Latest" },
-  // The key stays "live": it is in every /?tab= link already shared.
   { key: "live", label: "Trending" },
-  /*
-   * The key stays "top" — it is in shared /?tab=top links — but "Top" said
-   * nothing "Trending" did not already imply, so the label now names the
-   * question: which stories are the biggest.
-   *
-   * That is what this ordering was built to answer, and it mostly does.
-   * Corroboration carries a lot of it — up to 36 points, and the prominence
-   * floors put around 35 players at exactly 100, so prominence saturates and
-   * the outlet count often decides the order. Outlet count is a fair proxy for
-   * importance: seven of the first ten are the biggest stories of the period.
-   * The other three are well-covered trivia, "Kings stretch DeRozan's
-   * remaining $10M salary" among them.
-   *
-   * If those start to grate, the corroboration multiplier is the lever, not
-   * prominence. See TOP in lib/queries.
-   */
-  { key: "top", label: "Biggest" },
+  { key: "latest", label: "Latest" },
+  { key: "top", label: "Top Rated" },
   { key: "confirmed", label: "Confirmed" },
 ] as const;
 
