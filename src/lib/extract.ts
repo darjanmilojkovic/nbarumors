@@ -173,7 +173,7 @@ export const SCHEMA = {
           isPrimary: {
             type: "boolean",
             description:
-              "True for the player the move is actually about.",
+              "True for EVERY player this item is about, not just the most famous one. Mark all of them. A trade has a subject on each side: 'Bulls send Braden Smith to Pacers for Kam Jones' is about both players and both are primary. A three-team idea moving three players has three. A signing has one. False only for a name that appears without moving — a teammate described for context, a player another club also wants, an executive or coach.\n\nWritten as 'the player the move is actually about', this returned exactly one primary on 73% of trades naming two players in the headline, and the site uses it to decide which player a post is filed under. 'P.J. Washington and Prince to Golden State in three-team Kyrie idea' came back with one primary, and it was none of the three players in the headline.",
           },
           fromTeam: {
             type: ["string", "null"],

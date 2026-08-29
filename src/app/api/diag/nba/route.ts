@@ -1,6 +1,6 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 /**
  * TEMPORARY. Can this deployment reach the sources sync-stats needs?
@@ -37,24 +37,10 @@ const POLITE_HEADERS = {
 };
 
 const TARGETS: [string, string, Record<string, string>][] = [
-  // What sync-stats calls today.
-  [
-    "current: leaguedashplayerstats",
-    "https://stats.nba.com/stats/leaguedashplayerstats?LeagueID=00&Season=2025-26" +
-      "&SeasonType=Regular+Season&PerMode=PerGame&MeasureType=Base&PaceAdjust=N" +
-      "&PlusMinus=N&Rank=N&Outcome=&Location=&Month=0&SeasonSegment=&DateFrom=" +
-      "&DateTo=&OpponentTeamID=0&VsConference=&VsDivision=&TeamID=0&Conference=" +
-      "&Division=&GameSegment=&Period=0&LastNGames=0&PlayerExperience=" +
-      "&PlayerPosition=&StarterBench=&DraftYear=&DraftPick=&College=&Country=" +
-      "&Height=&Weight=&TwoWay=0&ShotClockRange=&GameScope=&PORound=0",
-    NBA_HEADERS,
-  ],
-  ["current: leagueLeaders", "https://stats.nba.com/stats/leagueLeaders?LeagueID=00&PerMode=PerGame&Scope=S&Season=2025-26&SeasonType=Regular+Season&StatCategory=PTS", NBA_HEADERS],
-  // What it replaced.
-  ["replaced: basketball-reference per_game", "https://www.basketball-reference.com/leagues/NBA_2026_per_game.html", BROWSER_HEADERS],
-  ["replaced: wikipedia career scoring", "https://en.wikipedia.org/wiki/List_of_NBA_career_scoring_leaders", POLITE_HEADERS],
-  // A third option, if both above are dead: the static tree that does answer.
-  ["control: ptsd directory", "https://stats.nba.com/js/data/ptsd/stats_ptsd.js", NBA_HEADERS],
+  ["leaguedashplayerstats", "https://stats.nba.com/stats/leaguedashplayerstats?LeagueID=00&Season=2025-26&SeasonType=Regular+Season&PerMode=PerGame&MeasureType=Base&PaceAdjust=N&PlusMinus=N&Rank=N&Outcome=&Location=&Month=0&SeasonSegment=&DateFrom=&DateTo=&OpponentTeamID=0&VsConference=&VsDivision=&TeamID=0&Conference=&Division=&GameSegment=&Period=0&LastNGames=0&PlayerExperience=&PlayerPosition=&StarterBench=&DraftYear=&DraftPick=&College=&Country=&Height=&Weight=&TwoWay=0&ShotClockRange=&GameScope=&PORound=0", NBA_HEADERS],
+  ["playerawards", "https://stats.nba.com/stats/playerawards?PlayerID=2544", NBA_HEADERS],
+  ["playerindex", "https://stats.nba.com/stats/playerindex?LeagueID=00&Season=2026-27&Historical=0&TeamID=0", NBA_HEADERS],
+  ["commonallplayers", "https://stats.nba.com/stats/commonallplayers?LeagueID=00&Season=2026-27&IsOnlyCurrentSeason=0", NBA_HEADERS],
 ];
 
 export async function GET() {
@@ -63,7 +49,7 @@ export async function GET() {
     const started = Date.now();
     try {
       const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 8000);
+      const timer = setTimeout(() => ctrl.abort(), 45000);
       const res = await fetch(url, { headers, signal: ctrl.signal });
       clearTimeout(timer);
       const text = await res.text();
