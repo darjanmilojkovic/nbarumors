@@ -23,6 +23,28 @@ const BEAT_LABEL: Record<string, string> = {
   other: "Other",
 };
 
+/**
+ * Both rails start lower than their own padding would put them, so that the
+ * rule under each card's header lands on the same line as the one under the
+ * feed's filter bar.
+ *
+ * ON TRIAL from 29 Aug 2026. To revert, put both rails back to `py-6`.
+ *
+ * Measured rather than eyeballed: the filter bar's bottom border sits at 180px
+ * and the card header rules sat at 152px, so this is 24px of padding plus the
+ * 28px of difference. The three lines then read as one line across the page.
+ *
+ * The alignment only exists on the feed — a player or rumor page has no rule
+ * near the top of the centre column to meet. It is applied to every page
+ * regardless, because the alternative is rails that start at a different height
+ * depending on where you are, and 28px of extra headroom is not a defect where
+ * there is nothing to line up with.
+ *
+ * The number is tied to the height of the filter bar. If its tabs or chips
+ * change size, this needs measuring again.
+ */
+const RAIL_PADDING = "pt-[52px] pb-6";
+
 function RailHeading({ children }: { children: React.ReactNode }) {
   return (
     <h2 className="label mb-3 text-[11px] text-muted">
@@ -40,7 +62,7 @@ async function LeftRail({ teamSlug }: { teamSlug?: string }) {
   ]);
 
   return (
-    <aside className="sticky top-4 hidden py-6 pr-5 lg:block">
+    <aside className={`sticky top-4 hidden ${RAIL_PADDING} pr-5 lg:block`}>
       {/*
        * Above the beats, because it is the one thing here that answers a
        * question the reader arrived with rather than offering them a way in.
@@ -48,6 +70,37 @@ async function LeftRail({ teamSlug }: { teamSlug?: string }) {
        * rather than by a breakpoint of its own.
        */}
       <SearchBox />
+
+      {/*
+       * Teams above beats, ON TRIAL from 29 Aug 2026 — swap the two blocks back
+       * to revert.
+       *
+       * The chips are a block of shapes and the beats are a column of words, so
+       * the compact one now sits directly under the search card and the list
+       * runs to the foot of the rail.
+       */}
+      <RailHeading>Most active</RailHeading>
+      {/*
+       * A fixed 5-column grid rather than flex-wrap: every chip gets the same
+       * cell, so the block squares off and spans the rail's full width.
+       */}
+      <div className="mb-7 grid grid-cols-5 gap-1.5">
+        {teams.map((t) => (
+          <Link
+            key={t.slug}
+            href={`/team/${t.slug}`}
+            aria-pressed={teamSlug === t.slug}
+            title={`${t.abbreviation} · ${t.n} update${t.n === 1 ? "" : "s"}`}
+            className={`rounded-sm border py-1 text-center font-mono text-[11px] tracking-wide ${
+              teamSlug === t.slug
+                ? "border-link bg-link font-bold text-white"
+                : "border-rule bg-surface text-body hover:border-link hover:text-white"
+            }`}
+          >
+            {t.abbreviation}
+          </Link>
+        ))}
+      </div>
 
       <RailHeading>Beats since 2026</RailHeading>
       <nav className="mb-7 flex flex-col gap-px">
@@ -71,31 +124,6 @@ async function LeftRail({ teamSlug }: { teamSlug?: string }) {
           </Link>
         ))}
       </nav>
-
-      <RailHeading>Most active</RailHeading>
-      {/*
-       * A fixed 5-column grid rather than flex-wrap: every chip gets the same
-       * cell, so the block squares off and spans the rail's full width, in
-       * line with the counter card below it.
-       */}
-      <div className="mb-7 grid grid-cols-5 gap-1.5">
-        {teams.map((t) => (
-          <Link
-            key={t.slug}
-            href={`/team/${t.slug}`}
-            aria-pressed={teamSlug === t.slug}
-            title={`${t.abbreviation} · ${t.n} update${t.n === 1 ? "" : "s"}`}
-            className={`rounded-sm border py-1 text-center font-mono text-[11px] tracking-wide ${
-              teamSlug === t.slug
-                ? "border-link bg-link font-bold text-white"
-                : "border-rule bg-surface text-body hover:border-link hover:text-white"
-            }`}
-          >
-            {t.abbreviation}
-          </Link>
-        ))}
-      </div>
-
     </aside>
   );
 }
@@ -104,7 +132,7 @@ async function RightRail() {
   const [players, done] = await Promise.all([mostMentioned(), recentlyDone()]);
 
   return (
-    <aside className="sticky top-4 hidden border-l border-rule py-6 pl-5 xl:block">
+    <aside className={`sticky top-4 hidden border-l border-rule ${RAIL_PADDING} pl-5 xl:block`}>
       <section className="mb-5 overflow-hidden rounded-sm border border-rule bg-surface">
         <div className="flex items-baseline justify-between border-b border-rule px-3.5 py-2.5">
           <h3 className="label text-xs">
