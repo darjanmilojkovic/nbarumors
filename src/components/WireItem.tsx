@@ -139,10 +139,23 @@ const initials = (name: string) =>
 export function WireItem({
   rumor,
   preview = false,
+  headingLevel = "h2",
 }: {
   rumor: FeedRumor;
   preview?: boolean;
+  /**
+   * The tag the headline renders as, and nothing else — the classes are the
+   * same either way, so the two are pixel-identical.
+   *
+   * In a list every card is one of many and h2 is right. On its own page the
+   * post IS the page, and rumor pages were shipping with eight h2s and no h1
+   * at all, alone among the page types: the feed, player, team, /players and
+   * /teams all have exactly one.
+   */
+  headingLevel?: "h1" | "h2";
 }) {
+  /* Capitalised so JSX reads it as a component rather than a literal tag. */
+  const Heading = headingLevel;
   const state = STATE[rumor.status] ?? STATE.rumor;
 
   const paragraphs = toParagraphs(rumor.body);
@@ -529,11 +542,11 @@ export function WireItem({
            * each line to the edge, which is what a headline should do; the
            * occasional one-word last line is the cheaper price.
            */}
-          <h2 className="display mb-2 text-xl text-white sm:text-[26px]">
+          <Heading className="display mb-2 text-xl text-white sm:text-[26px]">
             <Link href={`/rumor/${rumor.slug}`} className="hover:text-link">
               {rumor.headline}
             </Link>
-          </h2>
+          </Heading>
 
           {/*
            * 15.5px on 28px — a 1.8 ratio, following the reference. It looks

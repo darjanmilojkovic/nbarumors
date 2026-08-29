@@ -49,6 +49,19 @@ export async function generateMetadata({
       ? rumor.body
       : `${rumor.body.slice(0, 200).replace(/\s+\S*$/, "")}…`;
 
+  /*
+   * The post's own artwork as the share card.
+   *
+   * Every post carried og:title, description, type and url and no image at
+   * all, so a link shared to Slack, X or iMessage rendered as a grey text box.
+   * 673 of 720 posts have artwork and it averages 1199px wide, which is what
+   * summary_large_image wants — so the wide card is used when there is a real
+   * image and the small one when we fall back to the site mark.
+   *
+   * The URL is absolute already (Wikimedia), so it needs no metadataBase.
+   */
+  const share = rumor.imageUrl;
+
   return {
     title: rumor.headline,
     description,
@@ -58,8 +71,15 @@ export async function generateMetadata({
       description,
       type: "article",
       publishedTime: rumor.publishedAt.toISOString(),
+      ...(rumor.bodyUpdatedAt
+        ? { modifiedTime: rumor.bodyUpdatedAt.toISOString() }
+        : {}),
       url: `${SITE.url}/rumor/${rumor.slug}`,
+      ...(share ? { images: [{ url: share, alt: rumor.headline }] } : {}),
     },
+    twitter: share
+      ? { card: "summary_large_image", title: rumor.headline, description, images: [share] }
+      : undefined,
   };
 }
 
@@ -168,6 +188,65 @@ export default async function RumorPage({ params }: PageProps<"/rumor/[slug]">) 
       playerLabel={subjectPlayer?.fullName}
       playerShort={subjectPlayer ? surname(subjectPlayer.fullName) : undefined}
     >
+      {/*
+       * Structured data. Renders nothing — a script of this type is data for
+       * crawlers and is never displayed or executed.
+       *
+       * NewsArticle is what makes a story eligible for the rich results a news
+       * site gets, and it states plainly what the page is: a headline, when it
+       * was published, when it last changed, and who stands behind it.
+       *
+       * `author` is us, not the outlet, and the distinction is the honest one:
+       * the outlet reported the story, we wrote this summary of it. The
+       * original is credited in `isBasedOn` and `citation`, which is what those
+       * fields are for, rather than claiming ESPN wrote words they did not.
+       */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "NewsArticle",
+            headline: rumor.headline,
+            description: rumor.body.slice(0, 300),
+            datePublished: rumor.publishedAt.toISOString(),
+            dateModified: (rumor.bodyUpdatedAt ?? rumor.publishedAt).toISOString(),
+            ...(rumor.imageUrl ? { image: [rumor.imageUrl] } : {}),
+            mainEntityOfPage: {
+              "@type": "WebPage",
+              "@id": `${SITE.url}/rumor/${rumor.slug}`,
+            },
+            author: { "@type": "Organization", name: SITE.name, url: SITE.url },
+            publisher: {
+              "@type": "Organization",
+              name: SITE.name,
+              url: SITE.url,
+              logo: {
+                "@type": "ImageObject",
+                url: `${SITE.url}/android-chrome-512x512.png`,
+                width: 512,
+                height: 512,
+              },
+            },
+            isBasedOn: rumor.sourceUrl,
+            citation: rumor.sourceUrl,
+            /* The players and clubs the story is actually about. */
+            about: [
+              ...rumor.players.map((p) => ({
+                "@type": "Person",
+                name: p.fullName,
+                url: `${SITE.url}/player/${p.slug}`,
+              })),
+              ...rumor.teams.map((t) => ({
+                "@type": "SportsTeam",
+                name: `${t.city} ${t.name}`,
+                url: `${SITE.url}/team/${t.slug}`,
+              })),
+            ],
+          }),
+        }}
+      />
+
       <div className="border-x border-b border-rule bg-surface">
         <div className="border-b border-rule px-4 py-3 sm:px-5">
           <Link
@@ -178,7 +257,8 @@ export default async function RumorPage({ params }: PageProps<"/rumor/[slug]">) 
           </Link>
         </div>
 
-        <WireItem rumor={rumor} />
+        {/* The post IS this page, so its headline is the page's h1. */}
+        <WireItem rumor={rumor} headingLevel="h1" />
 
         {related.length > 0 && (
           <section>

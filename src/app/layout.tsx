@@ -53,6 +53,24 @@ export const metadata: Metadata = {
     siteName: SITE.name,
     type: "website",
     url: SITE.url,
+    /*
+     * A default share image, so a link to any page renders as a card rather
+     * than a grey text box. Every post overrides this with its own artwork;
+     * this is what the directories and the legal pages fall back to.
+     *
+     * The mark rather than a purpose-built 1200x630 banner, because a square
+     * logo is what we have. Worth replacing with a real banner at some point —
+     * it is the difference between a small card and a wide one.
+     */
+    images: [{ url: "/android-chrome-512x512.png", width: 512, height: 512 }],
+  },
+  twitter: {
+    card: "summary",
+    title: {
+      default: "NBA Rumors — Trades, Signings & Player Movement",
+      template: `%s — ${SITE.name}`,
+    },
+    images: ["/android-chrome-512x512.png"],
   },
 };
 
