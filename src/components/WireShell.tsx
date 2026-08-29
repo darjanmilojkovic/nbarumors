@@ -23,50 +23,6 @@ const BEAT_LABEL: Record<string, string> = {
   other: "Other",
 };
 
-/**
- * Both rails start lower than their own padding would put them, so that the
- * rule under each card's header lands on the same line as the one under the
- * feed's filter bar.
- *
- * ON TRIAL from 29 Aug 2026. To revert, put both rails back to `py-6`.
- *
- * Measured rather than eyeballed: the filter bar's bottom border sits at 180px
- * and the card header rules sat at 152px, so this is 24px of padding plus the
- * 28px of difference. The three lines then read as one line across the page.
- *
- * The alignment only exists on the feed — a player or rumor page has no rule
- * near the top of the centre column to meet. It is applied to every page
- * regardless, because the alternative is rails that start at a different height
- * depending on where you are, and 28px of extra headroom is not a defect where
- * there is nothing to line up with.
- *
- * The number is tied to the height of the filter bar. If its tabs or chips
- * change size, this needs measuring again.
- */
-const RAIL_PADDING = "pt-[52px] pb-6";
-
-/**
- * The rails pin to the very top, not 16px below it, so the alignment above
- * survives scrolling.
- *
- * At rest the rule lines up because the padding puts it there. Once the reader
- * scrolls, the filter bar pins at `top-0` and the rails were pinning at
- * `top-4`, so the same 16px that positions them at rest pushed them out of line
- * for the whole scroll — which is most of the time anyone spends on the page.
- *
- * The arithmetic works in both states now, and it is worth writing down because
- * the three numbers have to agree. The filter bar is 90px tall. A card's header
- * occupies 38px including the card's own top border. So pinned, the rule sits
- * at 0 + 52 + 38 = 90, exactly the bar's height; at rest it sits at 90 + 52 +
- * 38 = 180, exactly the bar's bottom. Change any of the three and the other two
- * need checking.
- *
- * Nothing scrolls underneath a rail — the columns are separate grid tracks — so
- * the padding above the first card can be transparent without anything showing
- * through it.
- */
-const RAIL_STICKY = "sticky top-0";
-
 function RailHeading({ children }: { children: React.ReactNode }) {
   return (
     <h2 className="label mb-3 text-[11px] text-muted">
@@ -84,15 +40,7 @@ async function LeftRail({ teamSlug }: { teamSlug?: string }) {
   ]);
 
   return (
-    <aside className={`${RAIL_STICKY} hidden ${RAIL_PADDING} pr-5 lg:block`}>
-      {/*
-       * Above the beats, because it is the one thing here that answers a
-       * question the reader arrived with rather than offering them a way in.
-       * The rail is `hidden lg:block`, so this is desktop-only by placement
-       * rather than by a breakpoint of its own.
-       */}
-      <SearchBox />
-
+    <aside className="sticky top-4 hidden py-6 pr-5 lg:block">
       <RailHeading>Beats since 2026</RailHeading>
       <nav className="mb-7 flex flex-col gap-px">
         <Link
@@ -117,9 +65,17 @@ async function LeftRail({ teamSlug }: { teamSlug?: string }) {
       </nav>
 
       {/*
+       * Between the beats and the teams, rather than at the top of the rail.
+       *
+       * The rail is `hidden lg:block`, so the search is desktop-only by
+       * placement rather than by a breakpoint of its own.
+       */}
+      <SearchBox />
+
+      {/*
        * Named "Most active teams" rather than "Most active", because the rail
-       * now opens with a search box that also returns players and reports —
-       * the heading has to say which of the three these chips are.
+       * carries a search box that also returns players and reports — the
+       * heading has to say which of the three these chips are.
        */}
       <RailHeading>Most active teams</RailHeading>
       {/*
@@ -151,7 +107,7 @@ async function RightRail() {
   const [players, done] = await Promise.all([mostMentioned(), recentlyDone()]);
 
   return (
-    <aside className={`${RAIL_STICKY} hidden border-l border-rule ${RAIL_PADDING} pl-5 xl:block`}>
+    <aside className="sticky top-4 hidden border-l border-rule py-6 pl-5 xl:block">
       <section className="mb-5 overflow-hidden rounded-sm border border-rule bg-surface">
         <div className="flex items-baseline justify-between border-b border-rule px-3.5 py-2.5">
           <h3 className="label text-xs">
