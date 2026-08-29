@@ -14,6 +14,9 @@ export const revalidate = 300;
 /** Deduped so the metadata lookup is not a second round trip. */
 const getPlayer = cache(playerBySlug);
 
+/** Shared with generateMetadata, so the empty check is not a second query. */
+const getPlayerRumors = cache(rumorsForPlayer);
+
 /** Page 1 is the bare URL, so it never competes with itself in search. */
 const pageHref = (slug: string, page: number) =>
   page > 1 ? `/player/${slug}?page=${page}` : `/player/${slug}`;
@@ -32,6 +35,24 @@ export async function generateMetadata({
   const description = `${player.fullName} trade rumors, contract news and signing reports, gathered from around the league and updated through the day.`;
 
   /*
+   * A player we have never written about gets a page that says so, and it is
+   * not worth indexing.
+   *
+   * 149 of the 674 player pages were in that state: the only unique content is
+   * a name and "Nothing on this player yet", everything else being rails that
+   * repeat site-wide. Submitting 149 near-identical thin pages is how a site
+   * earns "crawled, currently not indexed" across the rest of its URLs.
+   *
+   * The page still works and /players still links it — this only stops it
+   * being indexed, and the sitemap leaves it out on the same condition, so the
+   * two cannot disagree. Both reverse themselves the moment a post lands.
+   *
+   * `follow` stays on: the rails and the roster links are worth crawling even
+   * when the page itself has nothing to say.
+   */
+  const { total } = await getPlayerRumors(slug, 1);
+
+  /*
    * Page 2 holds posts page 1 does not, so it earns its own canonical and a
    * title that says where you are — pointing every page at the bare URL would
    * tell a crawler they are the same document and hide the rest.
@@ -40,6 +61,7 @@ export async function generateMetadata({
     title:
       page > 1 ? `${player.fullName} rumors — page ${page}` : `${player.fullName} rumors`,
     description,
+    ...(total === 0 ? { robots: { index: false, follow: true } } : {}),
     alternates: { canonical: pageHref(player.slug, page) },
     openGraph: {
       title: `${player.fullName} rumors`,
@@ -70,7 +92,7 @@ export default async function PlayerPage({
 
   const { page: rawPage } = await searchParams;
   const page = Math.max(1, Number(rawPage) || 1);
-  const { rumors, total, pageCount } = await rumorsForPlayer(slug, page);
+  const { rumors, total, pageCount } = await getPlayerRumors(slug, page);
 
   // A page past the last one does not exist; it is not an empty page.
   if (page > pageCount) notFound();

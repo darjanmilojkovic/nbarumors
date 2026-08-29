@@ -833,3 +833,53 @@ export async function playerRedirectFor(slug: string): Promise<string | null> {
     .limit(1);
   return row?.slug ?? null;
 }
+
+/**
+ * The player pages worth submitting to a search engine, with the date each
+ * last changed.
+ *
+ * Deliberately NOT `allPlayers()`, which is the right set for the /players
+ * directory and the wrong one for a sitemap. That query returns anyone on a
+ * roster OR carrying a published post, and 149 of the 674 it returned had no
+ * post at all — pages whose only unique content is a name and the words
+ * "Nothing on this player yet", the rest being rails repeated site-wide.
+ * Submitting 149 near-identical thin pages is how a site earns "crawled,
+ * currently not indexed" and spends its crawl budget on nothing.
+ *
+ * The URLs still work and /players still lists them; they are simply not
+ * advertised until there is something to advertise, and the page itself is
+ * noindexed while empty so the two agree.
+ *
+ * `max(published_at)` gives a real lastModified, which crawlers do use, in
+ * place of the changeFrequency hint they largely ignore.
+ */
+export async function playersForSitemap() {
+  return db
+    .select({
+      slug: players.slug,
+      lastPost: sql<Date>`max(${rumors.publishedAt})`,
+    })
+    .from(players)
+    .innerJoin(rumorPlayers, eq(rumorPlayers.playerId, players.id))
+    .innerJoin(
+      rumors,
+      sql`${rumors.id} = ${rumorPlayers.rumorId} and ${rumors.isPublished}`,
+    )
+    .groupBy(players.slug);
+}
+
+/** Team pages, with the date each last had a post. All 30 have coverage. */
+export async function teamsForSitemap() {
+  return db
+    .select({
+      slug: teams.slug,
+      lastPost: sql<Date | null>`max(${rumors.publishedAt})`,
+    })
+    .from(teams)
+    .leftJoin(rumorTeams, eq(rumorTeams.teamId, teams.id))
+    .leftJoin(
+      rumors,
+      sql`${rumors.id} = ${rumorTeams.rumorId} and ${rumors.isPublished}`,
+    )
+    .groupBy(teams.slug);
+}
