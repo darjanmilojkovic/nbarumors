@@ -269,13 +269,42 @@ const client = new Anthropic();
  * Cheap: eight headlines is around a hundred tokens, and it goes in the user
  * turn, so the cached system prompt is untouched.
  */
+/**
+ * Whether a summary opens by naming the outlet as its subject.
+ *
+ * The prompt has told the model not to do this from the beginning — the card
+ * prints the outlet directly above the body, as a link — and it mostly obeys:
+ * 29 of 726 posts open with an outlet name. But an instruction the model
+ * follows 96% of the time is not a guarantee, and "Heavy.com floats a trade
+ * sending Mikal Bridges to Dallas" spends its opening words on what the reader
+ * can already see.
+ *
+ * Naming a REPORTER is the opposite and is encouraged: "ESPN's Tim MacMahon
+ * reports" earns its place, and the prompt says so. So the test allows an
+ * outlet in the possessive when a proper noun follows it, and rejects the
+ * outlet standing alone as the thing doing the verb. Of the 29, that leaves
+ * about 8 genuinely wrong — the bare mastheads and domains.
+ */
+export function opensWithOutlet(body: string, names: (string | null)[]): boolean {
+  const head = body.trimStart();
+  for (const name of names) {
+    if (!name) continue;
+    const esc = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    /* "ESPN's Tim MacMahon", "ESPN's Summer Forecast" — attribution, allowed. */
+    if (new RegExp(`^${esc}'s\\s+[A-Z]`).test(head)) return false;
+    if (new RegExp(`^${esc}\\b`, "i").test(head)) return true;
+  }
+  return false;
+}
+
 export async function extractRumor(item: {
   title: string;
   rawSummary: string | null;
   publisher: string | null;
   sourceName: string;
   recentHeadlines?: string[];
-}): Promise<Extraction> {
+}, opts: { retrying?: boolean } = {}): Promise<Extraction> {
+  const { retrying = false } = opts;
   const response = await client.messages.create({
     model: modelFor(),
     max_tokens: 2000,
@@ -320,6 +349,17 @@ export async function extractRumor(item: {
                 ...item.recentHeadlines.slice(0, 8).map((h) => `  ${h}`),
               ]
             : []),
+          /*
+           * Said again, and specifically, only on the retry. Repeating the
+           * whole instruction every time would cost tokens on the 99% that
+           * already comply and would weaken by repetition.
+           */
+          ...(retrying
+            ? [
+                ``,
+                `Your previous attempt opened the summary with the outlet's name as the subject of the sentence. Do not. Open with the substance: the player, the teams, the terms or the named reporter. "${item.publisher ?? item.sourceName} floats a trade sending..." is wrong; "A trade idea would send..." or "Tim MacMahon reports..." is right.`,
+              ]
+            : []),
         ].join("\n"),
       },
     ],
@@ -335,6 +375,28 @@ export async function extractRumor(item: {
     throw new Error(`no text block in response (stop: ${response.stop_reason})`);
   }
   const parsed = JSON.parse(text.text) as Extraction;
+
+  /*
+   * One retry when the summary opens by naming the outlet, and only then.
+   *
+   * Repaired rather than rejected: enrichment can return null and lose
+   * nothing, because the post already exists. Here a rejection loses the post,
+   * and a clumsy opening sentence is a far smaller problem than a story the
+   * site never carries. So the second attempt is the last — if it opens the
+   * same way again, the body stands.
+   *
+   * Costs one extra call on roughly 1% of items, since this fires only on the
+   * bare-masthead case that survived the instruction.
+   */
+  if (
+    !retrying &&
+    parsed.isRumor &&
+    parsed.body &&
+    opensWithOutlet(parsed.body, [item.publisher, item.sourceName])
+  ) {
+    return extractRumor(item, { retrying: true });
+  }
+
   /*
    * Every field a person's name can reach, not only the two a reader sees.
    * A mangled body is a typo; a mangled name becomes a slug, and that is a
