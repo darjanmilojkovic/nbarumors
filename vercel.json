@@ -24,10 +24,6 @@
     {
       "path": "/api/cron/discover-players",
       "schedule": "30 0 * * *"
-    },
-    {
-      "path": "/api/cron/sync-awards",
-      "schedule": "40 8 * * *"
     }
   ]
 }
