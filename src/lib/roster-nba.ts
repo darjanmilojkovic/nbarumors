@@ -5,23 +5,25 @@ import { players, teams } from "@/db/schema";
 /**
  * The league's own answer to "who plays where".
  *
- * `stats.nba.com/stats/playerindex` states each player's club outright, which
- * is a better thing to have than the inference we were making from the
- * transaction feed — that took the latest arrival row and concluded a team,
- * and it breaks whenever a move never produces a row we recognise.
+ * This used to read `stats.nba.com/stats/playerindex` and `commonallplayers`,
+ * which work from a laptop and DO NOT WORK FROM VERCEL. Measured from a
+ * throwaway route deployed to iad1: every `/stats/` path hung until a 12s
+ * abort, while a static file on the same host answered in 173ms. The comments
+ * this file replaced had said as much — "403 or hang" — and I overruled them on
+ * the strength of local tests. They were describing the environment that
+ * matters. So the rule is: anything a cron depends on must be proven from a
+ * deployment, not from here.
  *
- * The predecessor to this file scraped all thirty Basketball-Reference team
- * pages with a spoofed browser User-Agent, and its comment asserted that every
- * NBA endpoint refuses us — `commonallplayers`, `playerindex` and the CDN
- * static JSON alike. That was true when it was written and is no longer:
- * `playerindex` and `commonallplayers` both answer with the same nba.com
- * Referer and Origin headers the stats sync already uses. Only the CDN static
- * file still 403s.
+ * What does answer is `js/data/ptsd/stats_ptsd.js`, the directory that powers
+ * nba.com's own search box: 5,126 players with an id, an active flag, first and
+ * last season, and a team slug, plus the 30 clubs with their numeric ids. It is
+ * a snapshot rather than a live query — the copy read while writing this was
+ * generated on 15 June 2026 — so it is authoritative and OLD, and it says so.
  *
- * Checked against 549 of our players before this replaced anything: 530 agreed
- * with what we had computed, 14 disagreed and 5 we had no team for. Every one
- * of the 14 was a move from the last few days — the official roster is more
- * accurate and slower, which is why `roster_synced_at` exists.
+ * That is why it composes. `current-team.ts` already ranks the roster, the
+ * transaction feed and our own reporting by date, and the transaction feed
+ * (`playermovement`, also static, also reachable) was current to yesterday and
+ * carried the 302 moves made since the snapshot. Baseline plus deltas.
  */
 
 const HEADERS = {
@@ -32,19 +34,96 @@ const HEADERS = {
   Accept: "application/json, text/plain, */*",
 };
 
+const DIRECTORY_URL = "https://stats.nba.com/js/data/ptsd/stats_ptsd.js";
+
+/*
+ * Row shapes, by position. The file is arrays rather than objects, which is
+ * what keeps it small enough to be a static asset.
+ *
+ *   player: [id, "Last, First", active, fromYear, toYear, _, teamSlug]
+ *   team:   [id, abbrev, slug, city, name, ...]
+ */
+type PlayerRow = [number, string, number, number, number, number, string];
+type TeamRow = [string, string, string, string, string, ...unknown[]];
+
+export type Directory = {
+  /** When the league built this snapshot, ISO with offset. */
+  generated: string;
+  players: PlayerRow[];
+  teams: TeamRow[];
+};
+
 /**
- * The NBA's season string for a given date.
+ * One download per process. A sync run asks for the roster, the status flags
+ * and sometimes the id backfill, and all three are views of the same 228KB.
+ */
+let cached: { at: number; value: Directory } | null = null;
+const CACHE_MS = 5 * 60 * 1000;
+
+export async function fetchDirectory(): Promise<Directory> {
+  if (cached && Date.now() - cached.at < CACHE_MS) return cached.value;
+
+  const res = await fetch(DIRECTORY_URL, { headers: HEADERS });
+  if (!res.ok) throw new Error(`stats_ptsd: HTTP ${res.status}`);
+
+  /*
+   * The response is JavaScript, not JSON: `var stats_ptsd = {...};`. Slice from
+   * the first brace and drop a trailing semicolon rather than eval it.
+   */
+  const raw = await res.text();
+  const start = raw.indexOf("{");
+  if (start < 0) throw new Error("stats_ptsd: no object in response");
+  const parsed = JSON.parse(raw.slice(start).replace(/;\s*$/, "")) as {
+    generated?: string;
+    data?: { players?: PlayerRow[]; teams?: TeamRow[] };
+  };
+
+  const players = parsed.data?.players;
+  const teamRows = parsed.data?.teams;
+  if (!Array.isArray(players) || !Array.isArray(teamRows)) {
+    throw new Error("stats_ptsd: unexpected shape");
+  }
+
+  const value: Directory = {
+    generated: parsed.generated ?? new Date().toISOString(),
+    players,
+    teams: teamRows,
+  };
+  cached = { at: Date.now(), value };
+  return value;
+}
+
+/** Slug ("timberwolves") to the league's numeric team id. */
+export function teamIdBySlug(dir: Directory): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const row of dir.teams) {
+    const [id, , slug] = row;
+    // The file carries G-League and All-Star sides too; they have no slug.
+    if (slug) map.set(slug, String(id));
+  }
+  return map;
+}
+
+/** "Abdul-Jabbar, Kareem" as we hold it: "Kareem Abdul-Jabbar". */
+function displayName(listed: string): string {
+  const comma = listed.indexOf(",");
+  if (comma < 0) return listed.trim();
+  const last = listed.slice(0, comma).trim();
+  const first = listed.slice(comma + 1).trim();
+  return first ? `${first} ${last}` : last;
+}
+
+/**
+ * The season string the rest of the pipeline labels a sync with.
  *
  * The turnover is 1 JULY, when the league year begins and free agency opens —
  * not October, when games start. Between those two dates the rosters that
  * matter are next season's, and they are the whole subject of this site.
  *
- * Getting this wrong is silent and total. Keyed to October, this returned
+ * Getting this wrong was silent and total. Keyed to October, this returned
  * 2025-26 in August 2026 and the index answered with last season's rosters:
- * 530 players agreed with what we held on the right season and only 424 on
- * the wrong one, and writing it moved 153 players back to clubs they had
- * already left. It fails by being plausible — a 200, a full 582 rows, and
- * every name in it real.
+ * writing it moved 153 players back to clubs they had already left. It failed
+ * by being plausible — a 200, a full 582 rows, every name in it real.
  */
 export function nbaSeason(now = new Date()): string {
   const year = now.getUTCFullYear();
@@ -56,44 +135,26 @@ export function nbaSeason(now = new Date()): string {
 export type RosterEntry = { nbaPlayerId: string; nbaTeamId: string | null };
 
 /** Every player the league currently lists, with the club it puts them at. */
-export async function fetchOfficialRoster(
-  season = nbaSeason(),
-): Promise<RosterEntry[]> {
-  const url =
-    `https://stats.nba.com/stats/playerindex?LeagueID=00&Season=${season}` +
-    `&Historical=0&TeamID=0`;
-  const res = await fetch(url, { headers: HEADERS });
-  if (!res.ok) throw new Error(`playerindex: HTTP ${res.status}`);
+export async function fetchOfficialRoster(): Promise<RosterEntry[]> {
+  const dir = await fetchDirectory();
+  const bySlug = teamIdBySlug(dir);
 
-  const json = (await res.json()) as {
-    resultSets: { headers: string[]; rowSet: unknown[][] }[];
-  };
-  const set = json.resultSets[0];
-  const at = (name: string) => set.headers.indexOf(name);
-  const iPerson = at("PERSON_ID");
-  const iTeam = at("TEAM_ID");
-  if (iPerson < 0 || iTeam < 0) {
-    throw new Error(`playerindex: unexpected columns ${set.headers.join(",")}`);
-  }
-
-  return set.rowSet.map((row) => {
-    const team = String(row[iTeam] ?? "");
-    return {
-      nbaPlayerId: String(row[iPerson]),
-      // TEAM_ID 0 means unsigned, which is a fact rather than a gap.
-      nbaTeamId: team && team !== "0" ? team : null,
-    };
-  });
+  return dir.players
+    .filter((row) => Number(row[2]) === 1)
+    .map((row) => ({
+      nbaPlayerId: String(row[0]),
+      // No slug means unsigned, which is a fact rather than a gap.
+      nbaTeamId: row[6] ? (bySlug.get(row[6]) ?? null) : null,
+    }));
 }
 
 /**
- * Fill in NBA player ids we are missing, from the league's all-time index.
+ * Fill in NBA player ids we are missing, from the whole directory.
  *
- * `Historical=1` returns 5,208 players rather than the 582 on current rosters,
- * which is the difference between rating a retired star and rating him zero.
- * Carmelo Anthony had no id, so his awards were never read and he scored
- * nothing at all on the career half — a top-ten all-time scorer sorting below
- * two-way signings.
+ * All 5,126 players are in the file, not just the 530 on current rosters, which
+ * is the difference between rating a retired star and rating him zero. Carmelo
+ * Anthony had no id, so his awards were never read and he scored nothing at all
+ * on the career half — a top-ten all-time scorer sorting below two-way signings.
  *
  * Matched on name, since an id is exactly what we lack. Suffixes are tolerated
  * in both directions: the league writes "Marcus Morris Sr." where we hold
@@ -103,31 +164,18 @@ export async function backfillPlayerIds(): Promise<{
   indexed: number;
   matched: number;
 }> {
-  const season = nbaSeason();
-  const res = await fetch(
-    `https://stats.nba.com/stats/playerindex?LeagueID=00&Season=${season}` +
-      `&Historical=1&TeamID=0`,
-    { headers: HEADERS },
-  );
-  if (!res.ok) throw new Error(`playerindex historical: HTTP ${res.status}`);
-  const json = (await res.json()) as {
-    resultSets: { headers: string[]; rowSet: unknown[][] }[];
-  };
-  const set = json.resultSets[0];
-  const iId = set.headers.indexOf("PERSON_ID");
-  const iFirst = set.headers.indexOf("PLAYER_FIRST_NAME");
-  const iLast = set.headers.indexOf("PLAYER_LAST_NAME");
+  const dir = await fetchDirectory();
 
   const SUFFIX = /\s+(jr|sr|ii|iii|iv|v)\.?$/i;
-  const key = (name: string) =>
+  const strict = (name: string) =>
     name
       .normalize("NFKD")
       .replace(/[̀-ͯ]/g, "")
       .toLowerCase()
-      .replace(SUFFIX, "")
       .replace(/[^a-z ]/g, "")
       .replace(/\s+/g, " ")
       .trim();
+  const key = (name: string) => strict(name.replace(SUFFIX, ""));
 
   /*
    * Two indexes, and the loose one refuses ambiguity.
@@ -144,18 +192,10 @@ export async function backfillPlayerIds(): Promise<{
    */
   const exact = new Map<string, string>();
   const loose = new Map<string, Set<string>>();
-  const strict = (name: string) =>
-    name
-      .normalize("NFKD")
-      .replace(/[̀-ͯ]/g, "")
-      .toLowerCase()
-      .replace(/[^a-z ]/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
 
-  for (const row of set.rowSet) {
-    const name = `${row[iFirst]} ${row[iLast]}`;
-    const id = String(row[iId]);
+  for (const row of dir.players) {
+    const name = displayName(String(row[1]));
+    const id = String(row[0]);
     if (!exact.has(strict(name))) exact.set(strict(name), id);
     const k = key(name);
     const seen = loose.get(k) ?? new Set<string>();
@@ -203,7 +243,7 @@ export async function backfillPlayerIds(): Promise<{
     matched++;
   }
 
-  return { indexed: set.rowSet.length, matched };
+  return { indexed: dir.players.length, matched };
 }
 
 export type RosterStatus = {
@@ -216,41 +256,21 @@ export type RosterStatus = {
 /**
  * Who is currently on an NBA roster, as the league states it.
  *
- * `commonallplayers` carries a ROSTERSTATUS flag across all 5,208 players it
- * has ever listed, which is the one thing no amount of inference gets right.
- * Absence from the current roster index cannot tell a retirement from an
- * unsigned free agent, and both are common in an offseason: Chris Paul and
- * Russell Westbrook retired, while a free agent who signs next week is just as
- * absent today. Guessing either way mislabels the other.
+ * The directory carries an active flag across all 5,126 players it has ever
+ * listed, which is the one thing no amount of inference gets right. Absence
+ * from the current roster cannot tell a retirement from an unsigned free agent,
+ * and both are common in an offseason: Chris Paul and Russell Westbrook
+ * retired, while a free agent who signs next week is just as absent today.
+ * Guessing either way mislabels the other.
  *
- * TO_YEAR comes along for free and says when a career ended.
+ * The last season played comes along for free and says when a career ended.
  */
-export async function fetchRosterStatus(
-  season = nbaSeason(),
-): Promise<RosterStatus[]> {
-  const res = await fetch(
-    `https://stats.nba.com/stats/commonallplayers?LeagueID=00` +
-      `&Season=${season}&IsOnlyCurrentSeason=0`,
-    { headers: HEADERS },
-  );
-  if (!res.ok) throw new Error(`commonallplayers: HTTP ${res.status}`);
-
-  const json = (await res.json()) as {
-    resultSets: { headers: string[]; rowSet: unknown[][] }[];
-  };
-  const set = json.resultSets[0];
-  const at = (n: string) => set.headers.indexOf(n);
-  const iId = at("PERSON_ID");
-  const iStatus = at("ROSTERSTATUS");
-  const iTo = at("TO_YEAR");
-  if (iId < 0 || iStatus < 0) {
-    throw new Error(`commonallplayers: columns ${set.headers.join(",")}`);
-  }
-
-  return set.rowSet.map((row) => ({
-    nbaPlayerId: String(row[iId]),
-    active: Number(row[iStatus]) === 1,
-    toYear: iTo >= 0 ? (Number(row[iTo]) || null) : null,
+export async function fetchRosterStatus(): Promise<RosterStatus[]> {
+  const dir = await fetchDirectory();
+  return dir.players.map((row) => ({
+    nbaPlayerId: String(row[0]),
+    active: Number(row[2]) === 1,
+    toYear: Number(row[4]) || null,
   }));
 }
 
@@ -259,26 +279,29 @@ export type RosterSyncResult = {
   matched: number;
   moved: number;
   season: string;
+  /** When the league built the snapshot we read. */
+  generated: string;
   /** Players whose active flag changed. */
   statusChanged: number;
 };
 
 /**
- * Write the league's roster onto our players, stamping when it spoke.
+ * Write the league's roster onto our players, stamping when IT spoke.
  *
- * Only players we already hold are touched. The index carries names we have
+ * Only players we already hold are touched. The directory carries names we have
  * never seen, and inventing rows for them here would fill the directory with
  * people no story has ever mentioned.
  */
 export async function syncOfficialRoster(
   season = nbaSeason(),
 ): Promise<RosterSyncResult> {
-  const roster = await fetchOfficialRoster(season);
+  const dir = await fetchDirectory();
+  const roster = await fetchOfficialRoster();
   if (roster.length === 0) {
-    // An empty index means the request shape changed, not that the league
+    // An empty directory means the file's shape changed, not that the league
     // emptied. Refusing to write is the difference between a stale roster and
     // a wiped one.
-    throw new Error("playerindex returned no rows; refusing to write");
+    throw new Error("stats_ptsd listed no active players; refusing to write");
   }
 
   const teamRows = await db
@@ -297,7 +320,22 @@ export async function syncOfficialRoster(
     .where(inArray(players.nbaPlayerId, ids));
   const byNbaId = new Map(ours.map((p) => [String(p.nbaPlayerId), p]));
 
-  const now = new Date();
+  /*
+   * The snapshot's own timestamp, not now().
+   *
+   * This is the whole reason the source change is an improvement rather than a
+   * lateral move. `roster_synced_at` used to record when we ASKED, which is
+   * days after the league knew, so a fetch from five minutes ago beat a report
+   * from two days ago every time — that is how a post reading "Kuminga reaches
+   * 2-year deal with Timberwolves" sat under a masthead saying Atlanta Hawks.
+   * current-team.ts compensated by backdating the roster a guessed seven days.
+   *
+   * The file states when it was built, so the guess is now a measured fact and
+   * the fudge factor is gone.
+   */
+  const generatedAt = new Date(dir.generated);
+  const stamp = Number.isNaN(generatedAt.getTime()) ? new Date() : generatedAt;
+
   let moved = 0;
   for (const entry of roster) {
     const player = byNbaId.get(entry.nbaPlayerId);
@@ -308,12 +346,12 @@ export async function syncOfficialRoster(
     if (player.currentTeamId !== teamId) moved++;
     await db
       .update(players)
-      .set({ currentTeamId: teamId, rosterSyncedAt: now })
+      .set({ currentTeamId: teamId, rosterSyncedAt: stamp })
       .where(eq(players.id, player.id));
   }
 
   /*
-   * Then the active flag, straight from ROSTERSTATUS.
+   * Then the active flag.
    *
    * is_active was orphaned when the Basketball-Reference roster scraper went,
    * exactly as current_team_id had been, and it decides who appears on
@@ -325,51 +363,59 @@ export async function syncOfficialRoster(
    * retired, and both look identical to a free agent who signs next week. The
    * league states which is which, so nothing here has to guess.
    *
-   * Players we hold no NBA id for are left alone: the feed never had a chance
+   * Players we hold no NBA id for are left alone: the file never had a chance
    * to mention them, and marking them inactive on that basis is what the old
    * scraper did when it opened by setting the whole table false.
    */
   let statusChanged = 0;
   try {
-    const status = await fetchRosterStatus(season);
+    const status = await fetchRosterStatus();
     const active = new Set(
       status.filter((s) => s.active).map((s) => s.nbaPlayerId),
     );
-    if (active.size === 0) throw new Error("no active players in the response");
+    if (active.size === 0) throw new Error("no active players in the file");
 
     /*
-     * Plus anyone our own completed reporting has just signed somewhere.
+     * Anyone we have newer evidence about is left alone, in both directions.
      *
-     * ROSTERSTATUS lags the same way the roster does. DeMar DeRozan signed for
-     * Denver in a post dated 21 August and the league still had him at
-     * status 0, last season 2025 — indistinguishable from Chris Paul, who
-     * actually retired. The difference is that DeRozan has a completed signing
-     * behind him and Paul does not, which is a question our own data answers.
+     * This is the guard the old source did not need and this one cannot do
+     * without. `playerindex` answered as of the moment we asked, so its flag
+     * was never behind ours. A snapshot built on 15 June is behind by an entire
+     * offseason, and applying it wholesale regressed 44 flags in a dry run —
+     * it would have marked Russell Westbrook ACTIVE again two weeks after we
+     * recorded his retirement, and marked Lonnie Walker IV inactive after he
+     * had signed.
+     *
+     * So the snapshot is authoritative only where nothing has happened since it
+     * was built. A player with a transaction row or a published post after that
+     * date is one we know more about than the file does, and his flag stands.
      */
-    const recentlySigned = await db.execute(sql`
+    const supersededRows = await db.execute(sql`
       select distinct p.nba_player_id
       from players p
-      join rumor_players rp on rp.player_id = p.id
-      join rumors r on r.id = rp.rumor_id
       where p.nba_player_id is not null
-        and r.is_published
-        and r.status in ('completed', 'confirmed')
-        and r.published_at > now() - interval '30 days'
         and (
-          rp.to_team_id is not null
+          exists (
+            select 1 from transactions t
+            where t.nba_player_id = p.nba_player_id
+              and t.occurred_at > ${stamp}
+          )
           or exists (
-            select 1 from rumor_teams rt
-            where rt.rumor_id = r.id and rt.role = 'to'
+            select 1 from rumor_players rp
+            join rumors r on r.id = rp.rumor_id
+            where rp.player_id = p.id
+              and r.is_published
+              and r.published_at > ${stamp}
           )
         )
     `);
-    for (const row of (recentlySigned.rows ?? recentlySigned) as unknown as {
-      nba_player_id: string;
-    }[]) {
-      active.add(String(row.nba_player_id));
-    }
+    const superseded = new Set(
+      ((supersededRows.rows ?? supersededRows) as unknown as {
+        nba_player_id: string;
+      }[]).map((r) => String(r.nba_player_id)),
+    );
 
-    const known = status.map((s) => s.nbaPlayerId);
+    const known = status.map((s) => s.nbaPlayerId).filter((id) => !superseded.has(id));
     const rows = await db
       .select({
         id: players.id,
@@ -395,6 +441,12 @@ export async function syncOfficialRoster(
      */
   }
 
-  void sql;
-  return { listed: roster.length, matched: byNbaId.size, moved, season, statusChanged };
+  return {
+    listed: roster.length,
+    matched: byNbaId.size,
+    moved,
+    season,
+    generated: dir.generated,
+    statusChanged,
+  };
 }

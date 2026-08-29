@@ -39,16 +39,21 @@ const ARRIVAL_KINDS = ["Signing", "Trade", "AwardOnWaivers", "ContractConverted"
 /**
  * How far behind the official roster is assumed to run.
  *
- * A guess, and one worth revisiting with evidence: Jonathan Kuminga agreed
- * terms in Minnesota on 26 August and the index still had him in Atlanta two
- * days later, but nothing here measures the true distribution. Too short and
- * the site trails its own reporting; too long and a post we got wrong outranks
- * the league for over a week.
+ * Zero, now that it does not have to be assumed.
  *
- * Seven days matches the confirmation window used elsewhere, which is the only
- * reason to prefer it to six or eight.
+ * This was seven days, and it was a guess — a correction for the fact that
+ * `roster_synced_at` recorded when we ASKED rather than when the league knew.
+ * The source it corrected for is gone: the roster now comes from a published
+ * snapshot that carries its own build date, and the sync stamps THAT. The lag
+ * is measured rather than assumed, so adding a second allowance on top would
+ * subtract the same days twice and let a post we got wrong outrank the league
+ * for a week.
+ *
+ * Kept as a named constant rather than deleted because the correction becomes
+ * necessary again the moment the roster comes from somewhere that does not date
+ * itself.
  */
-const ROSTER_LAG_DAYS = 7;
+const ROSTER_LAG_DAYS = 0;
 
 /*
  * Waive is deliberately absent: on that row TEAM_ID names the club letting the
