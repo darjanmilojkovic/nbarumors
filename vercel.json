@@ -24,6 +24,10 @@
     {
       "path": "/api/cron/discover-players",
       "schedule": "30 0 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-images",
+      "schedule": "0 5 1 * *"
     }
   ]
 }
