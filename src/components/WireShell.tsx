@@ -41,14 +41,6 @@ async function LeftRail({ teamSlug }: { teamSlug?: string }) {
 
   return (
     <aside className="sticky top-4 hidden py-6 pr-5 lg:block">
-      {/*
-       * At the top of the rail, because it is the one thing here that answers a
-       * question the reader arrived with rather than offering them a way in.
-       * The rail is `hidden lg:block`, so the search is desktop-only by
-       * placement rather than by a breakpoint of its own.
-       */}
-      <SearchBox />
-
       <RailHeading>Beats since 2026</RailHeading>
       <nav className="mb-7 flex flex-col gap-px">
         <Link
@@ -73,9 +65,16 @@ async function LeftRail({ teamSlug }: { teamSlug?: string }) {
       </nav>
 
       {/*
+       * Below the beats rather than at the top of the rail. The rail is
+       * `hidden lg:block`, so the search is desktop-only by placement rather
+       * than by a breakpoint of its own.
+       */}
+      <SearchBox />
+
+      {/*
        * Named "Most active teams" rather than "Most active", because the rail
-       * carries a search box that also returns players and reports — the
-       * heading has to say which of the three these chips are.
+       * carries a search that also returns players and reports — the heading
+       * has to say which of the three these chips are.
        */}
       <RailHeading>Most active teams</RailHeading>
       {/*
