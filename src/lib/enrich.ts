@@ -166,7 +166,9 @@ Attribute a specific claim to whoever made it when the reports disagree about wh
 
 This is a summary, not a digest. If the new report adds one detail, the result is the old summary plus that detail, not a reorganisation of it.
 
-Give every player a first name and a surname the first time they appear in the merged summary, even where the existing summary or the incoming report used the surname alone. Merging is where this goes wrong: two reports each name a different Williams, and the result reads as one man. After the first mention the surname alone is fine.`,
+Give every player a first name and a surname the first time they appear in the merged summary, even where the existing summary or the incoming report used the surname alone. Merging is where this goes wrong: two reports each name a different Williams, and the result reads as one man. After the first mention the surname alone is fine.
+
+Place anyone who is not a player. A reporter, analyst, agent or executive is introduced with their outlet or their job the first time they appear: "ESPN's Bobby Marks", "agent Mike George", "Jazz general manager Justin Zanik". Merging is where this goes wrong too — the second report knows who its own analyst is and the merged text inherits the name without the introduction, so a reader meets "Bobby Marks notes the swap leaves Minnesota below the apron" with no idea whether that is a reporter, an executive or a player.`,
           cache_control: { type: "ephemeral" },
         },
       ],
