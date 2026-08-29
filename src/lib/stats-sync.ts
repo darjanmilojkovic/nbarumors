@@ -44,11 +44,35 @@ function recentSeasons(now = new Date()): [string, string] {
  */
 const HISTORY_SEASONS = 6;
 
+/**
+ * How many extra seasons to have in reserve behind the six we want.
+ *
+ * The label turns over on 1 October and the 2026-27 season did not tip off
+ * until 20 October, so for nineteen days the newest season in the window is one
+ * that has not been played. Basketball-Reference serves that page as HTTP 200
+ * with zero player rows rather than a 404, so nothing errors: the window just
+ * quietly becomes five seasons deep, every player loses his oldest season, and
+ * `longevity` — 12 * min(1, seasons / 6) — falls across the whole league at
+ * once. Then it heals itself weeks later, which is worse, because the dip looks
+ * like a change in the players.
+ *
+ * Two spare seasons is enough for that gap and for a season that is thin for
+ * any other reason.
+ */
+const HISTORY_SPARE = 2;
+
+/**
+ * Season labels newest first, with room to skip the ones that have no games.
+ *
+ * Deliberately not keyed to 20 October. A hardcoded tip-off date is wrong every
+ * year it moves and says nothing about a lockout or a shortened season, whereas
+ * "the page came back empty, take an older one" is true whatever the reason.
+ */
 function seasonHistory(now = new Date()): string[] {
   const startYear =
     now.getUTCMonth() >= 9 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;
   return Array.from(
-    { length: HISTORY_SEASONS },
+    { length: HISTORY_SEASONS + HISTORY_SPARE },
     (_, i) => `${startYear - i}-${String((startYear - i + 1) % 100).padStart(2, "0")}`,
   );
 }
@@ -152,19 +176,34 @@ export async function runStatsSync(
   })();
 
   const history = new Map<string, Awaited<ReturnType<typeof fetchBrefSeason>>>();
+  /*
+   * Counted, not indexed: a season that returns nothing does not consume one of
+   * the six, so the window reaches an extra year back instead of shrinking. In
+   * October that is the difference between rating the league on five seasons
+   * and rating it on six.
+   */
+  let collected = 0;
   for (const season of seasonHistory()) {
+    if (collected >= HISTORY_SEASONS) break;
     try {
       const rows = (await fetchBrefSeason(season)).map((r) => ({
         ...r,
         nbaPlayerId: r.nbaPlayerId || (resolveId(r.name) ?? ""),
       }));
+      result.seasons[`${season} (box)`] = rows.length;
+      /*
+       * An unplayed season is served as 200 with an empty table rather than a
+       * 404, so emptiness has to be checked rather than caught. A failure is
+       * skipped for the same reason — it did not contribute a season either.
+       */
+      if (rows.length === 0) continue;
+      collected++;
       for (const r of rows) {
         const k = nameKey(r.name);
         history.set(k, [...(history.get(k) ?? []), r]);
         const prev = best.get(k);
         if (!prev || (!prev.nbaPlayerId && r.points > prev.points)) best.set(k, r);
       }
-      result.seasons[`${season} (box)`] = rows.length;
     } catch (err) {
       result.seasons[`${season} (box)`] =
         `failed: ${err instanceof Error ? err.message : err}`;
