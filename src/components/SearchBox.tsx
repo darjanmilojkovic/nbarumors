@@ -39,7 +39,7 @@ const DEBOUNCE_MS = 180;
  *
  * Both are on trial from 29 Aug 2026. Flip this one word to switch.
  */
-const SEARCH_VARIANT: "bare" | "inline" = "bare";
+const SEARCH_VARIANT: "bare" | "inline" = "inline";
 
 export function SearchBox() {
   const [query, setQuery] = useState("");
