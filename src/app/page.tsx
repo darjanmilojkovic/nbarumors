@@ -22,10 +22,19 @@ export const revalidate = 300;
  * "/", which is Trending, so making the rail chronological quietly took the
  * ranking away from the default landing page — the one most people ever see.
  */
+/*
+ * Latest sits first, Trending second, and Trending is still the default.
+ *
+ * Position and default are independent here: `href` omits the parameter when
+ * the tab is "live", so "/" is Trending wherever the tab is drawn. The one
+ * thing to know is that landing on "/" now highlights the SECOND tab rather
+ * than the first, which is unusual — first position normally implies default.
+ * That is the trade being made, not an oversight.
+ */
 const TABS = [
+  { key: "latest", label: "Latest" },
   // The key stays "live": it is in every /?tab= link already shared.
   { key: "live", label: "Trending" },
-  { key: "latest", label: "Latest" },
   { key: "top", label: "Top" },
   { key: "confirmed", label: "Confirmed" },
 ] as const;
