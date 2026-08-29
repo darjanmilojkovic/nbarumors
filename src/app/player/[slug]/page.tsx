@@ -80,37 +80,48 @@ export default async function PlayerPage({
       playerLabel={player.fullName}
       playerShort={surname(player.fullName)}
     >
-      {/* Mirrors the team page lockup: mark first, then name and count. */}
-      <div className="mb-6 flex items-center gap-4 px-4 pt-8 sm:px-0">
-        {player.headshotUrl ? (
-          <Image
-            src={player.headshotUrl}
-            alt={player.fullName}
-            width={128}
-            height={94}
-            className="h-12 w-12 shrink-0 rounded-sm border border-rule bg-surface-2 object-cover object-top sm:h-16 sm:w-16"
-            unoptimized
-          />
-        ) : (
-          /* 213 of 582 rostered players have no NBA headshot; initials keep
-             the lockup the same shape rather than collapsing it. */
-          <span className="font-semibold grid h-12 w-12 shrink-0 place-items-center rounded-sm border border-rule bg-surface-2 text-base text-body sm:h-16 sm:w-16">
-            {player.fullName
-              .split(" ")
-              .map((w) => w[0])
-              .join("")
-              .slice(0, 2)
-              .toUpperCase()}
-          </span>
-        )}
-        <div>
-          <h1 className="display text-2xl text-white sm:text-3xl">
-            {player.fullName}
-          </h1>
-          <p className="text-xs text-muted">
-            {/* The whole body of coverage, not the ten on this page. */}
-            {total} update{total === 1 ? "" : "s"}
-          </p>
+      {/*
+       * Mirrors the team page lockup: mark first, then name and count.
+       *
+       * The lockup sits on its own panel, separated from the list below rather
+       * than joined to it. The mark's plate is the page black, not a lighter
+       * grey — a headshot is a cut-out with dark edges, so black behind it
+       * matches what the image was cut against and reads as a window into the
+       * panel instead of a sticker on top of it.
+       */}
+      <div className="mb-6 px-4 pt-8 sm:px-0">
+        <div className="flex items-center gap-4 rounded-sm border border-rule bg-surface p-4">
+          {player.headshotUrl ? (
+            <Image
+              src={player.headshotUrl}
+              alt={player.fullName}
+              width={128}
+              height={94}
+              className="h-14 w-14 shrink-0 rounded-sm border border-rule bg-ink object-cover object-top sm:h-[72px] sm:w-[72px]"
+              unoptimized
+            />
+          ) : (
+            /* 213 of 582 rostered players have no NBA headshot; initials keep
+               the lockup the same shape rather than collapsing it, and take the
+               same plate so the panel does not change height between them. */
+            <span className="font-semibold grid h-14 w-14 shrink-0 place-items-center rounded-sm border border-rule bg-ink text-base text-body sm:h-[72px] sm:w-[72px]">
+              {player.fullName
+                .split(" ")
+                .map((w) => w[0])
+                .join("")
+                .slice(0, 2)
+                .toUpperCase()}
+            </span>
+          )}
+          <div>
+            <h1 className="display text-2xl text-white sm:text-3xl">
+              {player.fullName}
+            </h1>
+            <p className="text-xs text-muted">
+              {/* The whole body of coverage, not the ten on this page. */}
+              {total} update{total === 1 ? "" : "s"}
+            </p>
+          </div>
         </div>
       </div>
       {/*

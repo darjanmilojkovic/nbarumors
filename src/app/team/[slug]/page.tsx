@@ -70,33 +70,44 @@ export default async function TeamPage({
       teamShort={team.name}
       teamSlug={team.slug}
     >
-      <div className="mb-6 flex items-center gap-4 px-4 pt-8 sm:px-0">
-        {/* Every mark is committed, so the fallback should never render — but
-            the manifest decides what is on disk, and an abbreviation in the
-            right-sized box beats a broken image. */}
-        {team.logoUrl ? (
-          <Image
-            src={team.logoUrl}
-            alt=""
-            width={64}
-            height={64}
-            className="h-12 w-12 object-contain sm:h-16 sm:w-16"
-            unoptimized
-          />
-        ) : (
-          <span className="display grid h-12 w-12 place-items-center rounded-sm bg-surface-2 text-sm text-body sm:h-16 sm:w-16">
-            {team.abbreviation}
-          </span>
-        )}
-        <div>
-          <h1 className="display text-2xl text-white sm:text-3xl">
-            {team.city} {team.name}
-          </h1>
-          <p className="text-xs text-muted">
-            {/* The whole body of coverage, not the ten on this page. */}
-            {team.conference}ern Conference · {team.division} · {total} update
-            {total === 1 ? "" : "s"}
-          </p>
+      {/*
+       * Same lockup as the player page: the mark on the page black, inside a
+       * panel of its own, separated from the list below.
+       *
+       * The logo gains a plate it never had — it was drawn straight onto the
+       * page, so it floated while the player's headshot at least had a frame.
+       * It is padded because a logo is a silhouette rather than a crop: without
+       * the inset the mark touches its own border.
+       */}
+      <div className="mb-6 px-4 pt-8 sm:px-0">
+        <div className="flex items-center gap-4 rounded-sm border border-rule bg-surface p-4">
+          {/* Every mark is committed, so the fallback should never render — but
+              the manifest decides what is on disk, and an abbreviation in the
+              right-sized box beats a broken image. */}
+          {team.logoUrl ? (
+            <Image
+              src={team.logoUrl}
+              alt=""
+              width={64}
+              height={64}
+              className="h-14 w-14 shrink-0 rounded-sm border border-rule bg-ink p-2 object-contain sm:h-[72px] sm:w-[72px]"
+              unoptimized
+            />
+          ) : (
+            <span className="display grid h-14 w-14 shrink-0 place-items-center rounded-sm border border-rule bg-ink text-sm text-body sm:h-[72px] sm:w-[72px]">
+              {team.abbreviation}
+            </span>
+          )}
+          <div>
+            <h1 className="display text-2xl text-white sm:text-3xl">
+              {team.city} {team.name}
+            </h1>
+            <p className="text-xs text-muted">
+              {/* The whole body of coverage, not the ten on this page. */}
+              {team.conference}ern Conference · {team.division} · {total} update
+              {total === 1 ? "" : "s"}
+            </p>
+          </div>
         </div>
       </div>
       {/*
