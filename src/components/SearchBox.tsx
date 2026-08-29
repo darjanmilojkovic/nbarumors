@@ -30,7 +30,7 @@ import { EMPTY_RESULTS, MIN_QUERY, type SearchResults } from "@/lib/search-share
  */
 const DEBOUNCE_MS = 180;
 
-export function SearchBox({ postCount }: { postCount: number }) {
+export function SearchBox() {
   const [query, setQuery] = useState("");
   /*
    * Results carry the query they answer, rather than being cleared when the
@@ -119,9 +119,16 @@ export function SearchBox({ postCount }: { postCount: number }) {
     <section className="mb-7 overflow-hidden rounded-sm border border-rule bg-surface">
       <div className="flex items-baseline justify-between border-b border-rule px-3.5 py-2.5">
         <h3 className="label text-xs">Search</h3>
-        <span className="font-mono text-[10px] text-muted">
-          {active ? `${found} hit${found === 1 ? "" : "s"}` : postCount}
-        </span>
+        {/*
+         * Empty until there is something to say. The corpus size used to sit
+         * here, in the slot "7d" occupies on the card opposite, but a total
+         * that never changes is a label rather than information.
+         */}
+        {active && (
+          <span className="font-mono text-[10px] text-muted">
+            {found} hit{found === 1 ? "" : "s"}
+          </span>
+        )}
       </div>
 
       <div className="px-3.5 py-2.5">

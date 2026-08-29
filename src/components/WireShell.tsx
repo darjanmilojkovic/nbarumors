@@ -47,7 +47,7 @@ async function LeftRail({ teamSlug }: { teamSlug?: string }) {
        * The rail is `hidden lg:block`, so this is desktop-only by placement
        * rather than by a breakpoint of its own.
        */}
-      <SearchBox postCount={stats?.rumorCount ?? 0} />
+      <SearchBox />
 
       <RailHeading>Beats since 2026</RailHeading>
       <nav className="mb-7 flex flex-col gap-px">

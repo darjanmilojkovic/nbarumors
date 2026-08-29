@@ -60,7 +60,23 @@ export async function searchSite(
              t.city || ' ' || t.name as team_name
       from players p
       left join teams t on t.id = p.current_team_id
+      /*
+       * Aliases as well as the display name, because nobody types the
+       * diacritics. We store "Luka Doncic" with a hacek, which ilike on the
+       * ASCII spelling does not match: searching his surname returned six
+       * reports, whose headlines are written plainly, and not the player
+       * himself. The same held for Jokic, Vucevic, Sengun and Valanciunas.
+       *
+       * The alias array already carries the folded spelling, so this needs no
+       * unaccent extension and no migration.
+       *
+       * No backticks in this comment: it sits inside a JS template literal,
+       * and one would end the string.
+       */
       where p.full_name ilike ${term}
+         or exists (
+           select 1 from unnest(p.aliases) alias where alias ilike ${term}
+         )
       -- The best-known match first: a search for "curry" means Stephen.
       order by p.prominence desc, p.full_name asc
       limit ${limit}
