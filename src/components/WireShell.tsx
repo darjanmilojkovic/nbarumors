@@ -93,37 +93,6 @@ async function LeftRail({ teamSlug }: { teamSlug?: string }) {
        */}
       <SearchBox />
 
-      {/*
-       * Teams above beats, ON TRIAL from 29 Aug 2026 — swap the two blocks back
-       * to revert.
-       *
-       * The chips are a block of shapes and the beats are a column of words, so
-       * the compact one now sits directly under the search card and the list
-       * runs to the foot of the rail.
-       */}
-      <RailHeading>Most active</RailHeading>
-      {/*
-       * A fixed 5-column grid rather than flex-wrap: every chip gets the same
-       * cell, so the block squares off and spans the rail's full width.
-       */}
-      <div className="mb-7 grid grid-cols-5 gap-1.5">
-        {teams.map((t) => (
-          <Link
-            key={t.slug}
-            href={`/team/${t.slug}`}
-            aria-pressed={teamSlug === t.slug}
-            title={`${t.abbreviation} · ${t.n} update${t.n === 1 ? "" : "s"}`}
-            className={`rounded-sm border py-1 text-center font-mono text-[11px] tracking-wide ${
-              teamSlug === t.slug
-                ? "border-link bg-link font-bold text-white"
-                : "border-rule bg-surface text-body hover:border-link hover:text-white"
-            }`}
-          >
-            {t.abbreviation}
-          </Link>
-        ))}
-      </div>
-
       <RailHeading>Beats since 2026</RailHeading>
       <nav className="mb-7 flex flex-col gap-px">
         <Link
@@ -146,6 +115,34 @@ async function LeftRail({ teamSlug }: { teamSlug?: string }) {
           </Link>
         ))}
       </nav>
+
+      {/*
+       * Named "Most active teams" rather than "Most active", because the rail
+       * now opens with a search box that also returns players and reports —
+       * the heading has to say which of the three these chips are.
+       */}
+      <RailHeading>Most active teams</RailHeading>
+      {/*
+       * A fixed 5-column grid rather than flex-wrap: every chip gets the same
+       * cell, so the block squares off and spans the rail's full width.
+       */}
+      <div className="mb-7 grid grid-cols-5 gap-1.5">
+        {teams.map((t) => (
+          <Link
+            key={t.slug}
+            href={`/team/${t.slug}`}
+            aria-pressed={teamSlug === t.slug}
+            title={`${t.abbreviation} · ${t.n} update${t.n === 1 ? "" : "s"}`}
+            className={`rounded-sm border py-1 text-center font-mono text-[11px] tracking-wide ${
+              teamSlug === t.slug
+                ? "border-link bg-link font-bold text-white"
+                : "border-rule bg-surface text-body hover:border-link hover:text-white"
+            }`}
+          >
+            {t.abbreviation}
+          </Link>
+        ))}
+      </div>
     </aside>
   );
 }
