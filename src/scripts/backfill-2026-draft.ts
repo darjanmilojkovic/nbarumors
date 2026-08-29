@@ -484,7 +484,6 @@ async function main() {
   const counts: Record<string, number> = {};
   for (const post of POSTS) {
     const canonical = canonicalizeUrl(post.url);
-    const hash = urlHash(canonical);
 
     if (!apply) {
       console.log(
