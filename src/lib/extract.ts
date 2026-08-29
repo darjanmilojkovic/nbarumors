@@ -303,18 +303,50 @@ export function outletName(
   if (!/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(name)) return name;
 
   /*
-   * Google News is a redirector, so its source row is called "Google News" and
-   * says nothing about who actually wrote the piece. There the hostname IS the
-   * best name we hold, and deferring to the source would replace a real outlet
-   * with the name of a middleman.
+   * A known host resolves to its masthead regardless of how the item reached
+   * us. Deferring to `sources.name` alone was not enough: gnews-woj-shams is
+   * still enabled and carried 132 items in the last thirty days, thirty of
+   * them from heavy.com — and for those the source row says "Google News", so
+   * the fallback handed the model the hostname anyway. The exact case this was
+   * meant to fix, arriving by the other door.
    */
-  if (/google\s*news/i.test(sourceName)) return name;
+  const known = HOST_NAMES[name.toLowerCase()];
+  if (known) return known;
+
+  /*
+   * Google News is a redirector: its source row names the middleman, not the
+   * outlet, so falling back to it would replace a real publisher with "Google
+   * News". Drop the suffix instead, so no domain reaches prose either way.
+   */
+  if (/google\s*news/i.test(sourceName)) {
+    return name.replace(/^www\./i, "").replace(/\.[a-z.]{2,6}$/i, "");
+  }
 
   return sourceName;
 }
 
 /** Kept deliberately short; add only names a reader would write with the dot. */
-const BRANDS_WITH_A_DOT = new Set(["nba.com"]);
+const BRANDS_WITH_A_DOT = new Set(["nba.com", "basketnews.com"]);
+
+/**
+ * Hostnames to the name a reader would use, for outlets that reach us through
+ * more than one door. Every entry here has actually appeared in `publisher`.
+ */
+const HOST_NAMES: Record<string, string> = {
+  "heavy.com": "Heavy",
+  "espn.com": "ESPN",
+  "espn.in": "ESPN",
+  "sports.yahoo.com": "Yahoo Sports",
+  "basketball.realgm.com": "RealGM",
+  "hoopsrumors.com": "Hoops Rumors",
+  "fadeawayworld.net": "Fadeaway World",
+  "cbssports.com": "CBS Sports",
+  "sportando.basketball": "Sportando",
+  "bballrumors.com": "BBall Rumors",
+  "bolavip.com": "Bolavip",
+  "olympics.com": "Olympics.com",
+  "ascendants.in": "Ascendants",
+};
 
 /**
  * Whether a summary opens by naming the outlet as its subject.
