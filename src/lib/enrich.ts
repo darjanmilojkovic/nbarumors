@@ -17,26 +17,29 @@ import { SCHEMA } from "@/lib/extract";
  */
 
 /**
- * Opus here, Sonnet for extraction — deliberately split, from a side-by-side.
+ * Sonnet, matching extraction — but through its own variable, because the two
+ * jobs were compared and could reasonably diverge again.
  *
  * Both models were run over the same 103-character stub with the same prompt,
- * merging the same ten-outlet chain on the Josh Green trade. Sonnet wrote the
- * better prose; Opus merged the better facts, which is what this job is.
+ * merging the same ten-outlet chain on the Josh Green trade. Neither won
+ * cleanly, and the failure modes are different rather than one being better:
  *
- * The deciding evidence was a number. Sonnet said the trade cleared "roughly
- * $10.6 million" of space in one run and "$6.5M" in another, from identical
- * input — it contradicted itself on a dollar figure across two runs. Opus gave
- * "$6.489 million under the second-apron hard cap" and attributed it to Bobby
- * Marks, which is a claim a reader can check. It also kept who-said-what
- * straight ("Charania reports Minnesota intends to keep Williams") where
- * Sonnet asserted the same facts unattributed.
+ *   Sonnet invents precision. It said the trade cleared "roughly $10.6
+ *   million" of space in one run and "$6.5M" in another, from identical
+ *   input — contradicting itself on a dollar figure.
  *
- * Extraction stays on Sonnet. This is the narrower and rarer call — it fires
- * only when a second outlet reports a story we already have — so paying 2.5x
- * for it is a small bill on the step where a wrong figure would be published
- * as fact.
+ *   Opus loses detail. On the Dillon Brooks extension it dropped a fact the
+ *   existing summary carried, his career-best 20.2 points per game, though
+ *   the prompt says to keep every fact unless a later report corrects it.
+ *
+ * Opus also attributed more tightly and wrote drier prose; Sonnet read better.
+ * Sonnet is the choice, so enrichment and extraction stay on one model.
+ *
+ * ENRICHMENT_MODEL exists so the split is one variable away if the figure
+ * problem shows up in the wild — it is the more dangerous of the two, since a
+ * missing detail is recoverable and a wrong number is published as truth.
  */
-const MODEL = process.env.ENRICHMENT_MODEL ?? "claude-opus-5";
+const MODEL = process.env.ENRICHMENT_MODEL ?? "claude-sonnet-5";
 /*
  * Built on first use, not at import.
  *
