@@ -142,7 +142,9 @@ Keep every fact from the existing summary unless the new report corrects it, in 
 
 Attribute a specific claim to whoever made it when the reports disagree about who said what. Where they agree, one attribution is enough.
 
-This is a summary, not a digest. If the new report adds one detail, the result is the old summary plus that detail, not a reorganisation of it.`,
+This is a summary, not a digest. If the new report adds one detail, the result is the old summary plus that detail, not a reorganisation of it.
+
+Give every player a first name and a surname the first time they appear in the merged summary, even where the existing summary or the incoming report used the surname alone. Merging is where this goes wrong: two reports each name a different Williams, and the result reads as one man. After the first mention the surname alone is fine.`,
           cache_control: { type: "ephemeral" },
         },
       ],

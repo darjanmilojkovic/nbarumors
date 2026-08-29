@@ -21,6 +21,22 @@ import { findCommonsImages, preferLandscape } from "@/lib/images";
 /** Below this, hold the rumor back for review instead of publishing. */
 const PUBLISH_THRESHOLD = 0.6;
 
+/**
+ * When a settled post is short enough to count as a stub, and how much
+ * corroboration it takes before that is worth acting on.
+ *
+ * 240 characters is about one sentence. The extraction prompt asks for "one to
+ * four original sentences ... as many as the available facts justify and no
+ * more", so a single sentence is the right answer to a headline-only item and
+ * the wrong one to a story three outlets thought worth covering.
+ *
+ * Measured against the archive: of 571 settled posts, 32 carry three or more
+ * outlets and exactly one of those is under 240 characters. This is a narrow
+ * repair, not a general re-opening of finished posts.
+ */
+const STUB_CHARS = 240;
+const STUB_OUTLETS = 3;
+
 const slugify = (s: string) =>
   s
     .normalize("NFKD")
@@ -325,8 +341,38 @@ async function attachSource(
       extraction.contractValue !== current.contractValue,
   );
   const open = current.status === "rumor" || current.status === "reported";
+
+  /*
+   * A settled post that is still only one sentence long, on a story several
+   * outlets have covered.
+   *
+   * Freezing a completed deal is right in general, but it has a blind spot:
+   * which report happened to arrive first. "Josh Green heads to Utah as
+   * Williams and Konchar go to Minnesota" was born from ESPN's bare wire
+   * alert — "Minnesota is sending Josh Green and cash to Utah for Cody
+   * Williams and John Konchar, sources told ESPN", 103 characters — and stayed
+   * that length while nine more outlets attached, several carrying the reason
+   * it happened: Green's $14.7M coming off the books cleared Minnesota's
+   * hard-cap room for Kuminga. None of it could reach the summary, because the
+   * post was complete from its first word.
+   *
+   * Both halves of the test matter. A one-sentence body is often correct — a
+   * headline-only item deserves one sentence and no more — so shortness alone
+   * proves nothing. It is shortness AND three or more outlets that says the
+   * story outgrew the report we filed it from.
+   *
+   * Self-limiting: enrichment pushes the body past the threshold, and
+   * enrichBody already returns null when the incoming report adds nothing.
+   */
+  const [{ n: outletCount }] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(rumorSources)
+    .where(eq(rumorSources.rumorId, rumorId));
+
+  const stub = current.body.length < STUB_CHARS && outletCount >= STUB_OUTLETS;
+
   const enriched =
-    open || correctsTerms
+    open || correctsTerms || stub
       ? await enrichBody({
           headline: current.headline,
           current: current.body,
