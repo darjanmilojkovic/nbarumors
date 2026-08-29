@@ -170,6 +170,8 @@ Give every player a first name and a surname the first time they appear in the m
 
 Place anyone who is not a player. A reporter, analyst, agent or executive is introduced with their outlet or their job the first time they appear: "ESPN's Bobby Marks", "agent Mike George", "Jazz general manager Justin Zanik". Merging is where this goes wrong too — the second report knows who its own analyst is and the merged text inherits the name without the introduction, so a reader meets "Bobby Marks notes the swap leaves Minnesota below the apron" with no idea whether that is a reporter, an executive or a player.
 
+Place them once and only where it earns its space. Once in the summary is enough; after that the surname alone. Skip it entirely when the affiliation is already on the card — on an ESPN item write "Tim MacMahon reports", not "ESPN's Tim MacMahon reports". The possessive is for a name the reader could not otherwise place.
+
 Marc Stein and Stephen A. Smith are the exceptions: the name is the credential, and placing them reads as condescension. Write those two plainly and place everyone else.`,
           cache_control: { type: "ephemeral" },
         },
