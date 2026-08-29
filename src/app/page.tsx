@@ -6,6 +6,7 @@ import { WireShell } from "@/components/WireShell";
 import { WireItem } from "@/components/WireItem";
 import { feedPage } from "@/lib/queries";
 import { SITE } from "@/lib/site";
+import { CHIP_LABEL, CHIP_ORDER } from "@/lib/beats";
 
 export const revalidate = 300;
 
@@ -29,16 +30,14 @@ const TABS = [
   { key: "confirmed", label: "Confirmed" },
 ] as const;
 
+/*
+ * Built from the shared beat definitions, so the chips and the rail cannot
+ * disagree about what a category is or what it is called.
+ */
 const CHIPS = [
   { key: "", label: "All" },
-  { key: "trade", label: "Trades" },
-  { key: "signing", label: "Signings" },
-  { key: "free_agency", label: "Free agency" },
-  { key: "extension", label: "Extensions" },
-  { key: "buyout", label: "Buyouts" },
-  { key: "waiver", label: "Waivers" },
-  { key: "draft", label: "NBA draft" },
-] as const;
+  ...CHIP_ORDER.map((key) => ({ key, label: CHIP_LABEL[key] ?? key })),
+];
 
 /**
  * Twenty, down from forty.

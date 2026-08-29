@@ -3,6 +3,7 @@ import Link from "next/link";
 import { RevealHeader } from "@/components/RevealHeader";
 import { SearchBox } from "@/components/SearchBox";
 import { SiteHeader } from "@/components/SiteHeader";
+import { groupBeatCounts } from "@/lib/beats";
 import {
   activeTeams,
   beatCounts,
@@ -11,30 +12,6 @@ import {
   wireStats,
 } from "@/lib/queries";
 
-const BEAT_LABEL: Record<string, string> = {
-  trade: "Trade Rumors",
-  signing: "Contract Signings",
-  free_agency: "Free Agency",
-  extension: "Contract Extensions",
-  buyout: "Buyout Market",
-  waiver: "Waivers",
-  draft: "NBA Draft",
-  injury_impact: "Injury Room",
-  other: "Other",
-};
-
-/**
- * Beats that exist in the data but are not offered as a way in.
- *
- * "Other" is the extraction's fallback bucket rather than a subject anyone
- * comes looking for, and a nav item named after our own leftovers invites a
- * click that cannot satisfy it.
- *
- * Hidden from the rail, not deleted: the posts keep their type, still appear
- * under Latest Updates, and `/?cat=other` still resolves for anyone holding
- * the link.
- */
-const HIDDEN_BEATS = new Set(["other"]);
 
 function RailHeading({ children }: { children: React.ReactNode }) {
   return (
@@ -65,18 +42,21 @@ async function LeftRail({ teamSlug }: { teamSlug?: string }) {
             {stats?.rumorCount ?? 0}
           </span>
         </Link>
-        {beats
-          .filter((b) => !HIDDEN_BEATS.has(b.type))
-          .map((b) => (
-            <Link
-              key={b.type}
-              href={`/?cat=${b.type}`}
-              className="flex items-center justify-between rounded-sm px-3 py-2 text-sm text-body hover:bg-surface hover:text-white"
-            >
-              {BEAT_LABEL[b.type] ?? b.type}
-              <span className="font-mono text-[11px] text-muted">{b.n}</span>
-            </Link>
-          ))}
+        {/*
+         * Grouped, so buyouts and waivers arrive as one "Releases" row with
+         * their counts added, and re-sorted afterwards — merging changes the
+         * order, and the rail has always led with the largest.
+         */}
+        {groupBeatCounts(beats).map((b) => (
+          <Link
+            key={b.key}
+            href={`/?cat=${b.key}`}
+            className="flex items-center justify-between rounded-sm px-3 py-2 text-sm text-body hover:bg-surface hover:text-white"
+          >
+            {b.label}
+            <span className="font-mono text-[11px] text-muted">{b.n}</span>
+          </Link>
+        ))}
       </nav>
 
       {/*

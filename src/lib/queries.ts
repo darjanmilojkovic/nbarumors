@@ -3,6 +3,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { headshotFor, logoFor } from "@/lib/images";
 import { db } from "@/db";
 import { isSameEvent } from "@/lib/event-key";
+import { typesForCat } from "@/lib/beats";
 import {
   feedItems,
   playerSlugRedirects,
@@ -537,7 +538,23 @@ export async function feedPage(opts: {
   const { tab, cat, page, perPage } = opts;
 
   const filters: SQL[] = [];
-  if (cat) filters.push(sql`${rumors.type} = ${cat}`);
+  /*
+   * A category can cover more than one stored type — "releases" is buyouts and
+   * waivers together — so this matches a set rather than a value. An ungrouped
+   * category resolves to itself, which is why `?cat=waiver` links shared before
+   * the merge still work.
+   */
+  if (cat) {
+    const types = typesForCat(cat);
+    filters.push(
+      types.length === 1
+        ? sql`${rumors.type} = ${types[0]}`
+        : sql`${rumors.type} in (${sql.join(
+            types.map((t) => sql`${t}`),
+            sql`, `,
+          )})`,
+    );
+  }
   if (tab === "confirmed") {
     filters.push(sql`${rumors.status} in ('confirmed','completed')`);
   }
