@@ -4,6 +4,7 @@ import { headshotFor, logoFor } from "@/lib/images";
 import { db } from "@/db";
 import { isSameEvent } from "@/lib/event-key";
 import { typesForCat } from "@/lib/beats";
+import { isUsableShareImage, isWideEnough } from "@/lib/share-image";
 import {
   feedItems,
   playerSlugRedirects,
@@ -31,6 +32,9 @@ export type FeedRumor = {
   bodyUpdatedAt: Date | null;
   imageUrl: string | null;
   imageAttribution: string | null;
+  imageWidth: number | null;
+  imageHeight: number | null;
+  imagePlayerName: string | null;
   sourceCount: number;
   alsoReportedBy: string | null;
   chain: { outlet: string; headline: string; url: string; at: string }[];
@@ -451,6 +455,17 @@ const baseSelect = (extra?: SQL, order: FeedOrder = "rank") =>
       bodyUpdatedAt: rumors.bodyUpdatedAt,
       imageUrl: playerImages.url,
       imageAttribution: playerImages.attribution,
+      /*
+       * Carried so the share card can check the picture is a photograph of the
+       * player it is filed under before broadcasting it. See lib/share-image:
+       * the Commons search matches on name, and a surname is enough to pull in
+       * a nursery catalogue or a 1663 almanac.
+       */
+      imageWidth: playerImages.width,
+      imageHeight: playerImages.height,
+      imagePlayerName: sql<string | null>`(
+        select p2.full_name from players p2 where p2.id = ${playerImages.playerId}
+      )`,
       /** Distinct outlets that reported this event — the corroboration count. */
       sourceCount: sql<number>`(
         select count(distinct case when s2.slug like 'gnews%' then coalesce(nullif(rs.publisher, ''), s2.name) else s2.name end)::int
@@ -829,19 +844,33 @@ export async function playerBySlug(slug: string) {
    * wide card; the headshot is 256x188, which is fine for the small one but
    * too slight to blow up. Both beat a generic mark.
    */
-  const [shot] = await db
-    .select({ url: playerImages.url, width: playerImages.width })
+  const shots = await db
+    .select({
+      url: playerImages.url,
+      width: playerImages.width,
+      height: playerImages.height,
+    })
     .from(playerImages)
     .where(eq(playerImages.playerId, p.id))
-    .orderBy(sql`${playerImages.width} desc nulls last`)
-    .limit(1);
+    .orderBy(sql`${playerImages.width} desc nulls last`);
+
+  /*
+   * Only a picture that survives the check. A tenth of the library is not a
+   * photograph of anybody — see lib/share-image — and a share card is the one
+   * place a wrong image is broadcast rather than merely stored.
+   */
+  const shot = shots.find((s) =>
+    isUsableShareImage(s.url, p.fullName, s.width, s.height),
+  );
+
+  const headshot = headshotFor(p.nbaPlayerId);
 
   return {
     ...p,
-    headshotUrl: headshotFor(p.nbaPlayerId),
-    /** Absolute already for Commons; null when we have neither. */
-    shareImage: shot?.url ?? headshotFor(p.nbaPlayerId),
-    shareImageIsWide: (shot?.width ?? 0) >= 600,
+    headshotUrl: headshot,
+    /** Absolute already for Commons; the headshot is a local path. */
+    shareImage: shot?.url ?? headshot,
+    shareImageIsWide: Boolean(shot) && isWideEnough(shot?.width),
   };
 }
 

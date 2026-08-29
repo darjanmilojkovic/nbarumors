@@ -10,6 +10,7 @@ import { WireShell } from "@/components/WireShell";
 import { surname } from "@/lib/names";
 import { latestRumors, rumorBySlug } from "@/lib/queries";
 import { SITE } from "@/lib/site";
+import { isUsableShareImage, isWideEnough } from "@/lib/share-image";
 
 export const revalidate = 300;
 
@@ -50,17 +51,32 @@ export async function generateMetadata({
       : `${rumor.body.slice(0, 200).replace(/\s+\S*$/, "")}…`;
 
   /*
-   * The post's own artwork as the share card.
+   * The post's own artwork as the share card, validated before it is
+   * broadcast. The Commons search matches on a name,
+   * and a surname alone pulled in a 1924 nursery price list for Coby White and
+   * a 1663 almanac for a post mentioning Gabe Vincent — 41 of 428 stored
+   * images are not photographs of anyone. Nobody had noticed because these
+   * images were never displayed anywhere; wiring them to og:image gave an
+   * unreviewed library the most public job on the site.
    *
-   * Every post carried og:title, description, type and url and no image at
-   * all, so a link shared to Slack, X or iMessage rendered as a grey text box.
-   * 673 of 720 posts have artwork and it averages 1199px wide, which is what
-   * summary_large_image wants — so the wide card is used when there is a real
-   * image and the small one when we fall back to the site mark.
-   *
-   * The URL is absolute already (Wikimedia), so it needs no metadataBase.
+   * The fallback is the NBA headshot of whoever the post is about. It is only
+   * 256x188, so it takes the small card rather than the wide one, but it is
+   * always the right player — which a 362-year-old almanac is not.
    */
-  const share = rumor.imageUrl;
+  const lead =
+    rumor.players.find((p) => p.isPrimary) ?? rumor.players[0] ?? null;
+
+  const commons = isUsableShareImage(
+    rumor.imageUrl,
+    rumor.imagePlayerName ?? lead?.fullName ?? "",
+    rumor.imageWidth,
+    rumor.imageHeight,
+  )
+    ? rumor.imageUrl
+    : null;
+
+  const share = commons ?? lead?.headshotUrl ?? null;
+  const wide = Boolean(commons) && isWideEnough(rumor.imageWidth);
 
   return {
     title: rumor.headline,
@@ -75,11 +91,17 @@ export async function generateMetadata({
         ? { modifiedTime: rumor.bodyUpdatedAt.toISOString() }
         : {}),
       url: `${SITE.url}/rumor/${rumor.slug}`,
-      ...(share ? { images: [{ url: share, alt: rumor.headline }] } : {}),
+      images: share
+        ? [{ url: share, alt: rumor.headline }]
+        : [{ url: "/android-chrome-512x512.png", width: 512, height: 512 }],
     },
-    twitter: share
-      ? { card: "summary_large_image", title: rumor.headline, description, images: [share] }
-      : undefined,
+    twitter: {
+      /* Wide only for a validated Commons photo; a headshot is too small. */
+      card: wide ? "summary_large_image" : "summary",
+      title: rumor.headline,
+      description,
+      images: [share ?? "/android-chrome-512x512.png"],
+    },
   };
 }
 
