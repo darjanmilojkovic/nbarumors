@@ -31,15 +31,19 @@ import { EMPTY_RESULTS, MIN_QUERY, type SearchResults } from "@/lib/search-share
 const DEBOUNCE_MS = 180;
 
 /**
- * Which of the two designs is live.
+ * Which of the three designs is live.
  *
- * "bare"   — the field keeps its own border, the card is gone.
- * "inline" — no chrome at all; a line of text that happens to be an input,
- *            with a rule appearing on focus.
+ * "labelled" — a rail heading above a bordered field, so the block reads like
+ *              the beats and the team chips: label, then content.
+ * "bare"     — the same field with no heading.
+ * "inline"   — no chrome at all; a line of text that happens to be an input,
+ *              with a rule appearing on focus.
  *
- * Both are on trial from 29 Aug 2026. Flip this one word to switch.
+ * All three are on trial from 29 Aug 2026. Flip this one word to switch. None
+ * of them is a card — that was tried first and rejected for importing the
+ * right rail's language into a column that speaks in bare links and chips.
  */
-const SEARCH_VARIANT: "bare" | "inline" = "inline";
+const SEARCH_VARIANT: "labelled" | "bare" | "inline" = "labelled";
 
 export function SearchBox() {
   const [query, setQuery] = useState("");
@@ -207,15 +211,24 @@ export function SearchBox() {
   );
 
   /*
-   * Variant A — the field keeps its own border, the card around it is gone.
+   * Variants A and B — the field keeps its own border, the card around it is
+   * gone. B adds the rail's own heading above it.
    *
    * The border is affordance rather than decoration: it is what says this is
    * something you type into. Only the card wrapper mimicked the right rail, so
    * only the card wrapper goes.
+   *
+   * B's heading is written out rather than imported from WireShell, where
+   * RailHeading lives: exporting it to a client component would pull the whole
+   * server module across the boundary. The classes are copied verbatim, so a
+   * change to one wants the same change to the other.
    */
-  if (SEARCH_VARIANT === "bare") {
+  if (SEARCH_VARIANT === "bare" || SEARCH_VARIANT === "labelled") {
     return (
       <div className="mb-7">
+        {SEARCH_VARIANT === "labelled" && (
+          <h2 className="label mb-3 text-[11px] text-muted">Search</h2>
+        )}
         <div className="relative">
           <i
             aria-hidden="true"
@@ -229,7 +242,13 @@ export function SearchBox() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="Search"
+            /*
+             * The heading already says "Search", so the placeholder in B says
+             * what can be searched instead of repeating it.
+             */
+            placeholder={
+              SEARCH_VARIANT === "labelled" ? "Player, team or report" : "Search"
+            }
             aria-label="Search players, teams and reports"
             /*
              * `appearance-none` removes Safari's inset search styling, which
