@@ -2,20 +2,30 @@ import Anthropic from "@anthropic-ai/sdk";
 import { SEED_TEAMS } from "@/db/seed-data/teams";
 
 /**
- * One model for every item. Override with EXTRACTION_MODEL in .env.local and
- * in the Vercel project to trade quality for cost — the single biggest lever
- * on the monthly bill, and a one-line change in both places.
+ * One model for every item. Override with EXTRACTION_MODEL in .env.local or in
+ * the Vercel project — the single biggest lever on the monthly bill.
  *
- * This routed by input length for a while, on the theory that Opus only pulls
- * ahead where there is a long article to mine. `npm run compare:models` on
- * items that actually became posts does not support it: across 400-char
+ * On Sonnet 5 from 29 Aug 2026, on trial. After the Haiku gate stopped the
+ * junk, about 198 items a day still reach this call: $3.07 on Opus against
+ * $1.23 on Sonnet.
+ *
+ * The comment here used to say Sonnet did not honour the paragraph-break rule.
+ * That was one observation from a small bake-off, recorded once and never
+ * re-checked, and it was wrong. Run head to head on the same six articles both
+ * models broke all three of their three-plus-sentence bodies into paragraphs,
+ * agreed on every classification, and wrote near-identical headlines.
+ *
+ * This also routed by input length for a while, on the theory that Opus only
+ * pulls ahead where there is a long article to mine. `npm run compare:models`
+ * on items that actually became posts does not support it: across 400-char
  * teasers and 3,000-char articles alike the two land in the same place, and
- * where they differ it does not track length. Opus writes the sharper
- * headline and honours the paragraph-break rule; Sonnet packs slightly more
- * fact into the body and writes it as one block. Neither is a length effect,
- * so there was nothing for a length threshold to key on.
+ * where they differ it does not track length.
+ *
+ * What is still genuinely open is style rather than capability: Sonnet packs
+ * slightly more fact into a body, and once reached for "floated", a word this
+ * site avoids. Both show up in a day of output, which is what the trial is for.
  */
-const MODEL = process.env.EXTRACTION_MODEL ?? "claude-opus-5";
+const MODEL = process.env.EXTRACTION_MODEL ?? "claude-sonnet-5";
 
 export function modelFor(): string {
   return MODEL;
@@ -162,7 +172,8 @@ export const SCHEMA = {
           name: { type: "string" },
           isPrimary: {
             type: "boolean",
-            description: "True for the player the move is actually about.",
+            description:
+              "True for EVERY player this item is about, not just the most famous one. Mark all of them. A trade has a subject on each side: 'Bulls send Braden Smith to Pacers for Kam Jones' is about both players and both are primary. A three-team idea moving three players has three. A signing has one. False only for a name that appears without moving — a teammate described for context, a player another club also wants, an executive or coach.\n\nWritten as 'the player the move is actually about', this returned exactly one primary on 73% of trades naming two players in the headline, and the site uses it to decide which player a post is filed under. 'P.J. Washington and Prince to Golden State in three-team Kyrie idea' came back with one primary, and it was none of the three players in the headline.",
           },
           fromTeam: {
             type: ["string", "null"],

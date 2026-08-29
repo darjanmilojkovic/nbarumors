@@ -16,7 +16,8 @@ import { SCHEMA } from "@/lib/extract";
  * read and what makes wider matching safe to attempt.
  */
 
-const MODEL = process.env.EXTRACTION_MODEL ?? "claude-opus-5";
+// Follows extraction; see the note above MODEL in lib/extract.ts.
+const MODEL = process.env.EXTRACTION_MODEL ?? "claude-sonnet-5";
 /*
  * Built on first use, not at import.
  *

@@ -21,7 +21,8 @@ import Anthropic from "@anthropic-ai/sdk";
  * two days and the keys did NOT already match — a handful of times a day.
  */
 
-const MODEL = process.env.EXTRACTION_MODEL ?? "claude-opus-5";
+// Follows extraction; see the note above MODEL in lib/extract.ts.
+const MODEL = process.env.EXTRACTION_MODEL ?? "claude-sonnet-5";
 /*
  * Built on first use, not at import.
  *
