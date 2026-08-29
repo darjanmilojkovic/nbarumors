@@ -24,8 +24,30 @@ export async function GET(request: Request) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  /*
+   * `?dry=1` computes every rating and writes nothing.
+   *
+   * This exists because the sync spent a day calling an endpoint that does not
+   * answer from Vercel, and nothing would have revealed that until the cron
+   * fired and rated nobody. A dry run behind the same bearer token proves the
+   * upstream fetches actually complete from a deployment — which is the only
+   * environment whose answer counts — without touching a rating.
+   */
+  const dry = new URL(request.url).searchParams.get("dry") === "1";
+
   try {
-    const result = await runStatsSync();
+    const result = await runStatsSync({ dryRun: dry });
+    if (dry) {
+      // The full change list is long; the shape of it is what matters here.
+      return Response.json({
+        dryRun: true,
+        seasons: result.seasons,
+        playersInDb: result.playersInDb,
+        scored: result.scored,
+        changes: result.changes.length,
+        largestMoves: result.changes.slice(0, 10),
+      });
+    }
     return Response.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
