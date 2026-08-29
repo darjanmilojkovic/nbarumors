@@ -18,10 +18,23 @@ const BEAT_LABEL: Record<string, string> = {
   extension: "Contract Extensions",
   buyout: "Buyout Market",
   waiver: "Waivers",
-  draft: "Draft",
+  draft: "NBA Draft",
   injury_impact: "Injury Room",
   other: "Other",
 };
+
+/**
+ * Beats that exist in the data but are not offered as a way in.
+ *
+ * "Other" is the extraction's fallback bucket rather than a subject anyone
+ * comes looking for, and a nav item named after our own leftovers invites a
+ * click that cannot satisfy it.
+ *
+ * Hidden from the rail, not deleted: the posts keep their type, still appear
+ * under Latest Updates, and `/?cat=other` still resolves for anyone holding
+ * the link.
+ */
+const HIDDEN_BEATS = new Set(["other"]);
 
 function RailHeading({ children }: { children: React.ReactNode }) {
   return (
@@ -60,16 +73,18 @@ async function LeftRail({ teamSlug }: { teamSlug?: string }) {
             {stats?.rumorCount ?? 0}
           </span>
         </Link>
-        {beats.map((b) => (
-          <Link
-            key={b.type}
-            href={`/?cat=${b.type}`}
-            className="flex items-center justify-between rounded-sm px-3 py-2 text-sm text-body hover:bg-surface hover:text-white"
-          >
-            {BEAT_LABEL[b.type] ?? b.type}
-            <span className="font-mono text-[11px] text-muted">{b.n}</span>
-          </Link>
-        ))}
+        {beats
+          .filter((b) => !HIDDEN_BEATS.has(b.type))
+          .map((b) => (
+            <Link
+              key={b.type}
+              href={`/?cat=${b.type}`}
+              className="flex items-center justify-between rounded-sm px-3 py-2 text-sm text-body hover:bg-surface hover:text-white"
+            >
+              {BEAT_LABEL[b.type] ?? b.type}
+              <span className="font-mono text-[11px] text-muted">{b.n}</span>
+            </Link>
+          ))}
       </nav>
 
       {/*

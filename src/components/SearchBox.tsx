@@ -138,8 +138,17 @@ export function SearchBox() {
   const rowClass =
     "flex items-center gap-2.5 border-b border-rule py-2.5 last:border-b-0 hover:bg-surface";
 
+  /*
+   * No rule above the first result.
+   *
+   * The list had a `border-t`, which put a hairline directly under the field
+   * and above the first row — so a result with a headshot got a line across the
+   * top of the player's head. The rows already carry their own separators, and
+   * the field's own bottom edge is the boundary; a second line there was one
+   * too many.
+   */
   const results_list = active && (
-    <div className="mt-1 border-t border-rule">
+    <div className="mt-2">
       {results.players.map((p) => (
         <Link
           key={p.slug}
