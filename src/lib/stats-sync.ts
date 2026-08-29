@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { db } from "@/db";
 import { players } from "@/db/schema";
 import {
-  fetchLeagueBoxScore,
+  fetchBrefSeason,
   fetchSeasonLeaders,
   prominenceScore,
   productionScore,
@@ -118,17 +118,46 @@ export async function runStatsSync(
    *
    * `leagueLeaders` returns only players who met a games threshold — a former
    * MVP who missed half a season scored 0 and ranked below two-way signings —
-   * and only points. `leaguedashplayerstats` has no threshold and carries the
-   * whole line, so assists, rebounds, steals and blocks reach productionScore
-   * from the league rather than from a scrape.
+   * and only points. The scrape has no threshold and carries the whole line,
+   * so assists, rebounds, steals and blocks reach productionScore.
    *
-   * This was Basketball-Reference until 28 Aug 2026. The note saying the
-   * endpoint refused us was stale.
+   * This was `leaguedashplayerstats` for one day, on 28 Aug 2026, because I
+   * read the note saying the endpoint refuses us, tested it from a laptop and
+   * called the note stale. The note was about production. Measured from a
+   * deployed route, that endpoint never answers from Vercel at all — so for
+   * that day this loop failed on all six seasons and the sync could not have
+   * rated anyone. Reverted to the source that does answer.
+   *
+   * The scrape carries no player ids, and matching on name alone is not good
+   * enough in either direction. Reverting on names alone cost Bobby Portis Jr.
+   * 70 to 39, Xavier Tillman 33 to 0 and Elijah Bryant 39 to 9 in a dry run —
+   * our rows hold the suffixed spelling and the scrape does not, which is the
+   * exact mirror of the bug that hit Jimmy Butler going the other way.
+   *
+   * So ids are resolved from the directory file, which lists all 5,126 players
+   * and IS reachable from Vercel. The resolver takes an exact name outright and
+   * accepts a suffix-insensitive match only when it lands on one player, so it
+   * does not merge Gary Payton Jr. onto his father.
    */
-  const history = new Map<string, Awaited<ReturnType<typeof fetchLeagueBoxScore>>>();
+  const resolveId = await (async () => {
+    try {
+      const { fetchDirectory, buildNameResolver } = await import(
+        "@/lib/roster-nba"
+      );
+      return buildNameResolver(await fetchDirectory());
+    } catch {
+      // Names still join for everyone whose spelling already agrees.
+      return () => undefined;
+    }
+  })();
+
+  const history = new Map<string, Awaited<ReturnType<typeof fetchBrefSeason>>>();
   for (const season of seasonHistory()) {
     try {
-      const rows = await fetchLeagueBoxScore(season);
+      const rows = (await fetchBrefSeason(season)).map((r) => ({
+        ...r,
+        nbaPlayerId: r.nbaPlayerId || (resolveId(r.name) ?? ""),
+      }));
       for (const r of rows) {
         const k = nameKey(r.name);
         history.set(k, [...(history.get(k) ?? []), r]);
@@ -184,7 +213,14 @@ export async function runStatsSync(
 
   const updates = existing.map((p) => {
     const k = nameKey(p.fullName);
-    const id = p.nbaPlayerId ?? "";
+    /*
+     * Our own row is resolved through the directory too, not just the scraped
+     * one. Both halves have to agree on an id for the join to happen, and a
+     * player we hold no id for is exactly the case where the names disagree:
+     * we have "Xavier Tillman", the scrape says "Xavier Tillman Sr.", and
+     * without this he matched neither by id nor by name and dropped 33 to 0.
+     */
+    const id = p.nbaPlayerId ?? resolveId(p.fullName) ?? "";
     const season = bestById.get(id) ?? best.get(k);
     /*
      * Production history first, since it reads the whole box score over six

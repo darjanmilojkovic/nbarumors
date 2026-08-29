@@ -126,70 +126,86 @@ export function productionScore(seasons: SeasonStat[]): number {
 }
 
 /**
- * Every player's full per-game line for a season, from the league.
+ * Every player's full per-game line for a season, scraped.
  *
- * This is what `leagueLeaders` is not: 582 rows against ~230, because it does
- * not apply a qualification threshold, and every counting stat rather than
- * points alone. Both of those were the reasons Basketball-Reference was being
- * scraped, so this replaces it outright.
+ * This was `leaguedashplayerstats` for one day, and that was a mistake I made
+ * on evidence from the wrong machine. The endpoint answers from a laptop and
+ * DOES NOT ANSWER FROM VERCEL: measured twice from a deployed route in iad1,
+ * once with an 8s budget and once with 45s, it never responded at all. Nor do
+ * `playerawards`, `playerindex` or `commonallplayers`.
  *
- * The comment above NBA_HEADERS used to say this endpoint refuses us
- * regardless of headers. It does not, and has not for some time — the same
- * Referer and Origin the rest of this file sends are enough. That claim was
- * the third of its kind found stale in one afternoon, alongside `playerindex`
- * and `commonallplayers`. Re-test before believing a note that an endpoint is
- * closed.
+ * It is not the whole host, which is what I wrongly concluded first:
+ * `leagueLeaders` is a `/stats/` path and answers in 135ms. It is these
+ * specific endpoints, and they are exactly the heavy ones.
+ *
+ * Basketball-Reference answers from iad1 in 206ms, verified from the same
+ * deployment. So the reasons it was replaced — that the league's own box score
+ * has no qualification threshold and carries the whole line — are worth less
+ * than a source that actually responds in production.
+ *
+ * The two reasons it was scraped in the first place still hold: this page
+ * carries every player who appeared rather than the ~230 who met a threshold,
+ * and it has assists, rebounds, steals and blocks rather than points alone.
+ *
+ * No NBA player id here. Ids come from `fetchSeasonLeaders`, which works.
  */
-export async function fetchLeagueBoxScore(
-  season: string,
-): Promise<SeasonStat[]> {
-  const url =
-    `https://stats.nba.com/stats/leaguedashplayerstats?LeagueID=00` +
-    `&Season=${season}&SeasonType=Regular%20Season&PerMode=PerGame` +
-    `&MeasureType=Base&PaceAdjust=N&PlusMinus=N&Rank=N&Month=0&Period=0` +
-    `&LastNGames=0&TeamID=0&OpponentTeamID=0&GameScope=&PlayerExperience=` +
-    `&PlayerPosition=&StarterBench=&Outcome=&Location=&SeasonSegment=` +
-    `&DateFrom=&DateTo=&VsConference=&VsDivision=&Conference=&Division=` +
-    `&DraftYear=&DraftPick=&College=&Country=&Height=&Weight=&TwoWay=0` +
-    `&ShotClockRange=&ISTRound=`;
+export async function fetchBrefSeason(season: string): Promise<SeasonStat[]> {
+  // "2025-26" is the 2026 season file.
+  const endYear = Number(season.slice(0, 4)) + 1;
+  const res = await fetch(
+    `https://www.basketball-reference.com/leagues/NBA_${endYear}_per_game.html`,
+    { headers: { "User-Agent": NBA_HEADERS["User-Agent"] } },
+  );
+  if (!res.ok) throw new Error(`bref ${season}: HTTP ${res.status}`);
+  const html = await res.text();
 
-  const res = await fetch(url, { headers: NBA_HEADERS });
-  if (!res.ok) throw new Error(`nba box score ${season}: HTTP ${res.status}`);
-
-  const data = (await res.json()) as {
-    resultSets?: { headers: string[]; rowSet: unknown[][] }[];
+  /*
+   * Read to the end of the cell and strip any markup, rather than taking the
+   * text immediately after ">".
+   *
+   * Basketball-Reference bolds whoever led the league in a category:
+   *   data-stat="pts_per_g" ><strong>33.1</strong></td>
+   * A regex stopping at the first "<" captured an empty string there, so every
+   * category leader in every season parsed as zero — the bug silently erased
+   * exactly the players it mattered most to get right. Joel Embiid led scoring
+   * in 2021-22 and 2022-23 and was recorded with 0 points in both.
+   */
+  const stat = (row: string, name: string) => {
+    const m = row.match(new RegExp(`data-stat="${name}"[^>]*>(.*?)</td>`, "s"));
+    return m ? Number(m[1].replace(/<[^>]*>/g, "").trim()) : NaN;
   };
-  const rs = data.resultSets?.[0];
-  if (!rs) throw new Error(`nba box score ${season}: unexpected shape`);
 
-  const col = (n: string) => rs.headers.indexOf(n);
-  const iId = col("PLAYER_ID");
-  const iName = col("PLAYER_NAME");
-  const iGp = col("GP");
-  const iMin = col("MIN");
-  const iPts = col("PTS");
-  const iAst = col("AST");
-  const iReb = col("REB");
-  const iStl = col("STL");
-  const iBlk = col("BLK");
-  if (iId < 0 || iPts < 0) {
-    throw new Error(`nba box score ${season}: columns ${rs.headers.join(",")}`);
+  const best = new Map<string, SeasonStat>();
+  for (const row of html.split('data-append-csv="').slice(1)) {
+    const name = row.match(/">([^<]+)<\/a><\/td>/)?.[1];
+    if (!name) continue;
+    const points = stat(row, "pts_per_g");
+    const games = stat(row, "games");
+    if (!Number.isFinite(points) || !Number.isFinite(games)) continue;
+
+    /*
+     * A player traded mid-season gets one row per club plus a combined row.
+     * Keeping the row with the most games takes the combined one, which is the
+     * season we actually want to score.
+     */
+    const key = nameKey(name);
+    const prev = best.get(key);
+    if (!prev || games > prev.gamesPlayed) {
+      best.set(key, {
+        nbaPlayerId: "",
+        name,
+        gamesPlayed: games,
+        minutes: stat(row, "mp_per_g") || 0,
+        points,
+        assists: stat(row, "ast_per_g") || 0,
+        rebounds: stat(row, "trb_per_g") || 0,
+        steals: stat(row, "stl_per_g") || 0,
+        blocks: stat(row, "blk_per_g") || 0,
+        season,
+      });
+    }
   }
-
-  const num = (row: unknown[], i: number) => (i >= 0 ? Number(row[i]) || 0 : 0);
-
-  return rs.rowSet.map((r) => ({
-    nbaPlayerId: String(r[iId]),
-    name: String(r[iName]),
-    gamesPlayed: num(r, iGp),
-    minutes: num(r, iMin),
-    points: num(r, iPts),
-    assists: num(r, iAst),
-    rebounds: num(r, iReb),
-    steals: num(r, iStl),
-    blocks: num(r, iBlk),
-    season,
-  }));
+  return [...best.values()];
 }
 
 export async function fetchSeasonLeaders(

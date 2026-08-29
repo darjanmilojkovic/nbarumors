@@ -165,7 +165,53 @@ export async function backfillPlayerIds(): Promise<{
   matched: number;
 }> {
   const dir = await fetchDirectory();
+  const lookup = buildNameResolver(dir);
 
+  const missing = await db
+    .select({ id: players.id, fullName: players.fullName })
+    .from(players)
+    .where(sql`${players.nbaPlayerId} is null`);
+
+  /*
+   * The id is unique, and stripping suffixes to match names means two of our
+   * rows can land on one player: "Marcus Morris" and "Marcus Morris Sr." are
+   * the same person, and one of them is a duplicate we have not merged yet.
+   * Taking every id already in use, plus the ones assigned during this run,
+   * makes the second claim a no-op rather than a crash.
+   */
+  const used = new Set(
+    (
+      await db
+        .select({ nbaPlayerId: players.nbaPlayerId })
+        .from(players)
+        .where(sql`${players.nbaPlayerId} is not null`)
+    ).map((r) => String(r.nbaPlayerId)),
+  );
+
+  let matched = 0;
+  for (const p of missing) {
+    const nbaId = lookup(p.fullName);
+    if (!nbaId || used.has(nbaId)) continue;
+    used.add(nbaId);
+    await db
+      .update(players)
+      .set({ nbaPlayerId: nbaId })
+      .where(eq(players.id, p.id));
+    matched++;
+  }
+
+  return { indexed: dir.players.length, matched };
+}
+
+/**
+ * Resolve a player's name to the league's id, from the directory.
+ *
+ * Shared with the stats sync, which scrapes a source carrying no ids at all
+ * and needs them to join six seasons of history onto our rows.
+ */
+export function buildNameResolver(
+  dir: Directory,
+): (name: string) => string | undefined {
   const SUFFIX = /\s+(jr|sr|ii|iii|iv|v)\.?$/i;
   const strict = (name: string) =>
     name
@@ -203,47 +249,12 @@ export async function backfillPlayerIds(): Promise<{
     loose.set(k, seen);
   }
 
-  const lookup = (name: string): string | undefined => {
+  return (name: string): string | undefined => {
     const hit = exact.get(strict(name));
     if (hit) return hit;
     const candidates = loose.get(key(name));
     return candidates?.size === 1 ? [...candidates][0] : undefined;
   };
-
-  const missing = await db
-    .select({ id: players.id, fullName: players.fullName })
-    .from(players)
-    .where(sql`${players.nbaPlayerId} is null`);
-
-  /*
-   * The id is unique, and stripping suffixes to match names means two of our
-   * rows can land on one player: "Marcus Morris" and "Marcus Morris Sr." are
-   * the same person, and one of them is a duplicate we have not merged yet.
-   * Taking every id already in use, plus the ones assigned during this run,
-   * makes the second claim a no-op rather than a crash.
-   */
-  const used = new Set(
-    (
-      await db
-        .select({ nbaPlayerId: players.nbaPlayerId })
-        .from(players)
-        .where(sql`${players.nbaPlayerId} is not null`)
-    ).map((r) => String(r.nbaPlayerId)),
-  );
-
-  let matched = 0;
-  for (const p of missing) {
-    const nbaId = lookup(p.fullName);
-    if (!nbaId || used.has(nbaId)) continue;
-    used.add(nbaId);
-    await db
-      .update(players)
-      .set({ nbaPlayerId: nbaId })
-      .where(eq(players.id, p.id));
-    matched++;
-  }
-
-  return { indexed: dir.players.length, matched };
 }
 
 export type RosterStatus = {
