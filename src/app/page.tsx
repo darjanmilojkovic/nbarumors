@@ -37,7 +37,7 @@ const CHIPS = [
   { key: "extension", label: "Extensions" },
   { key: "buyout", label: "Buyouts" },
   { key: "waiver", label: "Waivers" },
-  { key: "draft", label: "Draft" },
+  { key: "draft", label: "NBA draft" },
 ] as const;
 
 /**

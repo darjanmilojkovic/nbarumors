@@ -18,7 +18,7 @@ const CAT: Record<string, string> = {
   buyout: "Buyout",
   extension: "Extension",
   waiver: "Waiver",
-  draft: "Draft",
+  draft: "NBA draft",
   injury_impact: "Injury",
   other: "Update",
 };
