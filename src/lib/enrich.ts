@@ -16,8 +16,27 @@ import { SCHEMA } from "@/lib/extract";
  * read and what makes wider matching safe to attempt.
  */
 
-// Follows extraction; see the note above MODEL in lib/extract.ts.
-const MODEL = process.env.EXTRACTION_MODEL ?? "claude-sonnet-5";
+/**
+ * Opus here, Sonnet for extraction — deliberately split, from a side-by-side.
+ *
+ * Both models were run over the same 103-character stub with the same prompt,
+ * merging the same ten-outlet chain on the Josh Green trade. Sonnet wrote the
+ * better prose; Opus merged the better facts, which is what this job is.
+ *
+ * The deciding evidence was a number. Sonnet said the trade cleared "roughly
+ * $10.6 million" of space in one run and "$6.5M" in another, from identical
+ * input — it contradicted itself on a dollar figure across two runs. Opus gave
+ * "$6.489 million under the second-apron hard cap" and attributed it to Bobby
+ * Marks, which is a claim a reader can check. It also kept who-said-what
+ * straight ("Charania reports Minnesota intends to keep Williams") where
+ * Sonnet asserted the same facts unattributed.
+ *
+ * Extraction stays on Sonnet. This is the narrower and rarer call — it fires
+ * only when a second outlet reports a story we already have — so paying 2.5x
+ * for it is a small bill on the step where a wrong figure would be published
+ * as fact.
+ */
+const MODEL = process.env.ENRICHMENT_MODEL ?? "claude-opus-5";
 /*
  * Built on first use, not at import.
  *
