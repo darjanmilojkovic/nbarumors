@@ -45,6 +45,19 @@ export async function generateMetadata({
       title: `${name} rumors`,
       description,
       url: `${SITE.url}${pageHref(team.slug, page)}`,
+      /*
+       * The site mark, not the club's own logo, and that is a limitation
+       * rather than a choice: the logos on disk are SVG, and Facebook, X,
+       * Slack and LinkedIn all refuse to render an SVG og:image. Raster
+       * versions of the thirty would give each club its own card.
+       *
+       * Declared explicitly because naming an openGraph block here replaces
+       * the root one rather than merging with it — which is exactly how these
+       * pages came to have no image at all.
+       */
+      images: [
+        { url: "/android-chrome-512x512.png", width: 512, height: 512 },
+      ],
     },
   };
 }
@@ -70,6 +83,35 @@ export default async function TeamPage({
       teamShort={team.name}
       teamSlug={team.slug}
     >
+      {/*
+       * Breadcrumb data. Renders nothing here — it changes the URL line in a
+       * search result from the bare address to a trail: nbarumors.cc > Teams >
+       * Atlanta Hawks.
+       */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              {
+                "@type": "ListItem",
+                position: 1,
+                name: "Teams",
+                item: `${SITE.url}/teams`,
+              },
+              {
+                "@type": "ListItem",
+                position: 2,
+                name: `${team.city} ${team.name}`,
+                item: `${SITE.url}/team/${team.slug}`,
+              },
+            ],
+          }),
+        }}
+      />
+
       {/*
        * Same lockup as the player page: the mark on the page black, inside a
        * panel of its own, separated from the list below.

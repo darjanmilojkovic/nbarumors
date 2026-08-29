@@ -67,6 +67,30 @@ export async function generateMetadata({
       title: `${player.fullName} rumors`,
       description,
       url: `${SITE.url}${pageHref(player.slug, page)}`,
+      /*
+       * The player's own picture. This page rendered his face and then shared
+       * as a grey box: declaring an openGraph block here replaces the root
+       * one rather than merging with it, so the site default was dropped and
+       * nothing replaced it. 496 of 526 player pages have a headshot and 425
+       * also have a wide action shot.
+       */
+      images: player.shareImage
+        ? [{ url: player.shareImage, alt: player.fullName }]
+        : /*
+           * The site mark for the handful with no picture at all — around 30
+           * players we hold neither a headshot nor an action shot for. Spelled
+           * out rather than left to the root default, which this block would
+           * otherwise replace: that is the bug being fixed, not a pattern to
+           * repeat.
+           */
+          [{ url: "/android-chrome-512x512.png", width: 512, height: 512 }],
+    },
+    twitter: {
+      /* Only blow it up when the picture can carry it. */
+      card: player.shareImageIsWide ? "summary_large_image" : "summary",
+      title: `${player.fullName} rumors`,
+      description,
+      images: [player.shareImage ?? "/android-chrome-512x512.png"],
     },
   };
 }
@@ -102,6 +126,35 @@ export default async function PlayerPage({
       playerLabel={player.fullName}
       playerShort={surname(player.fullName)}
     >
+      {/*
+       * Breadcrumb data. Renders nothing here — it changes the URL line in a
+       * search result from the bare address to a trail: nbarumors.cc >
+       * Players > Luka Dončić.
+       */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              {
+                "@type": "ListItem",
+                position: 1,
+                name: "Players",
+                item: `${SITE.url}/players`,
+              },
+              {
+                "@type": "ListItem",
+                position: 2,
+                name: player.fullName,
+                item: `${SITE.url}/player/${player.slug}`,
+              },
+            ],
+          }),
+        }}
+      />
+
       {/*
        * Mirrors the team page lockup: mark first, then name and count.
        *

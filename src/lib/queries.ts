@@ -815,7 +815,34 @@ export async function teamBySlug(slug: string) {
 
 export async function playerBySlug(slug: string) {
   const [p] = await db.select().from(players).where(eq(players.slug, slug)).limit(1);
-  return p ? { ...p, headshotUrl: headshotFor(p.nbaPlayerId) } : null;
+  if (!p) return null;
+
+  /*
+   * The best picture of this player, for the share card.
+   *
+   * A player page rendered his face and then shared as a grey box, because the
+   * page declared its own openGraph block and Next replaces the parent's rather
+   * than merging, so the site default was dropped and nothing put anything
+   * back. The image was on screen the whole time.
+   *
+   * Widest first. An action shot from Commons is around 1200px and earns the
+   * wide card; the headshot is 256x188, which is fine for the small one but
+   * too slight to blow up. Both beat a generic mark.
+   */
+  const [shot] = await db
+    .select({ url: playerImages.url, width: playerImages.width })
+    .from(playerImages)
+    .where(eq(playerImages.playerId, p.id))
+    .orderBy(sql`${playerImages.width} desc nulls last`)
+    .limit(1);
+
+  return {
+    ...p,
+    headshotUrl: headshotFor(p.nbaPlayerId),
+    /** Absolute already for Commons; null when we have neither. */
+    shareImage: shot?.url ?? headshotFor(p.nbaPlayerId),
+    shareImageIsWide: (shot?.width ?? 0) >= 600,
+  };
 }
 
 /**
