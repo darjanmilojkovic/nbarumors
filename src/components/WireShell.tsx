@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { RevealHeader } from "@/components/RevealHeader";
+import { SearchBox } from "@/components/SearchBox";
 import { SiteHeader } from "@/components/SiteHeader";
 import {
   activeTeams,
@@ -40,6 +41,14 @@ async function LeftRail({ teamSlug }: { teamSlug?: string }) {
 
   return (
     <aside className="sticky top-4 hidden py-6 pr-5 lg:block">
+      {/*
+       * Above the beats, because it is the one thing here that answers a
+       * question the reader arrived with rather than offering them a way in.
+       * The rail is `hidden lg:block`, so this is desktop-only by placement
+       * rather than by a breakpoint of its own.
+       */}
+      <SearchBox postCount={stats?.rumorCount ?? 0} />
+
       <RailHeading>Beats since 2026</RailHeading>
       <nav className="mb-7 flex flex-col gap-px">
         <Link
