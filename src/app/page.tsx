@@ -35,7 +35,23 @@ const TABS = [
   { key: "latest", label: "Latest" },
   // The key stays "live": it is in every /?tab= link already shared.
   { key: "live", label: "Trending" },
-  { key: "top", label: "Top" },
+  /*
+   * The key stays "top" — it is in shared /?tab=top links — but "Top" said
+   * nothing "Trending" did not already imply, so the label now names the
+   * question: which stories are the biggest.
+   *
+   * That is what this ordering was built to answer, and it mostly does.
+   * Corroboration carries a lot of it — up to 36 points, and the prominence
+   * floors put around 35 players at exactly 100, so prominence saturates and
+   * the outlet count often decides the order. Outlet count is a fair proxy for
+   * importance: seven of the first ten are the biggest stories of the period.
+   * The other three are well-covered trivia, "Kings stretch DeRozan's
+   * remaining $10M salary" among them.
+   *
+   * If those start to grate, the corroboration multiplier is the lever, not
+   * prominence. See TOP in lib/queries.
+   */
+  { key: "top", label: "Biggest" },
   { key: "confirmed", label: "Confirmed" },
 ] as const;
 

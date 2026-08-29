@@ -314,9 +314,21 @@ const OUTLETS = sql`(
 const RANK = sql`(${PROMINENCE} + ${OUTLET_WEIGHT} - extract(epoch from (now() - ${rumors.publishedAt})) / 3600.0 * 1.2) desc`;
 
 /**
- * "Top" means biggest story, not best-sourced one. Lives in SQL so it can be
- * paged — sorted in memory, page two was only ever ordering whichever 200 rows
- * the query happened to return.
+ * The ordering behind the tab labelled "Biggest". Lives in SQL so it
+ * can be paged — sorted in memory, page two was only ever ordering whichever
+ * 200 rows the query happened to return.
+ *
+ * This was built to mean "biggest story, not best-sourced one", and the
+ * comment here said so. Measured, it does not: page one is almost entirely
+ * posts carrying three or more outlets. Two things drifted it. Corroboration
+ * is worth up to 36 points, and the prominence floors added later put around
+ * 35 players at exactly 100 — so prominence saturates at the top of the table
+ * and the outlet count becomes the term that actually decides the order.
+ *
+ * Outlet count is a fair proxy for importance, so this mostly lands where it
+ * was aimed: seven of the first ten really are the biggest stories of the
+ * period. The other three are well-covered trivia. If those start to grate,
+ * the corroboration multiplier is the lever, not prominence.
  *
  * It used to sort on outlet count then confidence, but almost every post
  * carries exactly one outlet, so the tab was really "the handful of
