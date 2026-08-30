@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import { Noto_Sans, Noto_Serif } from "next/font/google";
-import { ScrollProbe } from "@/components/ScrollProbe";
-import { StayAtTop } from "@/components/StayAtTop";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SITE } from "@/lib/site";
 import "./globals.css";
@@ -83,10 +81,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {/* Pages supply their own <main> via WireShell. */}
         {children}
         <SiteFooter />
-        {/* Undoes the scroll iOS performs while its toolbars settle. */}
-        <StayAtTop />
-        {/* Renders nothing unless the URL carries ?debug. See ScrollProbe. */}
-        <ScrollProbe />
       </body>
     </html>
   );
