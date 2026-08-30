@@ -76,6 +76,37 @@ export function ScrollProbe() {
     add(
       `bodyOverflowX=${getComputedStyle(document.body).overflowX} htmlOverflowX=${getComputedStyle(de).overflowX}`,
     );
+
+    /*
+     * What is actually painted at the top of the screen.
+     *
+     * The header reports top:0 and 114px tall on a screen not showing it,
+     * with no scroll anywhere and both viewport heights agreeing. Only two
+     * things do that: it is drawn under the browser's own bar, or it is
+     * drawn and empty. elementFromPoint answers which — it returns whatever
+     * is hit-testable at a coordinate, so if the header owns those pixels it
+     * is there and the bar is over it, and if the filter bar owns them the
+     * header is not occupying the space it claims.
+     */
+    const at = (y: number) => {
+      const el = document.elementFromPoint(Math.round(window.innerWidth / 2), y);
+      if (!el) return "none";
+      const tag = el.tagName.toLowerCase();
+      const inHeader = el.closest("header") ? "*" : "";
+      return `${inHeader}${tag}.${(el.className || "").toString().split(" ")[0] || "-"}`;
+    };
+    add(`at y10=${at(10)} y60=${at(60)} y110=${at(110)} y160=${at(160)}`);
+
+    const h0 = document.querySelector("header");
+    if (h0) {
+      const cs = getComputedStyle(h0);
+      add(
+        `hdrStyle disp=${cs.display} vis=${cs.visibility} op=${cs.opacity} pos=${cs.position} tf=${cs.transform.slice(0, 22)}`,
+      );
+      add(`hdrText="${(h0.textContent || "").trim().slice(0, 28)}"`);
+    } else {
+      add("NO <header> IN THE DOM");
+    }
     snap("t0");
 
     const timers = [100, 500, 1500, 3000].map((ms) =>
