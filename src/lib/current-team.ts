@@ -55,20 +55,48 @@ const ARRIVAL_KINDS = ["Signing", "Trade", "AwardOnWaivers", "ContractConverted"
  */
 const ROSTER_LAG_DAYS = 0;
 
-/*
- * Waive is deliberately absent: on that row TEAM_ID names the club letting the
- * player go, so treating it as an arrival would park every waived player at
- * the team that just cut him.
+/**
+ * Kinds that END a player's time at a club without starting one anywhere.
+ *
+ * On a Waive row TEAM_ID names the club letting the player go, so it cannot be
+ * read as an arrival — that would park every cut player at the team that just
+ * dropped him. This file used to answer that by ignoring waives entirely,
+ * which solved the wrong half: a player then kept the last club he JOINED
+ * forever, because nothing in the system could ever end a spell. 115 players
+ * whose most recent transaction was a waive still named the team that cut
+ * them, Cam Whitmore reading Cleveland and Hunter Dickinson New Orleans.
+ *
+ * So a waive contributes a null team AT ITS OWN DATE, and competes on date
+ * like every other source. A later signing outranks it; a roster sync that
+ * still lists the player outranks it; nothing at all leaves the player with no
+ * club, which is the true answer.
+ *
+ * This does NOT cover a contract simply expiring, which is not a transaction
+ * and produces no row here at all. Ben Simmons reads LAC for that reason. The
+ * signal for that is absence from the league's roster, and it needs
+ * `roster_synced_at is null` to stop meaning both "free agent" and "we could
+ * not match this name" before it can be trusted.
  */
+const DEPARTURE_KINDS = ["Waive"];
+
+const MOVE_KINDS = [...ARRIVAL_KINDS, ...DEPARTURE_KINDS];
+
 const BEST_TEAM = sql`
   with feed as (
     select distinct on (p.id)
-      p.id as player_id, t.id as team_id, tr.occurred_at as at
+      p.id as player_id,
+      case when tr.kind in ${DEPARTURE_KINDS} then null else t.id end as team_id,
+      tr.occurred_at as at
     from transactions tr
     join players p on p.nba_player_id = tr.nba_player_id
     join teams t on t.nba_team_id = tr.nba_team_id
-    where tr.kind in ${ARRIVAL_KINDS}
-    order by p.id, tr.occurred_at desc
+    where tr.kind in ${MOVE_KINDS}
+    /*
+     * On a tie the arrival wins: a player waived by one club and signed by
+     * another the same day is at the new club, and both rows carry the same
+     * date. false sorts before true, so the non-departure comes first.
+     */
+    order by p.id, tr.occurred_at desc, (tr.kind in ${DEPARTURE_KINDS}) asc
   ),
   /*
    * Our own completed reporting, taking the destination from the post when the
