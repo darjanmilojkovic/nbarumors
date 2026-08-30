@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { isSameEvent } from "@/lib/event-key";
 import { typesForCat } from "@/lib/beats";
 import { isUsableShareImage, isWideEnough } from "@/lib/share-image";
+import { leadSubject } from "@/lib/subject";
 import {
   feedItems,
   playerSlugRedirects,
@@ -159,7 +160,7 @@ async function hydrate(rows: Awaited<ReturnType<typeof baseSelect>>): Promise<Fe
 
   return rows.map((r) => {
     const mine = playerRows.filter((p) => p.rumorId === r.id);
-    const primary = mine.find((p) => p.isPrimary) ?? mine[0];
+    const primary = leadSubject(mine, r.headline) ?? mine[0];
     return {
       ...r,
       /*

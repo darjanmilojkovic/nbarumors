@@ -4,6 +4,7 @@ import { Quoted } from "@/components/Quoted";
 import { surname } from "@/lib/names";
 import { toParagraphs } from "@/lib/paragraphs";
 import type { FeedRumor } from "@/lib/queries";
+import { leadSubject } from "@/lib/subject";
 
 /*
  * The kicker names what KIND of story this is, so the two commonest types say
@@ -326,7 +327,7 @@ export function WireItem({
    * players saturating the scale, so Ja Morant and Karl-Anthony Towns missed
    * by a point.
    */
-  const primaryPlayer = ordered.find((p) => p.isPrimary) ?? ordered[0];
+  const primaryPlayer = leadSubject(rumor.players, rumor.headline) ?? ordered[0];
   const isMarquee = (primaryPlayer?.prominence ?? 0) >= 90;
 
   /*

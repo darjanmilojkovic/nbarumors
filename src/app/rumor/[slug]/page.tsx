@@ -11,6 +11,7 @@ import { surname } from "@/lib/names";
 import { latestRumors, rumorBySlug } from "@/lib/queries";
 import { SITE } from "@/lib/site";
 import { isUsableShareImage, isWideEnough } from "@/lib/share-image";
+import { leadSubject } from "@/lib/subject";
 
 export const revalidate = 300;
 
@@ -64,7 +65,7 @@ export async function generateMetadata({
    * always the right player — which a 362-year-old almanac is not.
    */
   const lead =
-    rumor.players.find((p) => p.isPrimary) ?? rumor.players[0] ?? null;
+    leadSubject(rumor.players, rumor.headline) ?? rumor.players[0] ?? null;
 
   const commons = isUsableShareImage(
     rumor.imageUrl,
@@ -177,9 +178,10 @@ export default async function RumorPage({ params }: PageProps<"/rumor/[slug]">) 
    * Same for the player: several posts mark more than one subject, and taking
    * the first row picked between them arbitrarily. The biggest name wins.
    */
-  const subjectPlayer = [...rumor.players]
-    .filter((p) => p.isPrimary)
-    .sort((a, b) => b.prominence - a.prominence)[0];
+  const subjectPlayer = leadSubject(
+    rumor.players.filter((p) => p.isPrimary),
+    rumor.headline,
+  );
 
   /*
    * The club the subject plays for, not a club this post names.
