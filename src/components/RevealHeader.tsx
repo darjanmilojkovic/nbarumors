@@ -28,6 +28,27 @@ import { useEffect, useRef, useState } from "react";
  * gesture, so a refresh partway down a page must not be read as the reader
  * moving.
  */
+/**
+ * Off while we find out whether this component is what opens rumor pages
+ * partway down on an iPhone in Chrome.
+ *
+ * The evidence points here and is not conclusive. The feed, the one page that
+ * does not pin its header, opens at the top; every page that does pin opens
+ * about a masthead's height down. But the first fix aimed at this component —
+ * sizing the spacer from a live measurement rather than one taken before the
+ * webfonts landed — changed nothing on the device, so the mechanism is not
+ * understood, and I cannot reproduce it: iOS Chrome is WKWebView, Safari on
+ * the same phone is fine, and desktop Chrome's phone emulation is Blink.
+ *
+ * With this false the header is an ordinary block that scrolls away and stays
+ * away, which is what the feed already does. If rumor pages then open at the
+ * top, the cause is in here. If they still do not, it is not this component
+ * and the feed comparison was a coincidence worth knowing about.
+ *
+ * Restore by setting this to true. Nothing else changes.
+ */
+const RETRACTS_ON_SCROLL_UP = false;
+
 const RESTORE_WINDOW_MS = 700;
 
 /** Below this the elastic bounce and trackpad jitter would flicker it. */
@@ -48,6 +69,8 @@ export function RevealHeader({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    /* See RETRACTS_ON_SCROLL_UP: the header stays an ordinary block. */
+    if (!RETRACTS_ON_SCROLL_UP) return;
 
     const desktop = window.matchMedia("(min-width: 640px)");
     const mountedAt = performance.now();
@@ -149,11 +172,13 @@ export function RevealHeader({ children }: { children: React.ReactNode }) {
        * Holds the header's place while it is pinned, so lifting it out of flow
        * costs no layout and the article does not shift under the reader.
        */}
-      {pinned && height > 0 ? <div style={{ height }} aria-hidden /> : null}
+      {RETRACTS_ON_SCROLL_UP && pinned && height > 0 ? (
+        <div style={{ height }} aria-hidden />
+      ) : null}
       <div
         ref={ref}
         className={
-          pinned
+          RETRACTS_ON_SCROLL_UP && pinned
             ? "fixed inset-x-0 top-0 z-30 animate-[reveal_200ms_ease-out] sm:static sm:animate-none"
             : undefined
         }
