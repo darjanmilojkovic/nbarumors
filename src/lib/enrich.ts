@@ -134,11 +134,37 @@ export async function enrichBody(input: {
   current: string;
   incoming: string;
   incomingOutlet: string;
+  /**
+   * Why the merge was declined, when it was.
+   *
+   * There are eight ways to return null here and this used to report none of
+   * them, which made a rejection indistinguishable from a story that genuinely
+   * had nothing to add. That matters because the failure is invisible from the
+   * outside: the post stands, correct but thinner than it should be, and
+   * nothing anywhere says a richer version was written and thrown away.
+   *
+   * Found while merging ESPN's DeRozan report by hand. The merge returned
+   * null; the body it had produced was fine, and only a guard had refused it.
+   * Working that out took a separate diagnostic script that reimplemented the
+   * function. This is that script's job, done once and kept.
+   */
+  onSkip?: (reason: string) => void;
 }): Promise<string | null> {
-  if (!addsSomething(input.current, input.incoming)) return null;
+  const skip = (reason: string) => {
+    input.onSkip?.(reason);
+    return null;
+  };
 
-  try {
-    const res = await anthropic().messages.create({
+  if (!addsSomething(input.current, input.incoming)) {
+    return skip("the incoming report adds no new figure, name or team");
+  }
+
+  /**
+   * One merge attempt. `tighten` is the length of the attempt that was too
+   * long, and is passed back to the model on the retry.
+   */
+  const ask = (tighten: number | null) =>
+    anthropic().messages.create({
       model: MODEL,
       max_tokens: 900,
       output_config: {
@@ -170,7 +196,9 @@ Give every player a first name and a surname the first time they appear in the m
 
 Place anyone who is not a player. A reporter, analyst, agent or executive is introduced with their outlet or their job the first time they appear: "ESPN's Bobby Marks", "agent Mike George", "Jazz general manager Justin Zanik". Merging is where this goes wrong too — the second report knows who its own analyst is and the merged text inherits the name without the introduction, so a reader meets "Bobby Marks notes the swap leaves Minnesota below the apron" with no idea whether that is a reporter, an executive or a player.
 
-Place them once and only where it earns its space. Once in the summary is enough; after that the surname alone. Skip it entirely when the affiliation is already on the card — on an ESPN item write "Tim MacMahon reports", not "ESPN's Tim MacMahon reports". The possessive is for a name the reader could not otherwise place.
+Place them once and only where it earns its space. Once in the summary is enough; after that the surname alone. The possessive is for a name the reader could not otherwise place.
+
+THE OUTLET NAMED BELOW AS THE NEWER REPORT IS NOT THE ONE ON THE CARD. The card shows the outlet that FIRST reported this story, which is usually a different one — this post exists because several outlets covered the same move. So place a reporter from the newer report: "ESPN's Shams Charania reports" rather than "Shams Charania reports", because a reader looking at a RealGM byline has no way to connect that name to ESPN. Only skip the affiliation when the newer report comes from the same outlet the card already names.
 
 Marc Stein and Stephen A. Smith are the exceptions: the name is the credential, and placing them reads as condescension. Write those two plainly and place everyone else.`,
           /*
@@ -201,18 +229,59 @@ Marc Stein and Stephen A. Smith are the exceptions: the name is the credential, 
             ``,
             `Newer report, from ${input.incomingOutlet}:`,
             input.incoming,
+            ...(tighten
+              ? [
+                  ``,
+                  `Your previous attempt ran to ${tighten} characters and the limit is ${MAX_BODY_CHARS}. Write it again under the limit. Keep every fact, every figure and every name: cut words, not content. Combine sentences that share a subject, drop any phrase that restates what another sentence already says, and remove career history before you remove anything about this move.`,
+                ]
+              : []),
           ].join("\n"),
         },
       ],
     });
 
-    if (res.stop_reason === "refusal") return null;
+  /** Read one response, or say why it cannot be used. */
+  const read = (res: Awaited<ReturnType<typeof ask>>) => {
+    if (res.stop_reason === "refusal") return { body: null, why: "the model declined" };
     const text = res.content.find((b) => b.type === "text");
-    if (!text || text.type !== "text") return null;
-
+    if (!text || text.type !== "text") {
+      return { body: null, why: `no text block (stop: ${res.stop_reason})` };
+    }
     const parsed = JSON.parse(text.text) as { body: string };
-    return rejectBody(parsed.body, input.current) ? null : parsed.body;
-  } catch {
-    return null;
+    return { body: parsed.body, why: rejectBody(parsed.body, input.current) };
+  };
+
+  try {
+    const first = read(await ask(null));
+    const body = first.body;
+    let why = first.why;
+
+    /*
+     * One retry when the ONLY fault is length, because discarding a good
+     * merge over a few characters is the wrong trade.
+     *
+     * ESPN's DeRozan report merged into 941 characters against a 900 cap. The
+     * text was correct and carried his age, last season's scoring, the
+     * Sacramento waiver and its guarantee, the three clubs he turned down and
+     * the player he replaced — all of it thrown away for 41 characters, and
+     * the post left saying none of it. Asking for the same facts in fewer
+     * words costs one call and keeps them.
+     *
+     * Only length gets a second attempt. Every other rejection — an em dash,
+     * jargon, commentary on sourcing — is a fault in the writing rather than
+     * the size of it, and retrying those would mostly re-roll the same fault.
+     */
+    if (body && why?.startsWith("over the length cap")) {
+      const retry = read(await ask(body.length));
+      if (retry.body && !retry.why) {
+        return retry.body;
+      }
+      why = `${why} (${body.length} chars), and the retry ${retry.why ?? "failed"}`;
+    }
+
+    if (why || !body) return skip(why ?? "no body returned");
+    return body;
+  } catch (err) {
+    return skip(`threw: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
