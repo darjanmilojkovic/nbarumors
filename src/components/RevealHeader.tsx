@@ -56,6 +56,13 @@ export function RevealHeader({ children }: { children: React.ReactNode }) {
 
     const set = (next: boolean) => {
       if (next === isPinned) return;
+      /*
+       * Never lift the header out of flow without knowing what it leaves
+       * behind. Read from the element rather than the state, which is captured
+       * from the render this effect ran in and would be stale. Unpinning is
+       * always allowed: putting the header back cannot orphan a spacer.
+       */
+      if (next && el.offsetHeight === 0) return;
       isPinned = next;
       setPinned(next);
     };
@@ -96,13 +103,38 @@ export function RevealHeader({ children }: { children: React.ReactNode }) {
       set(false);
     };
 
-    // Measured while in flow, which is the only time it has a natural height.
-    setHeight(el.offsetHeight);
+    /*
+     * Measured continuously while in flow, not once on mount.
+     *
+     * A single reading is taken before the webfonts arrive, and the masthead
+     * is 114px in Noto and a different height in whatever fallback is standing
+     * in for it. The spacer is then built from that stale number, so when the
+     * header lifts out of flow the content below moves by the difference —
+     * and if the reading was 0, no spacer renders at all and it moves by the
+     * whole masthead.
+     *
+     * It only showed on iOS Chrome, which is not a rendering difference: every
+     * iOS browser is WKWebView, so Chrome and Safari share an engine there.
+     * They do not share a font cache. Safari had the fonts from earlier visits
+     * and measured the final height; Chrome was fetching them and measured the
+     * fallback. Desktop Chrome's device emulation is Blink and never
+     * reproduced it.
+     *
+     * Skipped while pinned, when the element is out of flow and its height is
+     * no longer the space it needs to reserve.
+     */
+    const measure = () => {
+      if (!isPinned) setHeight(el.offsetHeight);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
 
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("pageshow", onPageShow);
     desktop.addEventListener("change", onScroll);
     return () => {
+      observer.disconnect();
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("pageshow", onPageShow);
       desktop.removeEventListener("change", onScroll);
