@@ -63,6 +63,7 @@ const POSTS: Post[] = [
     extraction: {
       ...base,
       type: "draft",
+      isRoundup: false,
       status: "confirmed",
       confidence: 0.95,
       eventKey: "wizards-lottery-win-first-pick",
@@ -88,6 +89,7 @@ const POSTS: Post[] = [
     extraction: {
       ...base,
       type: "draft",
+      isRoundup: false,
       status: "rumor",
       confidence: 0.7,
       eventKey: "dybantsa-projected-top-selection-preseason",
@@ -111,6 +113,7 @@ const POSTS: Post[] = [
     extraction: {
       ...base,
       type: "draft",
+      isRoundup: false,
       status: "reported",
       confidence: 0.78,
       eventKey: "dybantsa-peterson-team-visits",
@@ -138,6 +141,7 @@ const POSTS: Post[] = [
     extraction: {
       ...base,
       type: "draft",
+      isRoundup: false,
       status: "rumor",
       confidence: 0.68,
       eventKey: "wizards-jazz-split-on-top-two",
@@ -165,6 +169,7 @@ const POSTS: Post[] = [
     extraction: {
       ...base,
       type: "draft",
+      isRoundup: false,
       status: "reported",
       confidence: 0.75,
       eventKey: "dybantsa-peterson-announcement-secrecy",
@@ -191,6 +196,7 @@ const POSTS: Post[] = [
     extraction: {
       ...base,
       type: "draft",
+      isRoundup: false,
       status: "completed",
       confidence: 0.99,
       eventKey: "dybantsa-selected-washington-first-overall",
@@ -215,6 +221,7 @@ const POSTS: Post[] = [
     extraction: {
       ...base,
       type: "draft",
+      isRoundup: false,
       status: "completed",
       confidence: 0.99,
       eventKey: "opening-four-selections-recap",
@@ -245,6 +252,7 @@ const POSTS: Post[] = [
     extraction: {
       ...base,
       type: "draft",
+      isRoundup: false,
       status: "completed",
       confidence: 0.95,
       eventKey: "peterson-selected-utah-pick-two",
@@ -267,6 +275,7 @@ const POSTS: Post[] = [
     extraction: {
       ...base,
       type: "draft",
+      isRoundup: false,
       status: "completed",
       confidence: 0.93,
       eventKey: "grizzlies-boozer-lopez-pick-haul",
@@ -290,6 +299,7 @@ const POSTS: Post[] = [
     extraction: {
       ...base,
       type: "draft",
+      isRoundup: false,
       status: "completed",
       confidence: 0.9,
       eventKey: "mavericks-morez-johnson-ninth-surprise",
@@ -314,6 +324,7 @@ const POSTS: Post[] = [
     extraction: {
       ...base,
       type: "draft",
+      isRoundup: false,
       status: "completed",
       confidence: 0.9,
       eventKey: "spurs-quaintance-knee-gamble",
@@ -336,6 +347,7 @@ const POSTS: Post[] = [
     extraction: {
       ...base,
       type: "draft",
+      isRoundup: false,
       status: "reported",
       confidence: 0.8,
       eventKey: "boozer-rookie-of-year-projection",
@@ -358,6 +370,7 @@ const POSTS: Post[] = [
     extraction: {
       ...base,
       type: "draft",
+      isRoundup: false,
       status: "completed",
       confidence: 0.88,
       eventKey: "clippers-wagler-fifth-held-firm",
@@ -384,6 +397,7 @@ const POSTS: Post[] = [
     extraction: {
       ...base,
       type: "draft",
+      isRoundup: false,
       status: "completed",
       confidence: 0.85,
       eventKey: "celtics-cenac-late-first-slide",

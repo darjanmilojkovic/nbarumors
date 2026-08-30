@@ -99,6 +99,13 @@
       "when": 1787942452100,
       "tag": "0013_lovely_bishop",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1788101496998,
+      "tag": "0014_conscious_speed",
+      "breakpoints": true
     }
   ]
 }

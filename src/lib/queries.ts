@@ -406,14 +406,22 @@ const STATUS_WEIGHT = sql`(case ${rumors.status}
  * question nobody asked: not "how big is this move" but "is a famous name
  * anywhere in this text".
  *
- * A post with more than one subject is a survey of several situations, and the
- * prominence it inherits belongs to whichever name in the list scores highest.
- * Docked enough to clear the front page without hiding it.
+ * A survey inherits the prominence of whichever name in it scores highest, so
+ * it is docked enough to clear the front page without hiding it.
+ *
+ * This read "more than one primary player" until 30 Aug 2026. That was a fair
+ * proxy only while extraction could name one subject per post: with the count
+ * capped at one, a second subject really did mean a list. It stops being true
+ * the moment primaries go plural, because a three-player trade has three
+ * subjects and is the opposite of a survey — the proxy would have demoted the
+ * biggest stories on the site.
+ *
+ * `is_roundup` was seeded from the old proxy, so the same 47 posts carry the
+ * penalty as carried it before. Any post wrongly docked under the proxy is
+ * still wrongly docked; correcting those is a separate judgement, kept apart
+ * so a ranking change and a data change never land together.
  */
-const ROUNDUP_PENALTY = sql`(case when (
-  select count(*) from rumor_players rp
-  where rp.rumor_id = ${rumors.id} and rp.is_primary
-) > 1 then -25 else 0 end)`;
+const ROUNDUP_PENALTY = sql`(case when ${rumors.isRoundup} then -25 else 0 end)`;
 
 const TOP = sql`(${PROMINENCE} + ${OUTLET_WEIGHT} + ${STATUS_WEIGHT} + ${ROUNDUP_PENALTY} + least(${HOT}, 4) * 3 + least(${OUTLETS} - 1, 3) * 12 + ${rumors.confidence} * 10) desc`;
 

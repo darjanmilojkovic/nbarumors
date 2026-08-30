@@ -72,6 +72,7 @@ export type Extraction = {
   eventKey: string;
   contractValue: string | null;
   contractYears: number | null;
+  isRoundup: boolean;
   headline: string;
   body: string;
   reportedBy: string | null;
@@ -148,6 +149,11 @@ export const SCHEMA = {
       description:
         "Contract length in years ONLY if stated. Null otherwise. Never estimate.",
     },
+    isRoundup: {
+      type: "boolean",
+      description:
+        "True when the item is a SURVEY of several unrelated situations rather than one story: a rumor roundup, a mailbag, a tracker, a list of trade candidates or free agents still available, a set of offseason grades. The test is whether the parts would stand as separate posts — 'Harden, Green among names left as free agency rolls on' covers two unconnected situations and is a roundup; 'Kuminga picks Minnesota, Mathurin heads to New Orleans' reports one transaction that moves two players and is NOT a roundup, however many names it carries. A multi-player trade, a three-team deal and a signing with knock-on moves are all single stories. False for anything reporting one move, one negotiation or one player's situation.",
+    },
     headline: {
       type: "string",
       description:
@@ -218,6 +224,7 @@ export const SCHEMA = {
     "eventKey",
     "contractValue",
     "contractYears",
+    "isRoundup",
     "headline",
     "body",
     "reportedBy",

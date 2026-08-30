@@ -349,6 +349,21 @@ export const rumors = pgTable(
       .defaultNow(),
     /** Hold back low-confidence extractions for review instead of publishing. */
     isPublished: boolean("is_published").notNull().default(false),
+    /**
+     * Several unrelated situations in one post, rather than one story.
+     *
+     * "Warriors rumor roundup touches Curry, Kuminga futures" is a survey; the
+     * feed docks it so it cannot outrank a real Curry story on the strength of
+     * the name appearing in it.
+     *
+     * This used to be inferred from the primary count — more than one subject
+     * meant a roundup — which was a fair proxy only while the extraction could
+     * name just one subject per post. A three-player trade has three subjects
+     * and is the opposite of a survey, so the moment primaries go plural the
+     * proxy would demote the biggest stories on the site. Asked and recorded
+     * now, so the two meanings stop sharing one column.
+     */
+    isRoundup: boolean("is_roundup").notNull().default(false),
   },
   (t) => [
     uniqueIndex("rumors_slug_idx").on(t.slug),

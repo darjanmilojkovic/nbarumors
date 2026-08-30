@@ -1,0 +1,1 @@
+ALTER TABLE "rumors" ADD COLUMN "is_roundup" boolean DEFAULT false NOT NULL;
