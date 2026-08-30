@@ -4,7 +4,7 @@ import { Quoted } from "@/components/Quoted";
 import { surname } from "@/lib/names";
 import { toParagraphs } from "@/lib/paragraphs";
 import type { FeedRumor } from "@/lib/queries";
-import { leadSubject } from "@/lib/subject";
+import { leadSubject, sortFaces } from "@/lib/subject";
 
 /*
  * The kicker names what KIND of story this is, so the two commonest types say
@@ -162,12 +162,9 @@ export function WireItem({
   const paragraphs = toParagraphs(rumor.body);
   const shownParas = preview ? paragraphs.slice(0, 1) : paragraphs;
 
-  // Primary player leads, then anyone we have a photo for, then the rest.
-  const ordered = [...rumor.players].sort(
-    (a, b) =>
-      Number(b.isPrimary) - Number(a.isPrimary) ||
-      Number(Boolean(b.headshotUrl)) - Number(Boolean(a.headshotUrl)),
-  );
+  // Subject first, then anyone we have a photo for, then by who the post is
+  // about — the same order the post is filed under. See lib/subject.
+  const ordered = sortFaces(rumor.players, rumor.headline);
   const MAX_FACES = 3;
 
   /*

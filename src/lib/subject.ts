@@ -81,3 +81,33 @@ export function leadSubject<T extends Subject>(
 ): T | undefined {
   return sortSubjects(players, headline)[0];
 }
+
+export type Face = Subject & { headshotUrl: string | null };
+
+/**
+ * The same order, for the row of portraits on a card.
+ *
+ * One key is inserted that filing does not have: whether we hold a photo. A
+ * card shows three faces, and a player we have no picture of renders as an
+ * empty tile — so a name we can draw comes before one we cannot, however
+ * highly rated. That is the whole reason this is a separate function rather
+ * than `sortSubjects`.
+ *
+ * Everything below that key was missing entirely. The sort ran on subject and
+ * photo alone, and on a post where every player has a photo the second key is
+ * a no-op, so the rest fell back to the array's alphabetical order. "Kyrie
+ * back to Boston, Butler to Dallas in three-team trade idea" showed Kyrie
+ * Irving, then Baylor Scheierman (27) and Derrick White (85) — Jimmy Butler
+ * (100) placed fourth on alphabetical order behind Baylor and Derrick, and the
+ * card cut to three faces, so the man in the headline was not on it.
+ */
+export function sortFaces<T extends Face>(players: T[], headline: string): T[] {
+  return [...players].sort(
+    (a, b) =>
+      Number(b.isPrimary) - Number(a.isPrimary) ||
+      Number(Boolean(b.headshotUrl)) - Number(Boolean(a.headshotUrl)) ||
+      b.prominence - a.prominence ||
+      mentionIndex(headline, a.fullName) - mentionIndex(headline, b.fullName) ||
+      a.fullName.localeCompare(b.fullName),
+  );
+}
