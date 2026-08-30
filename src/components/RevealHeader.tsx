@@ -29,25 +29,28 @@ import { useEffect, useRef, useState } from "react";
  * moving.
  */
 /**
- * Off while we find out whether this component is what opens rumor pages
- * partway down on an iPhone in Chrome.
+ * Confirmed by turning it off: this component was hiding the masthead.
  *
- * The evidence points here and is not conclusive. The feed, the one page that
- * does not pin its header, opens at the top; every page that does pin opens
- * about a masthead's height down. But the first fix aimed at this component —
- * sizing the spacer from a live measurement rather than one taken before the
- * webfonts landed — changed nothing on the device, so the mechanism is not
- * understood, and I cannot reproduce it: iOS Chrome is WKWebView, Safari on
- * the same phone is fine, and desktop Chrome's phone emulation is Blink.
+ * Rumor pages opened on an iPhone in Chrome with no masthead at all — not
+ * scrolled past it, since scrolling up did not bring it back. Turning the
+ * retract off made them open correctly, which named the culprit after two
+ * wrong guesses at the mechanism.
  *
- * With this false the header is an ordinary block that scrolls away and stays
- * away, which is what the feed already does. If rumor pages then open at the
- * top, the cause is in here. If they still do not, it is not this component
- * and the feed comparison was a coincidence worth knowing about.
+ * The conditions were the tell. It happened only on a COLD load from a link
+ * outside the site, never on feed -> article inside it, never in Safari on the
+ * same phone, and never in a phone emulator. That is a page loading while iOS
+ * animates in from the app the link came from: scroll and resize fire while
+ * the page is still settling, the 700ms guard below is easily outlasted by an
+ * app transition, and the header pinned before there was a reader to pin it
+ * for — ending up out of flow and off screen. A soft navigation has no
+ * transition to race, which is why moving around inside the site never showed
+ * it.
  *
- * Restore by setting this to true. Nothing else changes.
+ * Left as a constant rather than deleted. It is the fastest way to answer
+ * "is it the header again" next time, and that question took a deploy and
+ * several round trips on a device none of us can debug from here.
  */
-const RETRACTS_ON_SCROLL_UP = false;
+const RETRACTS_ON_SCROLL_UP = true;
 
 const RESTORE_WINDOW_MS = 700;
 
@@ -77,6 +80,33 @@ export function RevealHeader({ children }: { children: React.ReactNode }) {
     let last = window.scrollY;
     let isPinned = false;
 
+    /*
+     * Nothing pins until the reader has touched the screen.
+     *
+     * This is the guard that matters, and the time window below is now only a
+     * backstop. A scroll event says the page moved, not that anybody moved it:
+     * during an app-switch transition iOS scrolls and resizes the page on its
+     * own, and the header used to take that for a reader scrolling up and pin
+     * itself before the page had settled. A browser cannot fake a touch.
+     *
+     * The listeners are `once`, so this costs one event and then nothing. The
+     * cold-load case never arms at all, which is exactly right: with no reader
+     * yet, the header should simply sit where it belongs.
+     *
+     * wheel and keydown are here for completeness rather than need — the
+     * retract is mobile-only, since desktop returns early below — but they
+     * cost nothing and stop this becoming a touch-only assumption if that
+     * changes.
+     */
+    let armed = false;
+    const arm = () => {
+      armed = true;
+    };
+    const armOn = ["touchstart", "wheel", "keydown"] as const;
+    for (const type of armOn) {
+      window.addEventListener(type, arm, { passive: true, once: true });
+    }
+
     const set = (next: boolean) => {
       if (next === isPinned) return;
       /*
@@ -93,6 +123,15 @@ export function RevealHeader({ children }: { children: React.ReactNode }) {
     const onScroll = () => {
       if (desktop.matches) return set(false);
       const y = window.scrollY;
+
+      /*
+       * No reader yet, or the page is not even on screen. Both happen while
+       * iOS animates in from another app, and neither is somebody scrolling.
+       */
+      if (!armed || document.visibilityState !== "visible") {
+        last = y;
+        return set(false);
+      }
 
       if (performance.now() - mountedAt < RESTORE_WINDOW_MS) {
         last = y;
@@ -158,6 +197,7 @@ export function RevealHeader({ children }: { children: React.ReactNode }) {
     desktop.addEventListener("change", onScroll);
     return () => {
       observer.disconnect();
+      for (const type of armOn) window.removeEventListener(type, arm);
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("pageshow", onPageShow);
       desktop.removeEventListener("change", onScroll);
