@@ -26,6 +26,13 @@ import { useEffect, useState } from "react";
  */
 export function ScrollProbe() {
   const [lines, setLines] = useState<string[] | null>(null);
+  /*
+   * StayAtTop's own decisions, kept in their own block at the TOP of the
+   * panel. They were appended to the scrolling log at first, which put them
+   * below a screen's worth of scroll lines — so the one thing the run was for
+   * was the one thing not in the screenshot.
+   */
+  const [stay, setStay] = useState<string[]>([]);
 
   useEffect(() => {
     if (!new URLSearchParams(window.location.search).has("debug")) return;
@@ -75,14 +82,6 @@ export function ScrollProbe() {
       window.setTimeout(() => snap(`${ms}ms`), ms),
     );
 
-    /* What StayAtTop decided, which is otherwise invisible from outside. */
-    timers.push(
-      window.setTimeout(() => {
-        add(`-- StayAtTop --`);
-        for (const s of window.__stayAtTop ?? ["(nothing logged)"]) add(s);
-      }, 5000),
-    );
-
     let scrolls = 0;
     const onScroll = () => {
       if (++scrolls <= 6) snap(`scroll#${scrolls}`);
@@ -98,8 +97,14 @@ export function ScrollProbe() {
     vv?.addEventListener("resize", onVv);
     vv?.addEventListener("scroll", onVv);
 
+    /* Poll rather than subscribe: StayAtTop writes a plain array. */
+    const poll = window.setInterval(() => {
+      setStay([...(window.__stayAtTop ?? [])]);
+    }, 400);
+
     return () => {
       timers.forEach(clearTimeout);
+      clearInterval(poll);
       window.removeEventListener("scroll", onScroll);
       vv?.removeEventListener("resize", onVv);
       vv?.removeEventListener("scroll", onVv);
@@ -126,6 +131,9 @@ export function ScrollProbe() {
         whiteSpace: "pre-wrap",
       }}
     >
+      <span style={{ color: "#fbbf24" }}>
+        {`== StayAtTop ==\n${stay.length ? stay.join("\n") : "(nothing yet)"}\n== probe ==\n`}
+      </span>
       {lines.join("\n")}
     </pre>
   );
