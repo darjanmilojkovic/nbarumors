@@ -33,8 +33,26 @@ import { useEffect } from "react";
  * listeners come off and this costs nothing for the rest of the visit.
  */
 
-/** Long enough for the bars to settle, short enough to never surprise. */
-const SETTLE_WINDOW_MS = 4000;
+/**
+ * Long enough for the bars to settle, short enough to never surprise.
+ *
+ * Was 4000, which closed before the scroll arrived on at least one run: the
+ * log read "armed at y=0" then "window closed" with no correction between,
+ * on a load that still lost its masthead.
+ */
+const SETTLE_WINDOW_MS = 12000;
+
+/**
+ * How far down the reader can be and still be treated as "at the top".
+ *
+ * The masthead is 114px. Inside that, the page is still showing its own head
+ * and snapping to 0 is what the reader already meant; past it they have gone
+ * somewhere deliberately and must be left alone. This is what replaces the
+ * touch guard, which was not merely useless but backwards — Chrome collapses
+ * its toolbar ON the first touch, so the correction disqualified itself at
+ * precisely the moment it was needed.
+ */
+const NEAR_TOP_PX = 130;
 
 /**
  * What this component decided, for ScrollProbe to render.
@@ -64,20 +82,11 @@ export function StayAtTop() {
 
     note("armed at y=0");
 
-    let touched = false;
-    const touch = (e: Event) => {
-      touched = true;
-      note(`touched by ${e.type}`);
-    };
-    const gestures = ["touchstart", "wheel", "keydown", "pointerdown"] as const;
-    for (const type of gestures) {
-      window.addEventListener(type, touch, { passive: true, once: true });
-    }
-
     const correct = (why: string) => {
       const y = Math.round(window.scrollY);
-      if (touched) return note(`${why} y=${y} SKIP touched`);
       if (y === 0) return;
+      /* Gone somewhere on purpose. Leave the reader where they are. */
+      if (y > NEAR_TOP_PX) return note(`${why} y=${y} SKIP reader is reading`);
       window.scrollTo(0, 0);
       note(`${why} y=${y} -> ${Math.round(window.scrollY)}`);
     };
@@ -106,7 +115,6 @@ export function StayAtTop() {
       clearTimeout(stop);
       vv.removeEventListener("resize", onResize);
       window.removeEventListener("scroll", onScroll);
-      for (const type of gestures) window.removeEventListener(type, touch);
     };
   }, []);
 
