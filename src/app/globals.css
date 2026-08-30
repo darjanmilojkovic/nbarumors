@@ -77,8 +77,23 @@ html {
 
 body {
   font-family: var(--font-sans);
-  /* Never let a wide element scroll the page sideways on mobile. */
-  overflow-x: hidden;
+  /*
+   * clip, not hidden. Never let a wide element scroll the page sideways on
+   * mobile — but without making body a scroll container to do it.
+   *
+   * `overflow-x: hidden` on body is the well-worn WebKit trap: it can promote
+   * BODY to the scrolling element in place of the document, and everything
+   * that reads or restores a scroll position then talks to the wrong element.
+   * `clip` clips without establishing a scroll container at all, which is the
+   * behaviour this rule always wanted.
+   *
+   * Suspected in the masthead vanishing on iOS Chrome when a link is opened
+   * from another app. It fits what earlier guesses did not: it is on EVERY
+   * page, and the homepage — which pins no header and has no RevealHeader —
+   * loses its masthead the same way. ScrollProbe reports which element is
+   * actually scrolling, so ?debug on the device will confirm or kill this.
+   */
+  overflow-x: clip;
 }
 
 /*
