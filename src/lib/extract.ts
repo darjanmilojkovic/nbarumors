@@ -151,7 +151,7 @@ export const SCHEMA = {
     headline: {
       type: "string",
       description:
-        "An original headline in your own words, under 80 characters. Do NOT copy the source headline. Never begin with a wire label such as 'Report:', 'Rumor:', 'Update:', 'Breaking:' or 'Sources:' — every item here reports someone else's work and the byline already names the outlet. For the same reason, do not name the outlet in the headline either — 'Yahoo floats Lakers three-team trade' should be 'Three-team deal would send Knecht and Hardy out of LA'. That is the only change the byline forces: otherwise write the headline you would have written anyway. Describe what is being proposed without passing judgement on it — 'hypothetical' and 'proposed' are accurate, 'made-up' and 'fake' are us calling another outlet's work fabricated.\n\nSTART WITH THE SUBSTANCE, and never with the words 'Hypothetical', 'Proposed', 'Speculative' or 'Mock'. Three of these in a row down one team page read 'Hypothetical swap sends Durant to Boston', 'Hypothetical trade sends Lillard to Boston', 'Hypothetical trade sends Kyrie Irving back to Boston' — the same word three times before any of them says anything. The card already prints a Trade rumor kicker and a Developing badge beside the headline, so the label is the third time a reader is told. Put the players and the teams first and carry the conditional however the sentence wants it. VARY IT: naming two example verbs here once produced nine headlines saying 'would land' and fourteen saying 'floated', which reads as a house formula rather than a choice. A conditional verb, a clause, a colon, naming who is doing the proposing, or the shape of the package itself all work — 'Durant to Boston pitched for a Derrick White package', 'Sheppard and Thompson rank among the most valuable trade chips', 'Westbrook, Oladipo named as Kings options at point guard'. Use SENTENCE CASE: capitalise the first word and proper nouns only — people, teams, cities, outlets, competitions. Everything else stays lowercase. Write 'Harden stays in Cleveland on $97M deal', never 'Harden Stays In Cleveland On $97M Deal'. Basketball shorthand keeps its own capitals inside sentence case: it is '3-and-D', never '3-and-d'.",
+        "An original headline in your own words, under 80 characters. Do NOT copy the source headline. Never begin with a wire label such as 'Report:', 'Rumor:', 'Update:', 'Breaking:' or 'Sources:' — every item here reports someone else's work and the byline already names the outlet. For the same reason, do not name the outlet in the headline either — 'Yahoo floats Lakers three-team trade' should be 'Three-team deal would send Knecht and Hardy out of LA'. That is the only change the byline forces: otherwise write the headline you would have written anyway. Describe what is being proposed without passing judgement on it — 'hypothetical' and 'proposed' are accurate, 'made-up' and 'fake' are us calling another outlet's work fabricated.\n\nSTART WITH THE SUBSTANCE, and never with the words 'Hypothetical', 'Proposed', 'Speculative' or 'Mock'. Three of these in a row down one team page read 'Hypothetical swap sends Durant to Boston', 'Hypothetical trade sends Lillard to Boston', 'Hypothetical trade sends Kyrie Irving back to Boston' — the same word three times before any of them says anything. The card already prints a Trade rumor kicker and a Developing badge beside the headline, so the label is the third time a reader is told. Put the players and the teams first and carry the conditional however the sentence wants it. VARY IT: naming two example verbs here once produced nine headlines saying 'would land' and fourteen saying 'floated', which reads as a house formula rather than a choice. A conditional verb, a clause, a colon, naming who is doing the proposing, or the shape of the package itself all work — 'Durant to Boston pitched for a Derrick White package', 'Sheppard and Thompson rank among the most valuable trade chips', 'Westbrook, Oladipo named as Kings options at point guard'. Use SENTENCE CASE: capitalise the first word and proper nouns only — people, teams, cities, outlets, competitions. Everything else stays lowercase. Write 'Harden stays in Cleveland on $97M deal', never 'Harden Stays In Cleveland On $97M Deal'. Basketball shorthand keeps its own capitals inside sentence case: it is '3-and-D', never '3-and-d'.\n\nDO NOT REACH FIRST FOR 'EYE'. 'Lakers eye Sims', 'Cavs eye Diop', 'Warriors eye Murphy', 'Oladipo eyes NBA return' — four of those ran in the live feed inside one day, and read together they sound like a house tic rather than four separate reports. The word is not banned and it is the right one now and then, but it should never be the first verb you try. A team that is interested considers, targets, weighs, pursues, turns to, is in the market for, or is linked to. Better still, drop the verb of interest and use the specific fact instead: 'Diop is the frontrunner for Cleveland's last roster spot' says more than 'Cavs eye Diop', and 'Lakers turn to Sims and Smith after Kuminga picks Minnesota' says more than either.",
     },
     body: {
       type: "string",
@@ -384,14 +384,42 @@ export function opensWithOutlet(body: string, names: (string | null)[]): boolean
   return false;
 }
 
+/**
+ * Verbs the model reaches for too readily in headlines.
+ *
+ * "eye" is the first. It is not wrong — "Cavs eye Diop" is honest about
+ * interest that has not become a deal — but it became the default: four live
+ * headlines used it inside 24 hours on 29 and 30 Aug 2026, and 14 posts carry
+ * it in total. Read down the Latest feed and it stops sounding like reporting
+ * and starts sounding like a house tic.
+ *
+ * DEPRIORITISED, NOT BANNED, which is the whole design of this check. A flat
+ * ban would be the wrong instrument: the word is fine occasionally, and
+ * forbidding it outright pushes the model to a single replacement that becomes
+ * the next tic. So the test fires only when a RECENT headline already used the
+ * verb — the same eight headlines `recentHeadlines` shows the model. Used once
+ * in a quiet week it passes untouched; used twice in an evening it retries.
+ *
+ * This deserves a deterministic check where general repetition does not. A
+ * shared word between two headlines is usually legitimate — "Rockets sign
+ * Tate" and "Rockets sign Crawford" are two real signings in the only sensible
+ * words — so a regex on shared words would fire mostly on correct headlines.
+ * One named verb is an exact match with no judgement in it.
+ */
+const TIRED_VERBS = [/\beye(s|d|ing)?\b/i];
+
+export function repeatsTiredVerb(headline: string, recent: string[]): boolean {
+  return TIRED_VERBS.some((re) => re.test(headline) && recent.some((h) => re.test(h)));
+}
+
 export async function extractRumor(item: {
   title: string;
   rawSummary: string | null;
   publisher: string | null;
   sourceName: string;
   recentHeadlines?: string[];
-}, opts: { retrying?: boolean } = {}): Promise<Extraction> {
-  const { retrying = false } = opts;
+}, opts: { retry?: "outlet" | "verb" } = {}): Promise<Extraction> {
+  const { retry } = opts;
   const response = await client.messages.create({
     model: modelFor(),
     max_tokens: 2000,
@@ -441,10 +469,16 @@ export async function extractRumor(item: {
            * whole instruction every time would cost tokens on the 99% that
            * already comply and would weaken by repetition.
            */
-          ...(retrying
+          ...(retry === "outlet"
             ? [
                 ``,
                 `Your previous attempt opened the summary with the outlet's name as the subject of the sentence. Do not. Open with the substance: the player, the teams, the terms or the named reporter. "${outletName(item.publisher, item.sourceName)} floats a trade sending..." is wrong; "A trade idea would send..." or "Tim MacMahon reports..." is right.`,
+              ]
+            : []),
+          ...(retry === "verb"
+            ? [
+                ``,
+                `Your previous headline used "eye" or "eyes", and one of the headlines listed above already uses it. Write the headline again with a different verb. Say what the interest actually amounts to: considers, targets, weighs, pursues, turns to, is in the market for, is linked to, leads the options for. Better still, replace the verb with the specific fact — "Diop is the frontrunner for Cleveland's last roster spot" beats "Cavs eye Diop".`,
               ]
             : []),
         ].join("\n"),
@@ -476,12 +510,30 @@ export async function extractRumor(item: {
    * bare-masthead case that survived the instruction.
    */
   if (
-    !retrying &&
+    !retry &&
     parsed.isRumor &&
     parsed.body &&
     opensWithOutlet(parsed.body, [outletName(item.publisher, item.sourceName), item.publisher, item.sourceName])
   ) {
-    return extractRumor(item, { retrying: true });
+    return extractRumor(item, { retry: "outlet" });
+  }
+
+  /*
+   * The same one-shot repair for a headline verb the recent feed already used.
+   *
+   * Ordered after the outlet check because a summary that opens with a
+   * masthead is the worse fault, and only one retry is spent per item. Like
+   * that one it repairs rather than rejects: if the second attempt reaches for
+   * "eye" again, the headline stands. A tired verb is a smaller problem than a
+   * story the site never carries.
+   */
+  if (
+    !retry &&
+    parsed.isRumor &&
+    parsed.headline &&
+    repeatsTiredVerb(parsed.headline, item.recentHeadlines ?? [])
+  ) {
+    return extractRumor(item, { retry: "verb" });
   }
 
   /*
