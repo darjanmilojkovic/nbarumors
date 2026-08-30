@@ -43,9 +43,22 @@ export function ScrollProbe() {
     const snap = (label: string) => {
       const h = document.querySelector("header");
       const r = h?.getBoundingClientRect();
+      /*
+       * The VISUAL viewport, which is the one you are looking at.
+       *
+       * The first run of this probe reported the page at y=0 with the header
+       * at top:0 and 114px tall, on a screen showing neither. Layout scroll
+       * cannot explain that, and nothing is painted over it — the filter bar
+       * below is sticky, so at y=0 it sits in its own place. What is left is
+       * the visual viewport being offset from the layout viewport, which
+       * window.scrollY does not report and which iOS moves on its own.
+       */
+      const vv = window.visualViewport;
       add(
         `${label} y=${Math.round(window.scrollY)}/${Math.round(de.scrollTop)}/${Math.round(document.body.scrollTop)} ` +
-          `hdr=${r ? `${Math.round(r.top)}h${Math.round(r.height)}` : "MISSING"} vis=${document.visibilityState}`,
+          `hdr=${r ? `${Math.round(r.top)}h${Math.round(r.height)}` : "MISSING"} ` +
+          `vv=${vv ? `o${Math.round(vv.offsetTop)}p${Math.round(vv.pageTop)}h${Math.round(vv.height)}s${vv.scale.toFixed(2)}` : "none"} ` +
+          `ih=${window.innerHeight}/${de.clientHeight}`,
       );
     };
 
@@ -64,13 +77,24 @@ export function ScrollProbe() {
 
     let scrolls = 0;
     const onScroll = () => {
-      if (++scrolls <= 12) snap(`scroll#${scrolls}`);
+      if (++scrolls <= 6) snap(`scroll#${scrolls}`);
     };
     window.addEventListener("scroll", onScroll, { passive: true });
+
+    /* The visual viewport moves without a scroll event. Watch it directly. */
+    const vv = window.visualViewport;
+    let vvEvents = 0;
+    const onVv = () => {
+      if (++vvEvents <= 8) snap(`vv#${vvEvents}`);
+    };
+    vv?.addEventListener("resize", onVv);
+    vv?.addEventListener("scroll", onVv);
 
     return () => {
       timers.forEach(clearTimeout);
       window.removeEventListener("scroll", onScroll);
+      vv?.removeEventListener("resize", onVv);
+      vv?.removeEventListener("scroll", onVv);
     };
   }, []);
 
