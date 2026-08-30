@@ -194,15 +194,25 @@ export default async function RumorPage({ params }: PageProps<"/rumor/[slug]">) 
    * asked consistently rather than an ordering accident: 159 of 679 posts
    * carry both a from and a to team.
    *
-   * Falling back to the post's own teams when the subject has no club on
+   * Falling back to the post's DESTINATION when the subject has no club on
    * record — a draft pick, or a name we have never resolved — and to nothing
-   * at all when every team is merely mentioned, which is the case a roundup
-   * naming four clubs and involving none used to get wrong.
+   * at all otherwise, which is the case a roundup naming four clubs and
+   * involving none used to get wrong.
+   *
+   * There used to be a third clause here, taking the first team whose role was
+   * not "mentioned". Since the clause above it already claims every "to" team,
+   * that could only ever match a "from" — and a "from" team is by definition
+   * where the player no longer is. It fired on 11 posts, every one a release:
+   * "Rockets cut guard JD Davison" announced Houston as his club, "Cleveland
+   * cuts Cam Whitmore" announced Cleveland. Naming the club that just released
+   * him is the one answer worse than naming none.
+   *
+   * It surfaced when waives began clearing current_team_id on 30 Aug 2026.
+   * Before that a released player kept the club that cut him on his own row,
+   * so this fallback was rarely reached and agreed with the row when it was.
    */
   const subjectTeam =
-    subjectPlayer?.currentTeam ??
-    rumor.teams.find((t) => t.role === "to") ??
-    rumor.teams.find((t) => t.role !== "mentioned");
+    subjectPlayer?.currentTeam ?? rumor.teams.find((t) => t.role === "to");
 
   return (
     <WireShell
