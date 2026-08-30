@@ -55,7 +55,15 @@ export async function sameStory(
       model: MODEL,
       max_tokens: 8,
       output_config: { effort: "low" },
-      system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }],
+      /*
+       * No cache_control, deliberately.
+       *
+       * This prompt is 284 tokens and Sonnet 5 will not cache a prefix under
+       * 1,024. The marker that used to sit here could never have worked: no
+       * error, no write, `cache_creation_input_tokens: 0` — it simply read as
+       * though caching were on. Measured with count_tokens on 30 Aug 2026.
+       */
+      system: [{ type: "text", text: SYSTEM }],
       messages: [
         {
           role: "user",

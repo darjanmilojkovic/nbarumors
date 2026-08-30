@@ -21,6 +21,24 @@ export type ProcessResult = {
   errors: number;
   /** Items whose article was fetched because the feed only gave a teaser. */
   fetched: number;
+  /**
+   * Token accounting for the run, so a broken prompt cache cannot hide.
+   *
+   * Caching fails silently: the requests still succeed and only the bill
+   * moves. The cached prefix is 8,000 tokens, most of it the schema, and any
+   * edit to either rewrites it — this file's prompt changed three times on 30
+   * Aug 2026 alone. `cacheRead` is the number to watch. In a healthy run it
+   * should dwarf `cacheWrite`, since the 1h entry is written once and read by
+   * every call after it, including the first call of the next run.
+   */
+  cache: {
+    input: number;
+    cacheRead: number;
+    cacheWrite: number;
+    output: number;
+    /** Share of cacheable prefix served from cache, 0-1. */
+    hitRate: number;
+  };
   fetchFailures: string[];
   durationMs: number;
 };
@@ -83,6 +101,8 @@ export async function runExtraction(limit = 50): Promise<ProcessResult> {
    */
   const byModel = new Map<string, number>();
 
+  const tokens = { input: 0, cacheRead: 0, cacheWrite: 0, output: 0 };
+
   const handle = async (item: (typeof items)[number]) => {
     try {
       /*
@@ -128,6 +148,13 @@ export async function runExtraction(limit = 50): Promise<ProcessResult> {
         recentHeadlines,
         publisher: item.publisher,
         sourceName: sourceName.get(item.sourceId) ?? "unknown",
+      }, {
+        onUsage: (u) => {
+          tokens.input += u.input;
+          tokens.cacheRead += u.cacheRead;
+          tokens.cacheWrite += u.cacheWrite;
+          tokens.output += u.output;
+        },
       });
       const result = await publishExtraction(
         { ...item, sourceSlug: sourceSlug.get(item.sourceId) ?? "" },
@@ -181,7 +208,13 @@ export async function runExtraction(limit = 50): Promise<ProcessResult> {
    */
   const movedTeams = await syncCurrentTeams();
 
+  const cacheable = tokens.cacheRead + tokens.cacheWrite;
   return {
+    cache: {
+      ...tokens,
+      /* Zero when nothing was extracted, rather than NaN. */
+      hitRate: cacheable > 0 ? tokens.cacheRead / cacheable : 0,
+    },
     byModel: Object.fromEntries(byModel),
     gated,
     movedTeams,

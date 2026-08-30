@@ -173,7 +173,21 @@ Place anyone who is not a player. A reporter, analyst, agent or executive is int
 Place them once and only where it earns its space. Once in the summary is enough; after that the surname alone. Skip it entirely when the affiliation is already on the card — on an ESPN item write "Tim MacMahon reports", not "ESPN's Tim MacMahon reports". The possessive is for a name the reader could not otherwise place.
 
 Marc Stein and Stephen A. Smith are the exceptions: the name is the credential, and placing them reads as condescension. Write those two plainly and place everyone else.`,
-          cache_control: { type: "ephemeral" },
+          /*
+           * An hour, not the default five minutes.
+           *
+           * extract.ts said this was left at 5m because enrichment "is called
+           * only on merge paths, far less often than hourly". That was wrong:
+           * 998 source attachments landed in the seven days to 30 Aug 2026,
+           * about 5.9 an hour. At that spacing a five-minute entry always
+           * expires unread, so every call paid the 1.25x write premium and
+           * never once read it back — strictly worse than not caching.
+           *
+           * The prefix is 3,176 tokens with the schema, which clears Sonnet's
+           * 1,024 minimum. An hourly 2x write against roughly five reads at
+           * 0.1x is the trade that pays.
+           */
+          cache_control: { type: "ephemeral", ttl: "1h" },
         },
       ],
       messages: [

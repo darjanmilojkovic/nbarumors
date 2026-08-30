@@ -419,14 +419,35 @@ export function repeatsTiredVerb(headline: string, recent: string[]): boolean {
   return TIRED_VERBS.some((re) => re.test(headline) && recent.some((h) => re.test(h)));
 }
 
+/**
+ * What one call cost, in tokens, split by how each part was billed.
+ *
+ * Reported so a broken cache cannot hide. Prompt caching fails silently by
+ * design — the requests still succeed and only the bill moves — and the
+ * cached prefix here is 8,000 tokens, most of it the schema. Every edit to
+ * the system prompt or the schema rewrites that prefix, and this file is
+ * edited often: three times on 30 Aug 2026 alone. Without the usage numbers
+ * a change that stopped caching entirely would look exactly like one that
+ * did not.
+ *
+ * `cacheRead` is the number to watch. If it goes to zero across a run while
+ * `cacheWrite` stays high, the prefix is being invalidated somewhere.
+ */
+export type CallUsage = {
+  input: number;
+  cacheRead: number;
+  cacheWrite: number;
+  output: number;
+};
+
 export async function extractRumor(item: {
   title: string;
   rawSummary: string | null;
   publisher: string | null;
   sourceName: string;
   recentHeadlines?: string[];
-}, opts: { retry?: "outlet" | "verb" } = {}): Promise<Extraction> {
-  const { retry } = opts;
+}, opts: { retry?: "outlet" | "verb"; onUsage?: (u: CallUsage) => void } = {}): Promise<Extraction> {
+  const { retry, onUsage } = opts;
   const response = await client.messages.create({
     model: modelFor(),
     max_tokens: 2000,
@@ -446,9 +467,14 @@ export async function extractRumor(item: {
      * last one wrote. A 1h write costs 2x rather than 1.25x; at one write an
      * hour against roughly a hundred, that trade is heavily one-sided.
      *
-     * Deliberately not applied to enrich.ts or same-story.ts. Both are called
-     * only on merge paths, far less often than hourly, so a longer entry there
-     * would pay the higher write price and expire unread.
+     * enrich.ts now takes the same hour, and for the same reason. This comment
+     * used to say the opposite — that both merge-path callers ran far less
+     * often than hourly — and the measurement on 30 Aug 2026 contradicted it:
+     * 998 source attachments in seven days, about 5.9 an hour.
+     *
+     * same-story.ts has no marker at all. Its prompt is 284 tokens and Sonnet
+     * will not cache a prefix under 1,024, so the one it used to carry was
+     * silently inert rather than merely suboptimal.
      */
     system: [
       {
@@ -493,6 +519,14 @@ export async function extractRumor(item: {
     ],
   });
 
+  /* Before any early return, so a refusal still reports what it cost. */
+  onUsage?.({
+    input: response.usage.input_tokens,
+    cacheRead: response.usage.cache_read_input_tokens ?? 0,
+    cacheWrite: response.usage.cache_creation_input_tokens ?? 0,
+    output: response.usage.output_tokens,
+  });
+
   // Safety classifiers can decline; check before reading content.
   if (response.stop_reason === "refusal") {
     throw new Error("model declined to process this item");
@@ -522,7 +556,7 @@ export async function extractRumor(item: {
     parsed.body &&
     opensWithOutlet(parsed.body, [outletName(item.publisher, item.sourceName), item.publisher, item.sourceName])
   ) {
-    return extractRumor(item, { retry: "outlet" });
+    return extractRumor(item, { retry: "outlet", onUsage });
   }
 
   /*
@@ -540,7 +574,7 @@ export async function extractRumor(item: {
     parsed.headline &&
     repeatsTiredVerb(parsed.headline, item.recentHeadlines ?? [])
   ) {
-    return extractRumor(item, { retry: "verb" });
+    return extractRumor(item, { retry: "verb", onUsage });
   }
 
   /*
