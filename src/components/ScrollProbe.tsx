@@ -75,6 +75,14 @@ export function ScrollProbe() {
       window.setTimeout(() => snap(`${ms}ms`), ms),
     );
 
+    /* What StayAtTop decided, which is otherwise invisible from outside. */
+    timers.push(
+      window.setTimeout(() => {
+        add(`-- StayAtTop --`);
+        for (const s of window.__stayAtTop ?? ["(nothing logged)"]) add(s);
+      }, 5000),
+    );
+
     let scrolls = 0;
     const onScroll = () => {
       if (++scrolls <= 6) snap(`scroll#${scrolls}`);

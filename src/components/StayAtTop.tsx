@@ -36,37 +36,76 @@ import { useEffect } from "react";
 /** Long enough for the bars to settle, short enough to never surprise. */
 const SETTLE_WINDOW_MS = 4000;
 
+/**
+ * What this component decided, for ScrollProbe to render.
+ *
+ * The first version of this fix deployed and changed nothing on the device,
+ * and there is no way to tell from the outside whether it declined to act,
+ * acted and was overruled, or never ran. Guessing at that is what has already
+ * cost four wrong fixes.
+ */
+declare global {
+  interface Window {
+    __stayAtTop?: string[];
+  }
+}
+
+const note = (s: string) => {
+  const log = (window.__stayAtTop ??= []);
+  if (log.length < 20) log.push(s);
+};
+
 export function StayAtTop() {
   useEffect(() => {
     const vv = window.visualViewport;
-    if (!vv) return;
+    if (!vv) return note("no visualViewport");
     /* Already somewhere on purpose — a restored position, or a hash link. */
-    if (window.scrollY > 0) return;
+    if (window.scrollY > 0) return note(`start y=${Math.round(window.scrollY)}, standing down`);
+
+    note("armed at y=0");
 
     let touched = false;
-    const touch = () => {
+    const touch = (e: Event) => {
       touched = true;
+      note(`touched by ${e.type}`);
     };
     const gestures = ["touchstart", "wheel", "keydown", "pointerdown"] as const;
     for (const type of gestures) {
       window.addEventListener(type, touch, { passive: true, once: true });
     }
 
-    const correct = () => {
-      if (touched) return;
-      if (window.scrollY === 0) return;
+    const correct = (why: string) => {
+      const y = Math.round(window.scrollY);
+      if (touched) return note(`${why} y=${y} SKIP touched`);
+      if (y === 0) return;
       window.scrollTo(0, 0);
+      note(`${why} y=${y} -> ${Math.round(window.scrollY)}`);
     };
 
-    vv.addEventListener("resize", correct);
+    /*
+     * Both signals, not just the resize.
+     *
+     * The resize fires when the bars settle, but the scroll it causes may
+     * arrive separately or more than once, and correcting only on the resize
+     * loses that race. Re-asserting on scroll costs nothing: the guard above
+     * returns immediately once the page is at the top, so this is inert except
+     * in the moments it exists for.
+     */
+    const onResize = () => correct("vvresize");
+    const onScroll = () => correct("scroll");
+    vv.addEventListener("resize", onResize);
+    window.addEventListener("scroll", onScroll, { passive: true });
 
     const stop = window.setTimeout(() => {
-      vv.removeEventListener("resize", correct);
+      vv.removeEventListener("resize", onResize);
+      window.removeEventListener("scroll", onScroll);
+      note("window closed");
     }, SETTLE_WINDOW_MS);
 
     return () => {
       clearTimeout(stop);
-      vv.removeEventListener("resize", correct);
+      vv.removeEventListener("resize", onResize);
+      window.removeEventListener("scroll", onScroll);
       for (const type of gestures) window.removeEventListener(type, touch);
     };
   }, []);
