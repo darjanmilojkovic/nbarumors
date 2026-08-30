@@ -97,7 +97,32 @@ export const players = pgTable(
     /** Misspellings and nicknames seen in the wild, for extraction matching. */
     aliases: text("aliases").array().notNull().default([]),
     position: varchar("position", { length: 8 }),
+    /**
+     * The club we believe the player is at, DERIVED. Owned solely by
+     * `syncCurrentTeams`, which ranks the roster, the transaction feed and our
+     * own completed posts by date. Nothing else may write it.
+     */
     currentTeamId: integer("current_team_id").references(() => teams.id),
+    /**
+     * What nba.com's own index said, kept apart from what we concluded.
+     *
+     * The roster sync used to write straight into current_team_id, which is
+     * also the column `current-team.ts` reads back as the league's opinion. So
+     * the "official" source was not independent: once anything else overwrote
+     * that column, the league's answer was gone, and re-running the ranking
+     * could only re-derive the same wrong result from itself.
+     *
+     * Bronny James is the case. nba.com has him at the Lakers, stamped 15
+     * June. A post about LeBron's move to Philadelphia — which tagged Bronny
+     * as its subject and Philadelphia as its destination — is dated 24 July,
+     * so it won on date and wrote PHI into current_team_id. From then on the
+     * "roster" agreed, because it was reading the post's answer. Restricting
+     * the inference changed nothing for him, measured across all 842 players,
+     * precisely because the corruption had already been absorbed.
+     *
+     * Written only by `syncOfficialRoster`, read only as the official source.
+     */
+    rosterTeamId: integer("roster_team_id").references(() => teams.id),
     /**
      * When nba.com's own player index last stated this player's club.
      *

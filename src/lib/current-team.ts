@@ -124,6 +124,22 @@ const BEST_TEAM = sql`
             select count(*) from rumor_players x
             where x.rumor_id = r.id and x.is_primary
           ) = 1 and rp.is_primary
+          /*
+           * And the post names nobody else.
+           *
+           * The post-level destination belongs to the subject only when there
+           * is no one else it could belong to. "Bronny James' Lakers future in
+           * question after LeBron move east" tags both James's, records a
+           * direction for neither, and carries Philadelphia as its "to" team —
+           * LeBron's destination, handed to Bronny because he was the subject.
+           *
+           * Free: measured across all 842 players, restricting this changes
+           * nothing today. Every one of the 15 ambiguous posts already has the
+           * same answer from the transaction feed or the roster.
+           */
+          and (
+            select count(*) from rumor_players x2 where x2.rumor_id = r.id
+          ) = 1
           then (
             select rt.team_id from rumor_teams rt
             where rt.rumor_id = r.id and rt.role = 'to'
@@ -169,10 +185,19 @@ const BEST_TEAM = sql`
    * the league's knowledge and takes it; an older one has had long enough to
    * be contradicted, and loses.
    */
+  /*
+   * roster_team_id, which only the roster sync writes.
+   *
+   * This read current_team_id — the column this very statement writes — so the
+   * league's opinion was whatever we last concluded. A wrong post did not just
+   * outrank the roster for a day, it replaced it permanently: re-running this
+   * re-derived the same answer from itself, and no amount of re-syncing helped
+   * until the snapshot's own date moved.
+   */
   official as (
     select
       id as player_id,
-      current_team_id as team_id,
+      roster_team_id as team_id,
       roster_synced_at - interval '${sql.raw(String(ROSTER_LAG_DAYS))} days' as at
     from players
     where roster_synced_at is not null

@@ -325,7 +325,7 @@ export async function syncOfficialRoster(
     .select({
       id: players.id,
       nbaPlayerId: players.nbaPlayerId,
-      currentTeamId: players.currentTeamId,
+      rosterTeamId: players.rosterTeamId,
     })
     .from(players)
     .where(inArray(players.nbaPlayerId, ids));
@@ -354,10 +354,19 @@ export async function syncOfficialRoster(
     const teamId = entry.nbaTeamId
       ? (teamByNbaId.get(entry.nbaTeamId) ?? null)
       : null;
-    if (player.currentTeamId !== teamId) moved++;
+    if (player.rosterTeamId !== teamId) moved++;
+    /*
+     * roster_team_id, not current_team_id.
+     *
+     * This used to write the derived column directly, which made the league's
+     * answer indistinguishable from our own conclusion — and destructible by
+     * it. current_team_id is now owned solely by syncCurrentTeams, which ranks
+     * this against the transaction feed and our reporting; that runs at the
+     * end of every extraction pass, so the two are never far apart.
+     */
     await db
       .update(players)
-      .set({ currentTeamId: teamId, rosterSyncedAt: stamp })
+      .set({ rosterTeamId: teamId, rosterSyncedAt: stamp })
       .where(eq(players.id, player.id));
   }
 
