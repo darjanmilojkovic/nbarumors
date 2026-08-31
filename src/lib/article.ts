@@ -30,6 +30,14 @@ export const FETCH_ARTICLE_SOURCES = new Set([
   "sportando", // 6/6, averaging 1,893
   "hoops-rumors", // 5/5, averaging 3,053 — its feed truncates mid-story
   "gnews-woj-shams", // headline-only by design; the link resolves to the publisher
+  /*
+   * These two were measured from a laptop, not from a deployment, which the
+   * entries below are the reason to distrust: ESPN and CBS both answer by hand
+   * and refuse Vercel. Added enabled so the first production ingest settles it
+   * — if they fail there, they fail into a teaser, not an error.
+   */
+  "athletic-nba", // 5/5, four of them capped at 4,000 — the feed gives 112 chars
+  "nypost-nba", // 5/5, averaging 2,152 against 205 in the feed
 ]);
 
 /*

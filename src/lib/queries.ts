@@ -287,6 +287,13 @@ const HOT = sql`(case when ${rumors.publishedAt} > now() - interval '7 days' the
  * aggregators. A national desk breaking a signing should outrank a mock-trade
  * blog writing about the same player.
  *
+ * The Athletic and the New York Post joined that top tier when their feeds
+ * were added, on editorial judgement rather than measurement — neither has
+ * published a rumor here yet, so neither has a confirmation rate to point at.
+ * Worth revisiting once they do, the Post especially: its NBA feed is the
+ * freshest we carry but mixes reporting with celebrity items, and if those
+ * start landing at 15 points they will lead the feed on weight alone.
+ *
  * Resolved from the effective outlet, not the feed: three of our feeds are
  * Google News searches, so the source row says "Google News" while the actual
  * publisher underneath ranges from ESPN to bballrumors.com.
@@ -303,7 +310,7 @@ const HOT = sql`(case when ${rumors.publishedAt} > now() - interval '7 days' the
 const OUTLET_WEIGHT = sql`(case
   when ${sources.slug} = 'bbref-transactions' then 0
   when lower(coalesce(nullif(${feedItems.publisher}, ''), ${sources.name}))
-    ~ '(espn|yahoo|realgm|theathletic|the athletic)' then 15
+    ~ '(espn|yahoo|realgm|theathletic|the athletic|nypost|new york post)' then 15
   when lower(coalesce(nullif(${feedItems.publisher}, ''), ${sources.name}))
     ~ '(cbssports|cbs sports|hoopsrumors|hoops rumors|bleacher|sports illustrated|usatoday|usa today|sportando|hoopshype)' then 8
   else -8 end)`;
