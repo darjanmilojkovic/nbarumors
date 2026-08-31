@@ -250,6 +250,42 @@ export const playerImages = pgTable(
 );
 
 /** Feed registry. One row per ingest source, with its polling cursor. */
+/**
+ * One row per cron firing, so a run that did nothing stops looking like a run
+ * that never happened.
+ *
+ * The question "did last night's sync fire?" was unanswerable. Its only trace
+ * was the rows it inserted, and on a quiet night it inserts none: the roster
+ * writes the same values every time, since the league's directory has not
+ * rebuilt since 15 June, and the transaction feed carries nothing new. On the
+ * morning of 31 Aug 2026 the newest transaction had been written two nights
+ * earlier, which meant either the cron was broken or the league was quiet, and
+ * nothing in the database could tell the two apart.
+ *
+ * That matters most for the job least likely to be noticed. sync-transactions
+ * is the only thing that ever records a waive, and a waive is what clears a
+ * released player's club — so it could stop firing and the first symptom would
+ * be stale teams weeks later.
+ *
+ * Deliberately not read by any page. This is an operations log.
+ */
+export const cronRuns = pgTable(
+  "cron_runs",
+  {
+    id: serial("id").primaryKey(),
+    /** The route's own name: "sync-transactions", "extract". */
+    name: varchar("name", { length: 64 }).notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    /** Null while running, so a row that never completes is visible as one. */
+    ok: boolean("ok"),
+    durationMs: integer("duration_ms"),
+    /** The handler's own result, or the error. Whatever it chose to report. */
+    detail: text("detail"),
+  },
+  (t) => [index("cron_runs_name_idx").on(t.name, t.startedAt)],
+);
+
 export const sources = pgTable(
   "sources",
   {

@@ -1,3 +1,4 @@
+import { recordRun } from "@/lib/cron-log";
 import { refreshPlayerImages } from "@/lib/refresh-images";
 
 export const runtime = "nodejs";
@@ -38,12 +39,14 @@ export async function GET(request: Request) {
   const limitParam = Number(url.searchParams.get("limit"));
 
   try {
-    const result = await refreshPlayerImages({
+    const result = await recordRun("refresh-images", () =>
+      refreshPlayerImages({
       dryRun: dry,
       ...(Number.isFinite(limitParam) && limitParam > 0
         ? { limit: limitParam }
         : {}),
-    });
+      }),
+    );
     return Response.json({ dryRun: dry, ...result });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

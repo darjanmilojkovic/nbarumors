@@ -1,3 +1,4 @@
+import { recordRun } from "@/lib/cron-log";
 import { runOutcomeCheck } from "@/lib/outcomes";
 
 export const runtime = "nodejs";
@@ -31,7 +32,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    return Response.json(await runOutcomeCheck());
+    return Response.json(await recordRun("verify-outcomes", () => runOutcomeCheck()));
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return Response.json({ error: message }, { status: 500 });

@@ -1,3 +1,4 @@
+import { recordRun } from "@/lib/cron-log";
 import { discoverPlayers } from "@/lib/discover-players";
 
 export const runtime = "nodejs";
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    return Response.json(await discoverPlayers({ cacheImages: false }));
+    return Response.json(await recordRun("discover-players", () => discoverPlayers({ cacheImages: false })));
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return Response.json({ error: message }, { status: 500 });

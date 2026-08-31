@@ -1,3 +1,4 @@
+import { recordRun } from "@/lib/cron-log";
 import { runStatsSync } from "@/lib/stats-sync";
 
 export const runtime = "nodejs";
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
   const dry = new URL(request.url).searchParams.get("dry") === "1";
 
   try {
-    const result = await runStatsSync({ dryRun: dry });
+    const result = await recordRun("sync-stats", () => runStatsSync({ dryRun: dry }));
     if (dry) {
       // The full change list is long; the shape of it is what matters here.
       return Response.json({

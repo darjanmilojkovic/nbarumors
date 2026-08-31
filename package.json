@@ -52,7 +52,8 @@
     "prebuild": "tsx src/scripts/sync-images.ts || echo \"sync:images failed — building with the committed manifest\"",
     "sync:transactions": "tsx src/scripts/sync-transactions.ts",
     "fix:selfcite": "tsx src/scripts/fix-self-citation.ts",
-    "fix:namelists": "tsx src/scripts/fix-mixed-name-lists.ts"
+    "fix:namelists": "tsx src/scripts/fix-mixed-name-lists.ts",
+    "cron:health": "tsx src/scripts/cron-health.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

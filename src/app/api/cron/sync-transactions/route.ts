@@ -1,3 +1,4 @@
+import { recordRun } from "@/lib/cron-log";
 import { syncCurrentTeams } from "@/lib/current-team";
 import { syncOfficialRoster } from "@/lib/roster-nba";
 import { syncTransactions } from "@/lib/transactions";
@@ -30,6 +31,12 @@ export async function GET(request: Request) {
   }
 
   try {
+    /*
+     * The whole job under one record, not each half. A run that imported the
+     * feed and then failed on the roster is one failed run, and the detail
+     * says which part.
+     */
+    const result = await recordRun("sync-transactions", async () => {
     const synced = await syncTransactions();
     /*
      * The feed is the best evidence for where a player now plays, so the
@@ -48,7 +55,9 @@ export async function GET(request: Request) {
       roster = { error: err instanceof Error ? err.message : String(err) };
     }
     const movedTeams = await syncCurrentTeams();
-    return Response.json({ ...synced, roster, movedTeams });
+      return { ...synced, roster, movedTeams };
+    });
+    return Response.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return Response.json({ error: message }, { status: 500 });
