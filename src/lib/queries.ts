@@ -287,6 +287,10 @@ const HOT = sql`(case when ${rumors.publishedAt} > now() - interval '7 days' the
  * aggregators. A national desk breaking a signing should outrank a mock-trade
  * blog writing about the same player.
  *
+ * CBS was promoted into the top tier on those same numbers. It had been a
+ * tier below RealGM while confirming at 64% against RealGM's 50%, which was
+ * the measurement contradicting the placement rather than supporting it.
+ *
  * The Athletic and the New York Post joined that top tier when their feeds
  * were added, on editorial judgement rather than measurement — neither has
  * published a rumor here yet, so neither has a confirmation rate to point at.
@@ -310,9 +314,9 @@ const HOT = sql`(case when ${rumors.publishedAt} > now() - interval '7 days' the
 const OUTLET_WEIGHT = sql`(case
   when ${sources.slug} = 'bbref-transactions' then 0
   when lower(coalesce(nullif(${feedItems.publisher}, ''), ${sources.name}))
-    ~ '(espn|yahoo|realgm|theathletic|the athletic|nypost|new york post)' then 15
+    ~ '(espn|yahoo|realgm|theathletic|the athletic|nypost|new york post|cbssports|cbs sports)' then 15
   when lower(coalesce(nullif(${feedItems.publisher}, ''), ${sources.name}))
-    ~ '(cbssports|cbs sports|hoopsrumors|hoops rumors|bleacher|sports illustrated|usatoday|usa today|sportando|hoopshype)' then 8
+    ~ '(hoopsrumors|hoops rumors|bleacher|sports illustrated|usatoday|usa today|sportando|hoopshype)' then 8
   else -8 end)`;
 
 const OUTLETS = sql`(
