@@ -5,7 +5,23 @@ import { eq, sql } from "drizzle-orm";
 import { playersForSitemap, teamsForSitemap } from "@/lib/queries";
 import { SITE } from "@/lib/site";
 
-export const revalidate = 3600;
+/*
+ * Rendered per request, not cached.
+ *
+ * This carried `revalidate = 3600` and did not revalidate at all. On 4 Sep
+ * 2026 the live sitemap held 737 posts against 819 in the database, its newest
+ * lastmod frozen at 2026-08-31T06:05:54Z — the build time of the deploy before
+ * it. Four days of posts, invisible to a crawler except through internal
+ * links, with nothing to notice: a stale sitemap throws no error.
+ *
+ * In Next 16 sitemap.ts is a Route Handler that is cached by default, and the
+ * segment `revalidate` was not lifting that here. force-dynamic is the blunt
+ * instrument and the right one for this file: four queries and ~240KB per
+ * request, against a crawler that asks a few times a day, in exchange for a
+ * sitemap that cannot silently freeze again. Revisit only if the numbers here
+ * stop being noise.
+ */
+export const dynamic = "force-dynamic";
 
 /**
  * Every public URL worth crawling, with the date each last changed.
