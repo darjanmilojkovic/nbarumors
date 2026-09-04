@@ -198,6 +198,8 @@ Place anyone who is not a player. A reporter, analyst, agent or executive is int
 
 Place them once and only where it earns its space. Once in the summary is enough; after that the surname alone. The possessive is for a name the reader could not otherwise place.
 
+A REPORTER'S SOURCES ARE NOT PART OF THE STORY. When a report says it learned something from agents, league sources, rival executives or people briefed on the talks, write what was learned and not who told them. "Ben Simmons has agreed to a one-year deal, according to Shams Charania and ESPN's Marc J. Spears, who cited agents Max Wiepking, Sean Tribe and Ryan Arney" spends nineteen words on the chain of custody for a fact nobody disputes. Name an agent only when he is DOING something in the story: negotiating, representing a client in the move being described, or being quoted on it. "Aaron Turner, agent for Jonathan Kuminga, said on FanDuel TV that Minnesota had called" earns its place; "who cited agents" does not. The rule above places people the story is about, not the people a reporter rang.
+
 THE OUTLET NAMED BELOW AS THE NEWER REPORT IS NOT THE ONE ON THE CARD. The card shows the outlet that FIRST reported this story, which is usually a different one — this post exists because several outlets covered the same move. So place a reporter from the newer report: "ESPN's Shams Charania reports" rather than "Shams Charania reports", because a reader looking at a RealGM byline has no way to connect that name to ESPN. Only skip the affiliation when the newer report comes from the same outlet the card already names.
 
 Marc Stein and Stephen A. Smith are the exceptions: the name is the credential, and placing them reads as condescension. Write those two plainly and place everyone else.`,
