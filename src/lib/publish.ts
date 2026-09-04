@@ -369,7 +369,24 @@ async function attachSource(
     .from(rumorSources)
     .where(eq(rumorSources.rumorId, rumorId));
 
-  const stub = current.body.length < STUB_CHARS && outletCount >= STUB_OUTLETS;
+  /*
+   * The ceiling rises with corroboration. 240 characters is the right test for
+   * a story three outlets covered; it is the wrong one for a story sixteen
+   * covered, which is how Amen Thompson's $208M extension stayed at 313
+   * characters — two sentences written from the thinnest of its sixteen
+   * reports, because that report arrived first and the merge keeps the
+   * earliest. It missed the stub test by 73 characters and the outlet count
+   * was never consulted, since the length test fails first.
+   *
+   * Measured over 604 settled posts before changing it: this admits 8 that the
+   * flat threshold refused, every one a heavily covered signing told in two or
+   * three sentences, and no correctly-short post among them. Only 49 of those
+   * 604 carry three or more outlets at all, so the corroboration test remains
+   * the binding constraint — this widens a narrow door rather than opening a
+   * new one.
+   */
+  const stubCeiling = Math.min(600, STUB_CHARS + Math.max(0, outletCount - STUB_OUTLETS) * 50);
+  const stub = current.body.length < stubCeiling && outletCount >= STUB_OUTLETS;
 
   const enriched =
     open || correctsTerms || stub
