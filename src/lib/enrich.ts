@@ -234,7 +234,7 @@ Marc Stein and Stephen A. Smith are the exceptions: the name is the credential, 
             ...(tighten
               ? [
                   ``,
-                  `Your previous attempt ran to ${tighten} characters and the limit is ${MAX_BODY_CHARS}. Write it again under the limit. Keep every fact, every figure and every name: cut words, not content. Combine sentences that share a subject, drop any phrase that restates what another sentence already says, and remove career history before you remove anything about this move.`,
+                  `Your previous attempt ran to ${tighten} characters and the limit is ${MAX_BODY_CHARS}. Write it again under the limit. Keep every fact, every figure and every name: cut words, not content. Cut connective tissue first: a comma before "which", "meaning", "given" or "while" is usually a full stop, and ending the sentence there loses words rather than adding them. Do NOT weld sentences together to save room - a 40-word sentence with three commas is the thing we are trying not to publish, and most sentences here should run under 20 words. Drop any phrase that restates what another sentence already says, and remove career history before you remove anything about this move.`,
                 ]
               : []),
           ].join("\n"),
