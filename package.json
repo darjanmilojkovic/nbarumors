@@ -53,6 +53,7 @@
     "sync:transactions": "tsx src/scripts/sync-transactions.ts",
     "fix:selfcite": "tsx src/scripts/fix-self-citation.ts",
     "fix:namelists": "tsx src/scripts/fix-mixed-name-lists.ts",
+    "fix:selfattr": "tsx src/scripts/fix-self-attribution.ts",
     "cron:health": "tsx src/scripts/cron-health.ts"
   },
   "dependencies": {
