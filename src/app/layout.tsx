@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Noto_Sans, Noto_Serif } from "next/font/google";
+import { Analytics } from "@/components/Analytics";
+import { Consent } from "@/components/Consent";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SITE } from "@/lib/site";
 import "./globals.css";
@@ -77,10 +79,27 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${serif.variable} ${sans.variable}`}>
+      {/*
+       * An explicit <head> purely so consent can be the first thing in it.
+       * Next still injects everything from the metadata export below into this
+       * same element; what it will not do is put anything above these three
+       * tags. Keep <Consent /> at the top of it. See Consent.tsx for why.
+       *
+       * The Next docs do say not to hand-write <head> in a root layout, but
+       * the reason they give is de-duplication and streaming of <title> and
+       * <meta> — which is why every piece of metadata here still goes through
+       * the Metadata API below, and none of it is written by hand. Scripts are
+       * not what that caveat is about, and no strategy next/script offers puts
+       * a tag this early. Verified against a production build.
+       */}
+      <head>
+        <Consent />
+      </head>
       <body>
         {/* Pages supply their own <main> via WireShell. */}
         {children}
         <SiteFooter />
+        <Analytics />
       </body>
     </html>
   );

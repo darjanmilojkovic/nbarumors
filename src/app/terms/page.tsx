@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Prose } from "@/components/Prose";
 import { WireShell } from "@/components/WireShell";
 import { SITE, lastUpdated } from "@/lib/site";
@@ -53,6 +54,28 @@ export default function TermsPage() {
           rights in an image and believe it is used incorrectly, contact us and
           we will correct or remove it promptly.
         </p>
+
+        <h2>Cookies and your data</h2>
+        <p>
+          This site uses cookies for analytics
+          {SITE.usesAds ? " and advertising" : ""}, and asks for your consent
+          before setting them. You can accept or decline, and change that
+          answer at any time through the Cookie Settings link in the footer.
+          Declining costs you nothing: every page works the same either way.
+          What we collect and why is set out in our{" "}
+          <Link href="/privacy">Privacy Policy</Link>, which forms part of
+          these terms.
+        </p>
+        {SITE.usesAds && (
+          <p>
+            Pages carry advertising
+            {SITE.adProvider ? ` served by ${SITE.adProvider}` : ""}. Adverts
+            are supplied by a third party and are not endorsements: we do not
+            check advertisers or the products they promote, and any dealing you
+            have with one is between you and them. Sponsored placements, if we
+            ever run them, are labelled as such.
+          </p>
+        )}
 
         <h2>Our content</h2>
         <p>

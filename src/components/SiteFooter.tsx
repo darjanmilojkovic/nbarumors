@@ -1,5 +1,9 @@
 import Link from "next/link";
+import { CookieSettingsLink } from "@/components/CookieSettingsLink";
 import { SITE } from "@/lib/site";
+
+const PILL =
+  "rounded-full border border-rule px-3.5 py-1.5 text-xs text-body hover:border-link hover:text-link";
 
 const LINKS = [
   { href: "/contact", label: "Contact" },
@@ -26,20 +30,23 @@ export function SiteFooter() {
           </p>
 
           {/*
-           * No cookie banner or consent link: the site sets no cookies and
-           * runs no analytics. Adding "Cookie Settings" with nothing behind it
-           * would imply tracking that does not exist.
+           * Cookie Settings sits with the legal links because that is where
+           * people look for it, and because the privacy policy promises it by
+           * that name. It is a button, not a Link — it reopens CookieHub's
+           * preference centre rather than navigating anywhere — so it borrows
+           * the same pill styling to keep the row visually one thing.
            */}
           <nav className="mt-5 flex flex-wrap gap-2.5">
             {LINKS.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
-                className="rounded-full border border-rule px-3.5 py-1.5 text-xs text-body hover:border-link hover:text-link"
+                className={PILL}
               >
                 {l.label}
               </Link>
             ))}
+            {SITE.usesCookies && <CookieSettingsLink className={PILL} />}
           </nav>
         </div>
       </div>
