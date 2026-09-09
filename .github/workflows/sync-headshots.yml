@@ -1,0 +1,80 @@
+# Fetch headshots for players who have gained an NBA id since the last run,
+# and commit them next to the manifest that lists them.
+#
+# This job exists because of an invariant in src/scripts/sync-images.ts: images
+# live in public/, the manifest naming them is generated from the files on
+# disk, and the two are committed together so "code, manifest and images ship
+# in one deploy and cannot disagree". A Vercel cron cannot maintain that -- it
+# has no repository to commit to -- and serving from a CDN instead is the
+# hotlinking that next.config deliberately forbids. So the automation has to
+# live where commits happen.
+#
+# discover-players fills in new NBA ids nightly and nothing fetched their
+# images, so they accumulated until somebody ran the script by hand. Fifteen
+# were sitting uncommitted on 9 Sep 2026, which is what prompted this.
+name: Sync player headshots
+
+on:
+  schedule:
+    # Mondays 06:20 UTC. New ids arrive at roughly one a day, so weekly keeps
+    # the drift under a handful while keeping deploys rare.
+    - cron: "20 6 * * 1"
+  workflow_dispatch:
+
+# Never let two runs race for the same push.
+concurrency:
+  group: sync-headshots
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - run: npm ci
+
+      # A missing secret must be a clear skip, not a stack trace every Monday.
+      - name: Check for the database credential
+        id: guard
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "DATABASE_URL is not set -- add it under Settings > Secrets > Actions."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Reads players and teams for their NBA ids. Writes nothing to the
+      # database -- an earlier version did, and repointing headshot_url from a
+      # laptop took every image on the live site down.
+      - name: Fetch new headshots and rebuild the manifest
+        if: steps.guard.outputs.ready == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npm run sync:images
+
+      - name: Commit whatever is new
+        if: steps.guard.outputs.ready == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Only these paths: nothing else in the tree is this job's business.
+          git add public/headshots src/lib/cached-images.ts
+          if git diff --cached --quiet; then
+            echo "no new headshots"
+            exit 0
+          fi
+          count=$(git diff --cached --name-only -- public/headshots | wc -l)
+          git commit -m "Add ${count} player headshot(s) fetched by the weekly sync"
+          git push
