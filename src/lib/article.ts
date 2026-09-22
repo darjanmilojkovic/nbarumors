@@ -38,6 +38,9 @@ export const FETCH_ARTICLE_SOURCES = new Set([
    */
   "athletic-nba", // 5/5, four of them capped at 4,000 — the feed gives 112 chars
   "nypost-nba", // 5/5, averaging 2,152 against 205 in the feed
+  // Both added 22 Sep 2026, also measured from a laptop only.
+  "nbc-nba", // 5/5, four capped at 4,000 — the feed gives ~67 chars
+  "bleacher-report-nba", // 5/5, 924-1,879 — the feed gives ~144
 ]);
 
 /*

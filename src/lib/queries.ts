@@ -316,7 +316,7 @@ const OUTLET_WEIGHT = sql`(case
   when lower(coalesce(nullif(${feedItems.publisher}, ''), ${sources.name}))
     ~ '(espn|yahoo|realgm|theathletic|the athletic|nypost|new york post|cbssports|cbs sports)' then 15
   when lower(coalesce(nullif(${feedItems.publisher}, ''), ${sources.name}))
-    ~ '(hoopsrumors|hoops rumors|bleacher|sports illustrated|usatoday|usa today|sportando|hoopshype)' then 8
+    ~ '(hoopsrumors|hoops rumors|bleacher|nbcsports|nbc sports|sports illustrated|usatoday|usa today|sportando|hoopshype)' then 8
   else -8 end)`;
 
 const OUTLETS = sql`(

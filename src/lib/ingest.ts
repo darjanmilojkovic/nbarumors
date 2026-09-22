@@ -53,6 +53,21 @@ const truncate = (s: string | null, max: number) =>
  */
 const MAX_AGE_DAYS = 14;
 
+/**
+ * Sources whose feed covers more than the NBA, and the `<category>` an item
+ * must carry to be kept.
+ *
+ * Bleacher Report has no NBA-only feed — its `tag_id` parameter is ignored and
+ * every URL returns the whole site. Measured 22 Sep 2026: 584 items a week, 72
+ * tagged exactly "NBA", the rest NFL, college football, MLB, WWE and WNBA.
+ * Matching the exact tag rather than /nba/ matters: the loose match also keeps
+ * WNBA. Dropping them here keeps ~500 rows a week out of `feed_items` and away
+ * from a gate call each.
+ */
+const REQUIRED_CATEGORY: Record<string, string> = {
+  "bleacher-report-nba": "NBA",
+};
+
 async function ingestSource(source: Source): Promise<SourceResult> {
   let items: ParsedItem[];
   try {
@@ -67,7 +82,12 @@ async function ingestSource(source: Source): Promise<SourceResult> {
   }
 
   const cutoff = new Date(Date.now() - MAX_AGE_DAYS * 86_400_000);
-  const fresh = items.filter((i) => i.publishedAt >= cutoff);
+  const required = REQUIRED_CATEGORY[source.slug]?.toLowerCase();
+  const fresh = items.filter(
+    (i) =>
+      i.publishedAt >= cutoff &&
+      (!required || i.categories.some((c) => c.toLowerCase() === required)),
+  );
 
   // Google News links are redirectors; resolving them is what makes the same
   // story from three feeds collapse into one row.

@@ -6,6 +6,8 @@ export type ParsedItem = {
   summary: string | null;
   author: string | null;
   publishedAt: Date;
+  /** RSS `<category>` / Atom `<category term>` values, as sent. */
+  categories: string[];
 };
 
 /**
@@ -193,6 +195,16 @@ export async function fetchFeed(
       author:
         clean(asText(entry["dc:creator"]) || asText(entry.author)) || null,
       publishedAt: extractDate(entry),
+      categories: ([] as unknown[])
+        .concat(entry.category ?? [])
+        .map((c) =>
+          clean(
+            c && typeof c === "object" && "@_term" in (c as never)
+              ? String((c as Record<string, unknown>)["@_term"])
+              : asText(c),
+          ),
+        )
+        .filter(Boolean),
     });
   }
   return items;
