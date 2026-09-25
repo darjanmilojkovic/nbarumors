@@ -42,30 +42,31 @@ jobs:
 
       - run: npm ci
 
-      # A missing secret must be a clear skip, not a stack trace every Monday.
-      - name: Check for the database credential
-        id: guard
+      # A missing secret FAILS the job, on purpose.
+      #
+      # This used to skip cleanly so it would not email a failure every Monday.
+      # The result was worse: the runs on 14 and 21 Sep went green having done
+      # nothing, 37 players accumulated without a photo, and the green tick was
+      # the reason nobody looked. A job that cannot do its work has failed, and
+      # it should say so.
+      - name: Require the database credential
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           if [ -z "$DATABASE_URL" ]; then
-            echo "DATABASE_URL is not set -- add it under Settings > Secrets > Actions."
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "::error::DATABASE_URL is not set. Add it under Settings > Secrets and variables > Actions, then re-run."
+            exit 1
           fi
 
       # Reads players and teams for their NBA ids. Writes nothing to the
       # database -- an earlier version did, and repointing headshot_url from a
       # laptop took every image on the live site down.
       - name: Fetch new headshots and rebuild the manifest
-        if: steps.guard.outputs.ready == 'true'
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: npm run sync:images
 
       - name: Commit whatever is new
-        if: steps.guard.outputs.ready == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
