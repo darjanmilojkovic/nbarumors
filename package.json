@@ -39,6 +39,7 @@
     "backfill:articles": "tsx src/scripts/backfill-articles.ts",
     "restore:body": "tsx src/scripts/restore-body.ts",
     "split:deal": "tsx src/scripts/split-settled-deal.ts",
+    "backfill:trade-ideas": "tsx src/scripts/backfill-trade-ideas.ts",
     "backfill:moves": "tsx src/scripts/backfill-player-moves.ts",
     "backfill:gnews": "tsx src/scripts/backfill-gnews.ts",
     "fix:terms": "tsx src/scripts/fix-missing-terms.ts",
