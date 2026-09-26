@@ -30,11 +30,19 @@ const CAT: Record<string, string> = {
  */
 /**
  * The badge on a rumour whose move later appeared in the NBA's transaction
- * log. It read "Confirmed", which sat too close to the "Done deal" status
- * badge: that one says what the reporting claims, this one says an outside
- * record agreed. Kept here so the wording can change in one place.
+ * log. Briefly "Verified", back to "Confirmed" on 26 Sep 2026. Kept here so
+ * the wording can change in one place.
  */
-const VERIFIED_LABEL = "Verified";
+const OUTCOME_LABEL = "Confirmed";
+
+/**
+ * Off while the check behind it is rebuilt. Measured 26 Sep 2026: of 14
+ * posts carrying it, about a third were right. The rest matched a move the
+ * post mentioned in passing — "Clippers not shopping Ingram" was badged
+ * because Ingram's trade to the Clippers, background in that post, landed.
+ * Turn back on once lib/outcomes asks whether the move confirms the claim.
+ */
+const SHOW_OUTCOME_BADGE = false;
 
 const STATE: Record<string, { label: string; cls: string }> = {
   /*
@@ -362,7 +370,7 @@ export function WireItem({
    */
   const hasMeta =
     Boolean(money) ||
-    rumor.outcome === "confirmed" ||
+    (SHOW_OUTCOME_BADGE && rumor.outcome === "confirmed") ||
     rumor.outcome === "unrecorded" ||
     isHot ||
     movements.length > 0;
@@ -738,12 +746,12 @@ export function WireItem({
                  */}
 
                 {/* Checked against the official transaction log, not modelled. */}
-                {rumor.outcome === "confirmed" && (
+                {SHOW_OUTCOME_BADGE && rumor.outcome === "confirmed" && (
                   <span
                     className="rounded-sm bg-confirmed/10 px-2 py-0.5 font-mono text-[10px] font-bold tracking-widest text-confirmed uppercase"
-                    title="Verified against the NBA's official transaction log"
+                    title="Confirmed by the NBA's official transaction log"
                   >
-                    ✓ {VERIFIED_LABEL}
+                    ✓ {OUTCOME_LABEL}
                     {confirmedAfter !== null && confirmedAfter > 0
                       ? ` · ${confirmedAfter}d later`
                       : ""}
