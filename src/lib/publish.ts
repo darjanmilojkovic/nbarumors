@@ -535,6 +535,27 @@ export async function attachSource(
     .where(eq(rumors.id, rumorId));
 
   /*
+   * A held post that the wire has since backed goes live.
+   *
+   * A post filed below the publish threshold stayed hidden for good: merges
+   * raised its confidence, but nothing ever published it, and every report
+   * merged into it disappeared with it. "Hornets want a long-term deal with
+   * Brandon Miller" sat hidden with three outlets behind it.
+   *
+   * Three different outlets is the bar, not the confidence number, since
+   * repeated coverage is the one signal the score cannot give. Fresh posts
+   * only: a hidden post from weeks ago is stale news, or a duplicate a cleanup
+   * script hid, and neither should reappear. Trade ideas never reach this,
+   * because they publish at filing.
+   */
+  await db.execute(sql`
+    update rumors set is_published = true
+     where id = ${rumorId}
+       and not is_published
+       and published_at > now() - interval '14 days'
+       and (select count(distinct source_id) from rumor_sources where rumor_id = ${rumorId}) >= 3`);
+
+  /*
    * Tags follow the text. A grown summary is not the one the tags were written
    * against, and a name it no longer mentions must stop claiming the post:
    * being tagged is what puts a player's face on the card and the post on
