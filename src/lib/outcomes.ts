@@ -1,3 +1,4 @@
+import Anthropic from "@anthropic-ai/sdk";
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { rumors } from "@/db/schema";
@@ -62,6 +63,8 @@ export type OutcomeResult = {
   posts: number;
   transactions: number;
   confirmed: number;
+  /** A move landed but did not confirm what the post claimed. */
+  mismatched: number;
   unrecorded: number;
   cleared: number;
   samples: string[];
@@ -70,9 +73,11 @@ export type OutcomeResult = {
 type Row = {
   id: number;
   headline: string;
+  body: string;
   status: string;
   published_at: string;
   outcome: string | null;
+  outcome_at: string | null;
   outcome_rumor_id: number | null;
   primary_ids: string | null;
   to_team_ids: string | null;
@@ -86,10 +91,80 @@ type Tx = {
   description: string;
 };
 
+const client = new Anthropic();
+
+/**
+ * Judgment, not screening: whether a move proves a claim takes reading the
+ * post. A handful of calls a night, so the capable model at low effort.
+ */
+const MODEL = process.env.OUTCOME_MODEL ?? "claude-opus-5";
+
+const VERDICT_SCHEMA = {
+  type: "object",
+  properties: {
+    confirms: { type: "boolean" },
+    why: { type: "string" },
+  },
+  required: ["confirms", "why"],
+  additionalProperties: false,
+} as const;
+
+const JUDGE = `You check NBA rumour posts against the league's official transaction log.
+
+You get one post and the recorded moves that followed it. Answer whether those moves prove the post's MAIN CLAIM came true.
+
+confirms = true only when the post predicted, reported or floated this move, and the record shows it happened. "Pelicans still eyeing a Mathurin sign-and-trade" is confirmed by Mathurin arriving in New Orleans.
+
+confirms = false when the move is only background or context in the post, when the post's claim is about something else, or when the move contradicts the claim. "Clippers not shopping Ingram" is NOT confirmed by Ingram's arrival in a trade the post only mentions in passing. "Toronto pumps brakes on the Leonard trade" is NOT confirmed by the trade later going through. "Clippers would welcome Kawhi back if Toronto balks" is NOT confirmed by him going to Toronto.
+
+When unsure, answer false: a wrong "Confirmed" badge is worse than a missing one. Keep "why" to one short sentence.`;
+
+/**
+ * Whether the moves confirm what the post claimed. Null on any failure, so a
+ * broken call leaves the post's current label alone rather than flipping it.
+ */
+async function judge(
+  post: { headline: string; body: string },
+  moves: Tx[],
+): Promise<{ confirms: boolean; why: string } | null> {
+  try {
+    const response = await client.beta.messages.create({
+      model: MODEL,
+      max_tokens: 2000,
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default",
+      output_config: {
+        effort: "low",
+        format: { type: "json_schema", schema: VERDICT_SCHEMA },
+      },
+      system: JUDGE,
+      messages: [
+        {
+          role: "user",
+          content: [
+            `Headline: ${post.headline}`,
+            `Post: ${post.body}`,
+            "Recorded moves:",
+            ...moves.map((m) => `- ${m.occurred_at.slice(0, 10)}: ${m.description}`),
+          ].join("\n"),
+        },
+      ],
+    });
+    if (response.stop_reason === "refusal") return null;
+    const block = response.content.find((b) => b.type === "text");
+    if (!block || block.type !== "text") return null;
+    return JSON.parse(block.text) as { confirms: boolean; why: string };
+  } catch {
+    return null;
+  }
+}
+
 export async function runOutcomeCheck(
-  opts: { dryRun?: boolean } = {},
+  opts: { dryRun?: boolean; reverify?: boolean } = {},
 ): Promise<OutcomeResult> {
   const dryRun = opts.dryRun ?? false;
+  /** Ask again even where an earlier run already decided. */
+  const reverify = opts.reverify ?? false;
 
   /*
    * Every published post with its primary player's NBA id and the NBA ids of
@@ -97,7 +172,8 @@ export async function runOutcomeCheck(
    * now, so the join cannot be defeated by a spelling.
    */
   const rows = await db.execute(sql`
-    select r.id, r.headline, r.status, r.published_at, r.outcome, r.outcome_rumor_id,
+    select r.id, r.headline, r.body, r.status, r.published_at, r.outcome, r.outcome_at,
+           r.outcome_rumor_id,
            (select string_agg(p.nba_player_id, ',')
               from rumor_players rp join players p on p.id = rp.player_id
              where rp.rumor_id = r.id and rp.is_primary) as primary_ids,
@@ -126,6 +202,7 @@ export async function runOutcomeCheck(
 
   const now = Date.now();
   let confirmed = 0;
+  let mismatched = 0;
   let unrecorded = 0;
   let cleared = 0;
   const samples: string[] = [];
@@ -217,20 +294,43 @@ export async function runOutcomeCheck(
       : undefined;
 
     if (match) {
-      confirmed++;
-      if (samples.length < 8) {
-        const days = Math.round(
-          (new Date(match.occurred_at).getTime() - reportedAt) / 864e5,
-        );
+      /*
+       * The player landed where the post said — but that is not yet the post
+       * coming true. Matching alone badged "Clippers not shopping Ingram"
+       * because Ingram's trade to the Clippers, background in that post,
+       * went through; about a third of 14 badges were right when this was
+       * measured on 26 Sep 2026. So the model reads the post and the move and
+       * says whether the move is what the post claimed.
+       *
+       * Asked once per match. The verdict is stored with the move's date, and
+       * a later run with the same move reuses it; a new move asks again.
+       */
+      const landedAt = new Date(match.occurred_at).getTime();
+      const decided =
+        !reverify &&
+        r.outcome_at !== null &&
+        new Date(r.outcome_at).getTime() === landedAt &&
+        (r.outcome === "confirmed" || r.outcome === "mismatch");
+      const verdict = decided
+        ? { confirms: r.outcome === "confirmed", why: "decided earlier" }
+        : await judge(r, arrivals.filter((a): a is Tx => Boolean(a)));
+
+      // A failed call changes nothing; the next run asks again.
+      if (!verdict) continue;
+
+      const days = Math.round((landedAt - reportedAt) / 864e5);
+      if (!decided || verdict.confirms) {
         samples.push(
-          `CONFIRMED after ${days}d — ${r.headline.slice(0, 52)} (${match.description.slice(0, 48)})`,
+          `${verdict.confirms ? "CONFIRMED" : "NOT CONFIRMED"} after ${days}d — #${r.id} ${r.headline.slice(0, 60)}\n      move: ${match.description.slice(0, 70)}\n      why: ${verdict.why}`,
         );
       }
+      if (verdict.confirms) confirmed++;
+      else mismatched++;
       if (!dryRun) {
         await db
           .update(rumors)
           .set({
-            outcome: "confirmed",
+            outcome: verdict.confirms ? "confirmed" : "mismatch",
             outcomeAt: new Date(match.occurred_at),
           })
           .where(eq(rumors.id, r.id));
@@ -243,9 +343,10 @@ export async function runOutcomeCheck(
      * wrote outcomes and never cleared them, so a label set by an earlier and
      * looser rule survived every later run that disagreed with it. A claim on
      * the page has to be re-earned each time, or tightening the rule fixes
-     * nothing already published.
+     * nothing already published. A stored "mismatch" whose move no longer
+     * matches goes the same way.
      */
-    if (r.outcome === "confirmed") {
+    if (r.outcome === "confirmed" || r.outcome === "mismatch") {
       cleared++;
       if (!dryRun) {
         await db
@@ -277,6 +378,7 @@ export async function runOutcomeCheck(
     posts: reports.length,
     transactions: txs.length,
     confirmed,
+    mismatched,
     unrecorded,
     cleared,
     samples,
