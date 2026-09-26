@@ -1,6 +1,6 @@
 import { config } from "dotenv";
 config({ path: ".env.local" });
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 
 /**
  * One-off backfill: collapse rumors that were published before event keys
@@ -120,7 +120,21 @@ async function main() {
       mergedTotal += dupes.length;
       if (dryRun) continue;
 
-      // The keeper and every duplicate become sources on the keeper.
+      /*
+       * Move the duplicates' existing source rows first. Every post published
+       * since rumor_sources existed already owns a row for its own feed item,
+       * and feed_item_id is unique, so the insert below collided and was
+       * skipped: the duplicate was hidden with its reports still on it, and
+       * the rumor page, which redirects a hidden post by following its feed
+       * item to the survivor, had nowhere to go and returned 404.
+       * merge-similar-events.ts had the same bug and the same fix.
+       */
+      await db
+        .update(rumorSources)
+        .set({ rumorId: keeper.id })
+        .where(inArray(rumorSources.rumorId, dupes.map((d) => d.id)));
+
+      // Then give any member that never had a row one on the keeper.
       for (const m of members) {
         await db
           .insert(rumorSources)
