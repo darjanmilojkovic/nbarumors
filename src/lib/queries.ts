@@ -437,6 +437,9 @@ const ROUNDUP_PENALTY = sql`(case when ${rumors.isRoundup} then -25 else 0 end)`
 
 const TOP = sql`(${PROMINENCE} + ${OUTLET_WEIGHT} + ${STATUS_WEIGHT} + ${ROUNDUP_PENALTY} + least(${HOT}, 4) * 3 + least(${OUTLETS} - 1, 3) * 12 + ${rumors.confidence} * 10) desc`;
 
+/** How far back the Biggest tab looks. See the note in feedPage. */
+const TOP_WINDOW_DAYS = 14;
+
 export type FeedOrder = "rank" | "chrono" | "top";
 
 /** Drizzle allows exactly one `.where()`, so extra filters are passed in. */
@@ -604,6 +607,25 @@ export async function feedPage(opts: {
   }
   if (tab === "confirmed") {
     filters.push(sql`${rumors.status} in ('confirmed','completed')`);
+  }
+  /*
+   * Biggest stories OF A PERIOD, not of all time.
+   *
+   * TOP carries no recency term on purpose: Latest is chronological and Live
+   * is decayed, so a story a few days old has nowhere else to surface. With
+   * nothing bounding it, though, the tab ranked the whole archive and the same
+   * posts sat on page one for months. Measured 26 Sep 2026: eleven of the
+   * first twelve were over three weeks old and one was 82 days.
+   *
+   * A window keeps the original intent intact — inside it there is still no
+   * decay, so a nine-day-old story outranks a fresh thin one — while stopping
+   * the tab from becoming an archive. Fourteen days was chosen against seven
+   * and thirty: seven starts duplicating Live and loses the big-story-from-
+   * last-week slot the tab exists for, and thirty still put 24- and 21-day-old
+   * posts at one and three.
+   */
+  if (tab === "top") {
+    filters.push(sql`${rumors.publishedAt} > now() - interval '${sql.raw(String(TOP_WINDOW_DAYS))} days'`);
   }
   const extra = filters.length ? and(...filters) : undefined;
 
