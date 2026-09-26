@@ -157,7 +157,15 @@ export function WireItem({
 }) {
   /* Capitalised so JSX reads it as a component rather than a literal tag. */
   const Heading = headingLevel;
-  const state = STATE[rumor.status] ?? STATE.rumor;
+  /*
+   * A rumour that came true reads as done, even though it stays stored as
+   * open. The status is what keeps the deal on its own post and this one out
+   * of the Done deals list; the badge is what the reader sees beside an
+   * Update line saying the deal happened, and "Developing" there contradicts it.
+   */
+  const state = rumor.resolvedBy
+    ? STATE.completed
+    : (STATE[rumor.status] ?? STATE.rumor);
 
   const paragraphs = toParagraphs(rumor.body);
   const shownParas = preview ? paragraphs.slice(0, 1) : paragraphs;
