@@ -36,6 +36,24 @@ gtag('consent', 'default', {
 });
 `;
 
+/*
+ * The AdSense tag, as AdSense issues it (async, crossorigin=anonymous), but
+ * inserted from script rather than written as a <script async src>. React
+ * hoists every async script with a src to the top of <head>, above the
+ * defaults — found in a production build of the plain tag. A cached copy could
+ * then run before anything was denied. Inserting it here makes "after the
+ * defaults" a fact of execution, not of markup order.
+ */
+const ADSENSE_LOADER = `
+(function () {
+  var s = document.createElement('script');
+  s.async = true;
+  s.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-${ADSENSE_PUBLISHER_ID}';
+  s.crossOrigin = 'anonymous';
+  document.head.appendChild(s);
+})();
+`;
+
 /**
  * Cookie consent (Google's CMP, from AdSense Privacy & messaging) and the
  * Consent Mode defaults it updates.
@@ -68,8 +86,8 @@ gtag('consent', 'default', {
  * `beforeInteractive` included, leaves only a <link rel=preload> in the head and
  * emits the tag itself at the top of <body>, below Next's own runtime chunks —
  * verified in a production build, not assumed. That is too late and too low for
- * the defaults. The AdSense tag is async, as Google ships it: the defaults
- * are what keep the page safe while it loads, not its position.
+ * the defaults. The AdSense tag is async, as Google ships it, and inserted by
+ * the same script straight after the defaults — see ADSENSE_LOADER.
  *
  * `wait_for_update` holds tags briefly so a returning visitor who has already
  * consented is not counted as denied while the message script reads its cookie.
@@ -81,15 +99,10 @@ gtag('consent', 'default', {
 export function Consent() {
   return (
     <>
-      <script dangerouslySetInnerHTML={{ __html: CONSENT_DEFAULT }} />
-      {/* The AdSense tag, as AdSense issues it. It is also what delivers the
-          consent message: Google shows a published Privacy & messaging
-          message on any page that carries this tag. */}
-      <script
-        async
-        src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-${ADSENSE_PUBLISHER_ID}`}
-        crossOrigin="anonymous"
-      />
+      {/* One script, defaults first. The AdSense tag is also what delivers
+          the consent message: Google shows a published Privacy & messaging
+          message on any page that carries it. */}
+      <script dangerouslySetInnerHTML={{ __html: CONSENT_DEFAULT + ADSENSE_LOADER }} />
     </>
   );
 }
