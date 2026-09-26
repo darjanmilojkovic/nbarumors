@@ -36,13 +36,12 @@ const CAT: Record<string, string> = {
 const OUTCOME_LABEL = "Confirmed";
 
 /**
- * Off while the check behind it is rebuilt. Measured 26 Sep 2026: of 14
- * posts carrying it, about a third were right. The rest matched a move the
- * post mentioned in passing — "Clippers not shopping Ingram" was badged
- * because Ingram's trade to the Clippers, background in that post, landed.
- * Turn back on once lib/outcomes asks whether the move confirms the claim.
+ * Was off for an afternoon on 26 Sep 2026: of 14 posts carrying it, about a
+ * third were right, the rest matching a move the post only mentioned in
+ * passing. Back on once lib/outcomes started asking the model whether the
+ * move confirms the claim. Set false to hide the badge site-wide again.
  */
-const SHOW_OUTCOME_BADGE = false;
+const SHOW_OUTCOME_BADGE = true;
 
 const STATE: Record<string, { label: string; cls: string }> = {
   /*
