@@ -79,6 +79,7 @@ type Row = {
   outcome: string | null;
   outcome_at: string | null;
   outcome_rumor_id: number | null;
+  is_roundup: boolean;
   primary_ids: string | null;
   to_team_ids: string | null;
 };
@@ -173,7 +174,7 @@ export async function runOutcomeCheck(
    */
   const rows = await db.execute(sql`
     select r.id, r.headline, r.body, r.status, r.published_at, r.outcome, r.outcome_at,
-           r.outcome_rumor_id,
+           r.outcome_rumor_id, r.is_roundup,
            (select string_agg(p.nba_player_id, ',')
               from rumor_players rp join players p on p.id = rp.player_id
              where rp.rumor_id = r.id and rp.is_primary) as primary_ids,
@@ -276,7 +277,13 @@ export async function runOutcomeCheck(
      * appears.
      */
     const arrivals =
-      !isSpeculative || primaryIds.length === 0 || wanted.size === 0
+      /*
+       * Not a roundup either. "Curry extension in limbo as Pelicans-Grizzlies
+       * deal, Duren talks progress" is three stories, and the trade in it was
+       * already done when we ran it; confirming the post for that one item
+       * put "Confirmed" over two stories that had not happened.
+       */
+      !isSpeculative || r.is_roundup || primaryIds.length === 0 || wanted.size === 0
         ? []
         : primaryIds.map(arrivalFor);
 

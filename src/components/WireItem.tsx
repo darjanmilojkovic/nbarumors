@@ -176,11 +176,13 @@ export function WireItem({
    * A rumour that came true reads as done, even though it stays stored as
    * open. The status is what keeps the deal on its own post and this one out
    * of the Done deals list; the badge is what the reader sees beside an
-   * Update line saying the deal happened, and "Developing" there contradicts it.
+   * Update line, or a Confirmed badge, saying the deal happened, and
+   * "Developing" there contradicts it.
    */
-  const state = rumor.resolvedBy
-    ? STATE.completed
-    : (STATE[rumor.status] ?? STATE.rumor);
+  const cameTrue =
+    Boolean(rumor.resolvedBy) ||
+    (SHOW_OUTCOME_BADGE && rumor.outcome === "confirmed");
+  const state = cameTrue ? STATE.completed : (STATE[rumor.status] ?? STATE.rumor);
 
   const paragraphs = toParagraphs(rumor.body);
   const shownParas = preview ? paragraphs.slice(0, 1) : paragraphs;
