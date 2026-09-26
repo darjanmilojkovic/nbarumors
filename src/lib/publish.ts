@@ -163,6 +163,29 @@ const MERGE_WINDOW_DAYS = 14;
 const SETTLED_WINDOW_DAYS = 90;
 const SETTLED = ["confirmed", "completed"];
 
+/**
+ * Whether a report may merge into a candidate post.
+ *
+ * A done deal does not fold into an open rumour about it. Stephen Curry's
+ * two-year, $116M extension on 26 Sep 2026 arrived from twenty outlets and
+ * landed on three speculation posts from the week before — "Curry signals he'd
+ * take less money", "extension call expected within 10 days" — because their
+ * keys matched and the earliest match wins. The merge rewrote their bodies
+ * but, by design, not their headlines, figures or dates, so the signing of
+ * the week sat under stale headlines, at the max figure it came in below,
+ * dated days before it happened.
+ *
+ * The rumour and the deal are two stories: one that it might happen, one that
+ * it did. The deal gets its own post; later reports of it find that post, and
+ * the rumour stays as it was, as a record of what was being said.
+ */
+const canMergeInto = (incomingStatus: string, candidateStatus: string) =>
+  !(
+    SETTLED.includes(incomingStatus) &&
+    !SETTLED.includes(candidateStatus) &&
+    candidateStatus !== "debunked"
+  );
+
 /*
  * How recent a same-subject post must be before the model is asked whether it
  * is the same story. Two days is one news cycle; past that, two reports about
@@ -178,7 +201,13 @@ const ADJUDICATE_WINDOW_HOURS = 48;
 async function findExistingEvent(
   eventKey: string,
   publishedAt: Date,
-  subject: { headline: string; body: string; type: string; primaries: string[] },
+  subject: {
+    headline: string;
+    body: string;
+    type: string;
+    status: string;
+    primaries: string[];
+  },
 ) {
   const key = eventKey.trim().toLowerCase();
   if (!key) return null;
@@ -222,6 +251,7 @@ async function findExistingEvent(
   // Earliest match wins, so a story always collapses onto its first report.
   const existing = candidates.find((c) => {
     if (!c.eventKey || !isSameEvent(c.eventKey, key)) return false;
+    if (!canMergeInto(subject.status, c.status)) return false;
     const daysApart =
       Math.abs(publishedAt.getTime() - c.publishedAt.getTime()) / 86_400_000;
     const limit = SETTLED.includes(c.status)
@@ -246,7 +276,11 @@ async function findExistingEvent(
 
   const recent = candidates.filter((c) => {
     const hours = Math.abs(publishedAt.getTime() - c.publishedAt.getTime()) / 3_600_000;
-    return hours <= ADJUDICATE_WINDOW_HOURS && c.type === subject.type;
+    return (
+      hours <= ADJUDICATE_WINDOW_HOURS &&
+      c.type === subject.type &&
+      canMergeInto(subject.status, c.status)
+    );
   });
   if (!recent.length) return null;
 
@@ -439,6 +473,22 @@ async function attachSource(
       ...(!current.contractYears && extraction.contractYears
         ? { contractYears: extraction.contractYears }
         : {}),
+      /*
+       * And a figure we had wrong is corrected, not just rewritten in the body.
+       * correctsTerms already grows the summary with the new number, but the
+       * money chip kept the old one: Curry's extension read $136.7M above a
+       * body saying $116M. Only from a report at least as settled as the post,
+       * so a max figure floated in a rumour cannot overwrite a signed deal.
+       */
+      ...(correctsTerms &&
+      STATUS_RANK[extraction.status] >= STATUS_RANK[current.status]
+        ? {
+            contractValue: extraction.contractValue!.slice(0, 24),
+            ...(extraction.contractYears
+              ? { contractYears: extraction.contractYears }
+              : {}),
+          }
+        : {}),
       ...(upgrading
         ? {
             /*
@@ -525,6 +575,7 @@ export async function publishExtraction(
     headline: extraction.headline,
     body: extraction.body,
     type: extraction.type,
+    status: extraction.status,
     // Slugified here to match what the tags hold, without writing any rows yet.
     primaries: extraction.players.filter((p) => p.isPrimary).map((p) => slugify(p.name)),
   });
