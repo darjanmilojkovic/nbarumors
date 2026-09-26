@@ -28,6 +28,14 @@ const CAT: Record<string, string> = {
  * The five report states collapse to three visual states — what a reader
  * actually needs to know is "is this real yet".
  */
+/**
+ * The badge on a rumour whose move later appeared in the NBA's transaction
+ * log. It read "Confirmed", which sat too close to the "Done deal" status
+ * badge: that one says what the reporting claims, this one says an outside
+ * record agreed. Kept here so the wording can change in one place.
+ */
+const VERIFIED_LABEL = "Verified";
+
 const STATE: Record<string, { label: string; cls: string }> = {
   /*
    * Five stored states, three shown. "Rumor" and "reported" were separate
@@ -733,11 +741,11 @@ export function WireItem({
                 {rumor.outcome === "confirmed" && (
                   <span
                     className="rounded-sm bg-confirmed/10 px-2 py-0.5 font-mono text-[10px] font-bold tracking-widest text-confirmed uppercase"
-                    title="A matching move appears in the official transaction log"
+                    title="Verified against the NBA's official transaction log"
                   >
-                    ✓ Confirmed
+                    ✓ {VERIFIED_LABEL}
                     {confirmedAfter !== null && confirmedAfter > 0
-                      ? ` ${confirmedAfter}d later`
+                      ? ` · ${confirmedAfter}d later`
                       : ""}
                   </span>
                 )}
