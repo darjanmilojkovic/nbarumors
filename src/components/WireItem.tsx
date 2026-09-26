@@ -547,6 +547,32 @@ export function WireItem({
           </Heading>
 
           {/*
+           * The rumour came true, and the deal has its own post.
+           *
+           * Above the summary, not in the meta strip: the strip is cut from
+           * list cards, and this is the one fact that changes how the rest of
+           * the card should be read. A shared link to "Curry signals he'd take
+           * less money" otherwise ends at the speculation, days after he signed.
+           *
+           * Not the Confirmed badge. That one means the NBA's transaction log
+           * agrees, which extensions never reach; this says our own later
+           * reporting settled it.
+           */}
+          {rumor.resolvedBy && (
+            <p className="mb-3 max-w-[62ch] text-[14px] leading-6">
+              <span className="mr-2 font-mono text-[10px] font-bold tracking-widest text-confirmed uppercase">
+                Update
+              </span>
+              <Link
+                href={`/rumor/${rumor.resolvedBy.slug}`}
+                className="text-link hover:underline"
+              >
+                {rumor.resolvedBy.headline} →
+              </Link>
+            </p>
+          )}
+
+          {/*
            * 15.5px on 28px — a 1.8 ratio, following the reference. It looks
            * unreasonably loose written down and is the main reason that page
            * reads as easily as it does at a glance.

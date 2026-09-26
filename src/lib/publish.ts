@@ -208,6 +208,8 @@ async function findExistingEvent(
     status: string;
     primaries: string[];
   },
+  /** Filled with the open rumours this report settles but may not merge into. */
+  superseded: number[] = [],
 ) {
   const key = eventKey.trim().toLowerCase();
   if (!key) return null;
@@ -251,13 +253,17 @@ async function findExistingEvent(
   // Earliest match wins, so a story always collapses onto its first report.
   const existing = candidates.find((c) => {
     if (!c.eventKey || !isSameEvent(c.eventKey, key)) return false;
-    if (!canMergeInto(subject.status, c.status)) return false;
     const daysApart =
       Math.abs(publishedAt.getTime() - c.publishedAt.getTime()) / 86_400_000;
     const limit = SETTLED.includes(c.status)
       ? SETTLED_WINDOW_DAYS
       : MERGE_WINDOW_DAYS;
-    return daysApart <= limit;
+    if (daysApart > limit) return false;
+    if (!canMergeInto(subject.status, c.status)) {
+      superseded.push(c.id);
+      return false;
+    }
+    return true;
   });
   if (existing) return existing;
 
@@ -311,7 +317,7 @@ async function findExistingEvent(
 }
 
 /** Attach this report to an existing post instead of creating a duplicate. */
-async function attachSource(
+export async function attachSource(
   rumorId: number,
   current: {
     status: string;
@@ -571,6 +577,7 @@ export async function publishExtraction(
   }
 
   // Same event, different outlet — attach rather than duplicate.
+  const superseded: number[] = [];
   const existing = await findExistingEvent(extraction.eventKey, item.publishedAt, {
     headline: extraction.headline,
     body: extraction.body,
@@ -578,7 +585,7 @@ export async function publishExtraction(
     status: extraction.status,
     // Slugified here to match what the tags hold, without writing any rows yet.
     primaries: extraction.players.filter((p) => p.isPrimary).map((p) => slugify(p.name)),
-  });
+  }, superseded);
   if (existing) {
     await attachSource(existing.id, existing, item, extraction);
     return { status: "merged", rumorId: existing.id };
@@ -700,6 +707,18 @@ export async function publishExtraction(
 
   if (imageId != null) {
     await db.update(rumors).set({ imageId }).where(eq(rumors.id, rumor.id));
+  }
+
+  /*
+   * The rumours this deal settles point at it, so a reader who lands on one
+   * is told it happened. Only when nothing has claimed them yet: the first
+   * post of the deal is the one to link to.
+   */
+  if (superseded.length && isPublished) {
+    await db
+      .update(rumors)
+      .set({ outcomeRumorId: rumor.id })
+      .where(sql`${rumors.id} in ${superseded} and ${rumors.outcomeRumorId} is null`);
   }
 
   await db

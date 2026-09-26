@@ -73,6 +73,7 @@ type Row = {
   status: string;
   published_at: string;
   outcome: string | null;
+  outcome_rumor_id: number | null;
   primary_ids: string | null;
   to_team_ids: string | null;
 };
@@ -96,7 +97,7 @@ export async function runOutcomeCheck(
    * now, so the join cannot be defeated by a spelling.
    */
   const rows = await db.execute(sql`
-    select r.id, r.headline, r.status, r.published_at, r.outcome,
+    select r.id, r.headline, r.status, r.published_at, r.outcome, r.outcome_rumor_id,
            (select string_agg(p.nba_player_id, ',')
               from rumor_players rp join players p on p.id = rp.player_id
              where rp.rumor_id = r.id and rp.is_primary) as primary_ids,
@@ -231,7 +232,6 @@ export async function runOutcomeCheck(
           .set({
             outcome: "confirmed",
             outcomeAt: new Date(match.occurred_at),
-            outcomeRumorId: null,
           })
           .where(eq(rumors.id, r.id));
       }
@@ -250,18 +250,24 @@ export async function runOutcomeCheck(
       if (!dryRun) {
         await db
           .update(rumors)
-          .set({ outcome: null, outcomeRumorId: null, outcomeAt: null })
+          .set({ outcome: null, outcomeAt: null })
           .where(eq(rumors.id, r.id));
       }
     }
 
+    /*
+     * A rumour our own later post settled is not "unrecorded" — it has a
+     * record, just not in the NBA's log, which never carries extensions. The
+     * link to that post is set at publish time and this pass never touches
+     * it: outcome_rumor_id is not the log's to clear.
+     */
     const ageDays = (now - reportedAt) / 864e5;
-    if (isSpeculative && ageDays > STALE_DAYS) {
+    if (isSpeculative && ageDays > STALE_DAYS && !r.outcome_rumor_id) {
       unrecorded++;
       if (!dryRun) {
         await db
           .update(rumors)
-          .set({ outcome: "unrecorded", outcomeRumorId: null, outcomeAt: null })
+          .set({ outcome: "unrecorded", outcomeAt: null })
           .where(eq(rumors.id, r.id));
       }
     }

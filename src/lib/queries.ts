@@ -44,6 +44,8 @@ export type FeedRumor = {
   contractYears: number | null;
   outcome: string | null;
   outcomeAt: Date | null;
+  /** The later post that settled this rumour, when it has one. */
+  resolvedBy: { slug: string; headline: string } | null;
   hotMentions: number;
   confidence: number;
   teams: {
@@ -473,6 +475,19 @@ const baseSelect = (extra?: SQL, order: FeedOrder = "rank") =>
       contractYears: rumors.contractYears,
       outcome: rumors.outcome,
       outcomeAt: rumors.outcomeAt,
+      /*
+       * Only a published post, so the link never leads to a page that 404s
+       * or to one held back for low confidence. And only on a post still
+       * open: three completed posts carry links left by the retired
+       * Basketball-Reference check, pointing at their own log-entry twins,
+       * and a done deal has nothing to be updated about.
+       */
+      resolvedBy: sql<{ slug: string; headline: string } | null>`(
+        select json_build_object('slug', r3.slug, 'headline', r3.headline)
+        from rumors r3
+        where r3.id = ${rumors.outcomeRumorId} and r3.is_published
+          and ${rumors.status} in ('rumor', 'reported')
+      )`,
       sourceUrl: rumors.sourceUrl,
       publishedAt: rumors.publishedAt,
       bodyUpdatedAt: rumors.bodyUpdatedAt,
