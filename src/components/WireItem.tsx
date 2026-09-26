@@ -567,8 +567,7 @@ export function WireItem({
                 href={`/rumor/${rumor.resolvedBy.slug}`}
                 className="text-link hover:underline"
               >
-                {/* Non-breaking, so the arrow never wraps onto a line of its own. */}
-                {rumor.resolvedBy.headline}&nbsp;→
+                {rumor.resolvedBy.headline}
               </Link>
             </p>
           )}
