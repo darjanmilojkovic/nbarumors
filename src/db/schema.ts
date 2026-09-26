@@ -425,6 +425,13 @@ export const rumors = pgTable(
      * now, so the two meanings stop sharing one column.
      */
     isRoundup: boolean("is_roundup").notNull().default(false),
+    /**
+     * A proposal rather than reporting: a writer's trade idea, a podcast pitch,
+     * a mock deal. Asked of extraction since 26 Sep 2026, because the
+     * confidence score split these at random around the publish threshold.
+     * Published regardless of confidence, and kept out of Trending.
+     */
+    isTradeIdea: boolean("is_trade_idea").notNull().default(false),
   },
   (t) => [
     uniqueIndex("rumors_slug_idx").on(t.slug),

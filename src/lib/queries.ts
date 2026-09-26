@@ -642,6 +642,16 @@ export async function feedPage(opts: {
   if (tab === "top") {
     filters.push(sql`${rumors.publishedAt} > now() - interval '${sql.raw(String(TOP_WINDOW_DAYS))} days'`);
   }
+  /*
+   * Trade ideas stay off the ranked tabs. Trending is the page most people
+   * land on and Top Rated is the biggest stories of the fortnight; a writer's
+   * pitch is neither. They still appear in Latest, on team and player pages
+   * and in search. On trial from 26 Sep 2026: whether this costs traffic is
+   * the open question.
+   */
+  if (tab === "live" || tab === "top") {
+    filters.push(sql`not ${rumors.isTradeIdea}`);
+  }
   const extra = filters.length ? and(...filters) : undefined;
 
   const order: FeedOrder =

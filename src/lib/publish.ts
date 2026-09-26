@@ -591,7 +591,20 @@ export async function publishExtraction(
     return { status: "merged", rumorId: existing.id };
   }
 
-  const isPublished = extraction.confidence >= PUBLISH_THRESHOLD;
+  /*
+   * A trade idea is published whatever its confidence.
+   *
+   * The score asks whether an item is "a real, on-topic transfer story", and a
+   * pitch is on-topic but not real reporting, so pitches scored 0.4-0.6 and the
+   * 0.6 threshold split them at random: over 14 days to 26 Sep 2026, 20 went
+   * live and 21 were held, near-identical Heavy pieces on either side. Flagged
+   * explicitly now, they are published on purpose and kept out of Trending
+   * and Top Rated instead (see feedPage), so they reach Latest and the team
+   * and player pages without leading the front page. Anything below the
+   * rejection floor is still rejected before this point.
+   */
+  const isTradeIdea = extraction.isTradeIdea === true;
+  const isPublished = isTradeIdea || extraction.confidence >= PUBLISH_THRESHOLD;
 
   const [rumor] = await db
     .insert(rumors)
@@ -628,6 +641,7 @@ export async function publishExtraction(
       isRoundup:
         extraction.isRoundup ||
         extraction.players.filter((p) => p.isPrimary).length > 1,
+      isTradeIdea,
     })
     .onConflictDoNothing({ target: rumors.feedItemId })
     .returning({ id: rumors.id });

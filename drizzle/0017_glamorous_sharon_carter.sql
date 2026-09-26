@@ -1,0 +1,1 @@
+ALTER TABLE "rumors" ADD COLUMN "is_trade_idea" boolean DEFAULT false NOT NULL;
