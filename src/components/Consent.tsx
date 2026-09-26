@@ -36,14 +36,6 @@ gtag('consent', 'default', {
 });
 `;
 
-/*
- * Google's own snippet from Privacy & messaging, unchanged. The iframe tells
- * the message script that the page has a CMP slot for it.
- */
-const GOOGLE_FC_SIGNAL = `
-(function() {function signalGooglefcPresent() {if (!window.frames['googlefcPresent']) {if (document.body) {const iframe = document.createElement('iframe'); iframe.style = 'width: 0; height: 0; border: none; z-index: -1000; left: -1000px; top: -1000px;'; iframe.style.display = 'none'; iframe.name = 'googlefcPresent'; document.body.appendChild(iframe);} else {setTimeout(signalGooglefcPresent, 0);}}}signalGooglefcPresent();})();
-`;
-
 /**
  * Cookie consent (Google's CMP, from AdSense Privacy & messaging) and the
  * Consent Mode defaults it updates.
@@ -51,7 +43,8 @@ const GOOGLE_FC_SIGNAL = `
  * Order matters more than anything else in this file:
  *
  *   1. consent defaults              <- here, first thing in <head>
- *   2. Google's consent message      <- here
+ *   2. the AdSense tag, which        <- here
+ *      delivers Google's message
  *   3. gtag.js and gtag('config')    <- Analytics.tsx, after hydration
  *
  * Google reads the consent state as it was when `config` ran, so the defaults
@@ -75,21 +68,28 @@ const GOOGLE_FC_SIGNAL = `
  * `beforeInteractive` included, leaves only a <link rel=preload> in the head and
  * emits the tag itself at the top of <body>, below Next's own runtime chunks —
  * verified in a production build, not assumed. That is too late and too low for
- * the defaults. The message script is async, as Google ships it: the defaults
+ * the defaults. The AdSense tag is async, as Google ships it: the defaults
  * are what keep the page safe while it loads, not its position.
  *
  * `wait_for_update` holds tags briefly so a returning visitor who has already
  * consented is not counted as denied while the message script reads its cookie.
+ *
+ * Whether this tag shows ads is decided in AdSense, not here: with Auto ads
+ * off and no ad units on the page it serves the consent message and nothing
+ * else. Turning Auto ads on is shipping ads — flip SITE.usesAds with it.
  */
 export function Consent() {
   return (
     <>
       <script dangerouslySetInnerHTML={{ __html: CONSENT_DEFAULT }} />
+      {/* The AdSense tag, as AdSense issues it. It is also what delivers the
+          consent message: Google shows a published Privacy & messaging
+          message on any page that carries this tag. */}
       <script
         async
-        src={`https://fundingchoicesmessages.google.com/i/${ADSENSE_PUBLISHER_ID}?ers=1`}
+        src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-${ADSENSE_PUBLISHER_ID}`}
+        crossOrigin="anonymous"
       />
-      <script dangerouslySetInnerHTML={{ __html: GOOGLE_FC_SIGNAL }} />
     </>
   );
 }
