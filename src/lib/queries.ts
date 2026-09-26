@@ -328,8 +328,34 @@ const OUTLETS = sql`(
   where rs.rumor_id = ${rumors.id}
 )`;
 
+/**
+ * National insiders whose reporting counts as top tier whoever carried it.
+ *
+ * OUTLET_WEIGHT reads the byline, so a Heavy post relaying Shams Charania was
+ * docked 8 as Heavy. The reporter is the source; the aggregator is the
+ * carrier. Kept to people who report on teams' actual dealings, not analysts
+ * who pitch trades.
+ */
+const INSIDERS =
+  "(charania|marc stein|jake fischer|windhorst|scotto|macmahon|chris haynes|sam amick|anthony slater|ian begley|kelly iko|bobby marks)";
+
+const SOURCE_WEIGHT = sql`greatest(${OUTLET_WEIGHT}, case when lower(coalesce(${rumors.reportedBy}, '')) ~ ${INSIDERS} then 15 else -99 end)`;
+
+/**
+ * A move in the works outranks one that is merely floated or already filed.
+ *
+ * Twelve points is about ten hours of freshness. Trending had no status term
+ * at all: on 26 Sep 2026 "Towns' max extension could force a Knicks rebuild",
+ * reported by Windhorst and carried by 11 outlets, sat 19th behind a run of
+ * camp cuts and Exhibit 10 filings.
+ */
+const IN_THE_WORKS = sql`(case ${rumors.status} when 'reported' then 12 when 'debunked' then -30 else 0 end)`;
+
+/** Six points per extra outlet, up to three: coverage is the wire's own vote. */
+const CORROBORATION = sql`(least(${OUTLETS} - 1, 3) * 6)`;
+
 /** Rank decayed by age — the default feed order. */
-const RANK = sql`(${PROMINENCE} + ${OUTLET_WEIGHT} - extract(epoch from (now() - ${rumors.publishedAt})) / 3600.0 * 1.2) desc`;
+const RANK = sql`(${PROMINENCE} + ${SOURCE_WEIGHT} + ${IN_THE_WORKS} + ${CORROBORATION} - extract(epoch from (now() - ${rumors.publishedAt})) / 3600.0 * 1.2) desc`;
 
 /**
  * The ordering behind the tab labelled "Biggest". Lives in SQL so it
