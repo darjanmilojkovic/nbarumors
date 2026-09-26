@@ -34,10 +34,20 @@ export default function PrivacyPage() {
         {SITE.usesAnalytics ? (
           <>
             <p>
-              <strong>Nothing runs until you say so.</strong> The first time
-              you visit, a banner asks whether you accept cookies. Until you
-              accept, analytics is switched off and no cookies are set. If you
-              decline, that is the end of it — the site works exactly the same.
+              <strong>
+                In the EEA, the UK and Switzerland, nothing runs until you say
+                so.
+              </strong>{" "}
+              The first time you visit, a banner asks whether you accept
+              cookies. Until you accept, analytics is switched off and no
+              cookies are set. If you decline, that is the end of it — the site
+              works exactly the same.
+            </p>
+            <p>
+              <strong>Everywhere else, no banner is shown</strong> and
+              analytics runs from your first visit. You can still turn it off
+              by blocking cookies in your browser, or with the Google add-on
+              below.
             </p>
             <p>
               If you accept, we use Google Analytics to count visits and see
@@ -92,17 +102,18 @@ export default function PrivacyPage() {
           <>
             <h2>Cookies and your choice</h2>
             <p>
-              Once you accept, Google Analytics sets cookies in your browser to
-              tell one visit apart from the next. They hold a random identifier
-              — nothing that names you. Our consent banner also stores your
-              answer, so you are not asked again on every page; that one is
+              Google Analytics sets cookies in your browser to tell one visit
+              apart from the next — in the EEA, the UK and Switzerland only
+              once you accept. They hold a random identifier, nothing that names
+              you. The consent banner, which is provided by Google, also stores
+              your answer so you are not asked again on every page; that one is
               strictly necessary and is the only thing stored if you decline.
             </p>
             <p>
-              <strong>You can change your mind at any time.</strong> Use the
-              Cookie Settings link at the bottom of any page to review or
-              withdraw what you have accepted. Withdrawing takes effect
-              immediately and is as easy as accepting was.
+              <strong>You can change your mind at any time.</strong> Where the
+              banner is shown, use the Cookie Settings link at the bottom of any
+              page to review or withdraw what you have accepted. Withdrawing
+              takes effect immediately and is as easy as accepting was.
             </p>
           </>
         ) : (
@@ -147,7 +158,8 @@ export default function PrivacyPage() {
         <h2>Why we are allowed to do this</h2>
         <p>
           {SITE.usesAnalytics
-            ? "Analytics" + (SITE.usesAds ? " and advertising run" : " runs") +
+            ? "In the EEA, the UK and Switzerland, analytics" +
+              (SITE.usesAds ? " and advertising run" : " runs") +
               " on your consent, and on nothing else — that is the lawful basis, which is why the banner comes first and why withdrawing it stops the processing. "
             : ""}
           The request logs described above are kept on our legitimate interest

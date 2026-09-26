@@ -36,8 +36,8 @@ export const SITE = {
 
 /*
  * Dated per document, because they change on different days — they happen to
- * match today only because analytics and the consent banner touched both.
+ * match only because the consent banner change touched both.
  * `lastUpdated` is the terms date; privacy has its own below.
  */
-export const lastUpdated = "9 September 2026";
-export const privacyLastUpdated = "9 September 2026";
+export const lastUpdated = "26 September 2026";
+export const privacyLastUpdated = "26 September 2026";

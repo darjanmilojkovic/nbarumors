@@ -58,9 +58,10 @@ export default function TermsPage() {
         <h2>Cookies and your data</h2>
         <p>
           This site uses cookies for analytics
-          {SITE.usesAds ? " and advertising" : ""}, and asks for your consent
-          before setting them. You can accept or decline, and change that
-          answer at any time through the Cookie Settings link in the footer.
+          {SITE.usesAds ? " and advertising" : ""}. In the EEA, the UK and
+          Switzerland it asks for your consent before setting them: you can
+          accept or decline, and change that answer at any time through the
+          Cookie Settings link in the footer.
           Declining costs you nothing: every page works the same either way.
           What we collect and why is set out in our{" "}
           <Link href="/privacy">Privacy Policy</Link>, which forms part of

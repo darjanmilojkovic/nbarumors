@@ -32,8 +32,8 @@ export function SiteFooter() {
           {/*
            * Cookie Settings sits with the legal links because that is where
            * people look for it, and because the privacy policy promises it by
-           * that name. It is a button, not a Link — it reopens CookieHub's
-           * preference centre rather than navigating anywhere — so it borrows
+           * that name. It is a button, not a Link — it reopens Google's consent
+           * message rather than navigating anywhere — so it borrows
            * the same pill styling to keep the row visually one thing.
            */}
           <nav className="mt-5 flex flex-wrap gap-2.5">
