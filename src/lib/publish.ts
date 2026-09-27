@@ -520,10 +520,23 @@ export async function attachSource(
   const fromLog = current.sourceSlug === "bbref-transactions";
   const upgrading = fromLog && item.sourceSlug !== "bbref-transactions";
 
+  /*
+   * A report that knocks the rumour down takes over its headline.
+   *
+   * The post keeps its URL and its reports, but its headline had stayed on the
+   * claim: "Heat viewed as top suitor for D'Angelo Russell" sat above a
+   * Miami Herald report that the Heat had no interest. The denying report's
+   * own headline says where the story ended up, and it is already written, so
+   * this costs nothing. Only on the change to debunked; a second denial
+   * leaves the first one's headline alone.
+   */
+  const knockedDown = extraction.status === "debunked" && current.status !== "debunked";
+
   await db
     .update(rumors)
     .set({
       status,
+      ...(knockedDown ? { headline: extraction.headline } : {}),
       confidence: Math.min(1, Math.max(current.confidence, extraction.confidence) + 0.05),
       /*
        * The grown summary, and the stamp that says the post has moved on since
