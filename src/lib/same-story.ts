@@ -41,7 +41,7 @@ Two reports are given. Answer whether they describe the SAME underlying event, m
 
 Same event: two outlets reporting one signing, trade, buyout or set of talks, even where each carries details the other lacks, names a different team in the discussions, or frames it around a different player in the same deal. A follow-up adding terms, a reaction to the same move, or a later report of talks already covered are all the same event.
 
-DIFFERENT events: two separate transactions involving one player; a report about a player's contract and a report about a trade for him; two opinion or list pieces that happen to feature the same name; a move and an unrelated rumour from the same day. When a reader would reasonably want both, say different.
+DIFFERENT events: two separate transactions involving one player; a report about a player's contract and a report about a trade for him; two opinion or list pieces that happen to feature the same name; a move and an unrelated rumour from the same day; a piece weighing several options for a team ("Heat weigh Konchar, a Vincent reunion, or holding the spot open") and a report about just one of those options ("Konchar could land in Miami"); a player's own push or situation and a list of trade candidates that includes him; a signing and a later piece about the roster or salary math it left behind. When a reader would reasonably want both, say different.
 
 Answer with the word SAME or DIFFERENT and nothing else.`;
 

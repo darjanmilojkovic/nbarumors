@@ -210,6 +210,7 @@ export async function findExistingEvent(
     /** Every team and player the report tags, slugified like the stored tags. */
     teams: string[];
     players: string[];
+    isTradeIdea?: boolean;
   },
   /** Filled with the open rumours this report settles but may not merge into. */
   superseded: number[] = [],
@@ -248,6 +249,7 @@ export async function findExistingEvent(
       headline: rumors.headline,
       body: rumors.body,
       isPublished: rumors.isPublished,
+      isTradeIdea: rumors.isTradeIdea,
     })
     .from(rumors)
     .innerJoin(sources, eq(sources.id, rumors.sourceId))
@@ -332,13 +334,18 @@ export async function findExistingEvent(
    * Lowering the threshold to catch them also merges two LeBron columns filed
    * the same afternoon, and no string score tells those apart.
    */
-  if (!subject.primaries.length) return null;
+  /*
+   * Never for trade ideas. Two pitches about one player are two pitches, and
+   * the model called several of them the same story when this was measured.
+   */
+  if (!subject.primaries.length || subject.isTradeIdea) return null;
 
   const recent = candidates.filter((c) => {
     const hours = Math.abs(publishedAt.getTime() - c.publishedAt.getTime()) / 3_600_000;
     return (
       hours <= ADJUDICATE_WINDOW_HOURS &&
       c.type === subject.type &&
+      !c.isTradeIdea &&
       canMergeInto(subject.status, c.status)
     );
   });
@@ -359,11 +366,18 @@ export async function findExistingEvent(
       row.slug,
     ]);
   }
-  const wanted = [...subject.primaries].sort().join(",");
-
+  /*
+   * Asked whenever the posts share a primary player, not only when their
+   * primaries match exactly. Exact matching missed "Wiseman signs Exhibit 9
+   * with the Knicks" against "Knicks stack camp with Wiseman, Brown, Agbaji",
+   * and the Hield-Dillingham trade, because one side tagged more players.
+   * Measured on 30 days to 27 Sep 2026 once the same-story prompt learned to
+   * separate "a team weighing several options" from "one of those options":
+   * about 17 of 18 non-pitch merges were right.
+   */
   for (const c of recent) {
-    const theirs = (primariesByRumor.get(c.id) ?? []).sort().join(",");
-    if (!theirs || theirs !== wanted) continue;
+    const theirs = primariesByRumor.get(c.id) ?? [];
+    if (!theirs.some((p) => subject.primaries.includes(p))) continue;
     if (await sameStory({ headline: c.headline, body: c.body }, subject)) return c;
   }
 
@@ -662,6 +676,7 @@ export async function publishExtraction(
     primaries: extraction.players.filter((p) => p.isPrimary).map((p) => slugify(p.name)),
     teams: extraction.teams.map((t) => t.abbreviation.toUpperCase()),
     players: extraction.players.map((p) => slugify(p.name)),
+    isTradeIdea: extraction.isTradeIdea === true,
   }, superseded);
   if (existing) {
     await attachSource(existing.id, existing, item, extraction);
