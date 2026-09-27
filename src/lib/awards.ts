@@ -81,11 +81,18 @@ const FLOORS: { match: RegExp; floor: number; requiresFirstTeam?: boolean }[] = 
   // All-NBA First Team only; second and third fall to the tier below.
   { match: /^All-NBA$/i, floor: 100, requiresFirstTeam: true },
   { match: /^All-NBA$/i, floor: 85 },
-  { match: /All-Defensive Team/i, floor: 85 },
   { match: /^NBA All-Star$/i, floor: 85 },
-  { match: /Rookie of the Year/i, floor: 85 },
-  { match: /Sixth Man/i, floor: 85 },
-  { match: /Most Improved/i, floor: 85 },
+  /*
+   * Specialist honours guarantee less than star honours. At 85 they sat level
+   * with All-Stars: Cason Wallace was 85 on one All-Defensive selection while
+   * ESPN rated his season 18, a bench player's mark. Checked against ESPN
+   * ratings for 2003-2026 on 27 Sep 2026. A player who is also an All-Star or
+   * All-NBA keeps 85 from that rule.
+   */
+  { match: /All-Defensive Team/i, floor: 70 },
+  { match: /Rookie of the Year/i, floor: 70 },
+  { match: /Sixth Man/i, floor: 70 },
+  { match: /Most Improved/i, floor: 70 },
   { match: /All-Star Most Valuable Player/i, floor: 85 },
 ];
 
