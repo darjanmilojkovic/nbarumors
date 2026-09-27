@@ -198,7 +198,7 @@ const ADJUDICATE_WINDOW_HOURS = 48;
  * event key, which is why four outlets on one signing collapse while four
  * different angles on one player's free agency stay separate.
  */
-async function findExistingEvent(
+export async function findExistingEvent(
   eventKey: string,
   publishedAt: Date,
   subject: {
@@ -207,6 +207,9 @@ async function findExistingEvent(
     type: string;
     status: string;
     primaries: string[];
+    /** Every team and player the report tags, slugified like the stored tags. */
+    teams: string[];
+    players: string[];
   },
   /** Filled with the open rumours this report settles but may not merge into. */
   superseded: number[] = [],
@@ -244,6 +247,7 @@ async function findExistingEvent(
       contractYears: rumors.contractYears,
       headline: rumors.headline,
       body: rumors.body,
+      isPublished: rumors.isPublished,
     })
     .from(rumors)
     .innerJoin(sources, eq(sources.id, rumors.sourceId))
@@ -266,6 +270,56 @@ async function findExistingEvent(
     return true;
   });
   if (existing) return existing;
+
+  /*
+   * A done trade between exactly the same clubs, sharing a player, within
+   * three days, is the same trade whatever the keys say.
+   *
+   * "buddy-hield-cha-to-chi-trade-dillingham" and
+   * "dillingham-hield-bulls-hornets-trade" were one Bulls-Hornets deal filed
+   * 45 minutes apart on 26 Sep 2026, and scored 0.38 on key similarity; the
+   * backup check below also missed it, since one post tagged Hield alone and
+   * the other Hield and Dillingham. Tested over 60 days of trades: this rule
+   * adds two merges, both genuine (that deal, and Hawkins-to-Memphis against
+   * "Taj Gibson dealt to New Orleans", two sides of one trade), and keeps the
+   * Hawks-Hornets Hield deal of the same week apart because its clubs differ.
+   *
+   * Done trades only. On rumours the same clubs and player mean nothing:
+   * "Lakers have a fallback if Kuminga talks die" and "Lakers hunting a third
+   * team for Kuminga" share both and are different stories. Published
+   * candidates only, so a report never disappears into a hidden post.
+   */
+  if (subject.type === "trade" && SETTLED.includes(subject.status) && subject.teams.length >= 2) {
+    const trades = candidates.filter(
+      (c) =>
+        c.isPublished &&
+        c.type === "trade" &&
+        SETTLED.includes(c.status) &&
+        Math.abs(publishedAt.getTime() - c.publishedAt.getTime()) / 3_600_000 <= 72,
+    );
+    if (trades.length) {
+      const ids = trades.map((c) => c.id);
+      const teamRows = await db
+        .select({ rumorId: rumorTeams.rumorId, abbr: teams.abbreviation })
+        .from(rumorTeams)
+        .innerJoin(teams, eq(teams.id, rumorTeams.teamId))
+        .where(sql`${rumorTeams.rumorId} in ${ids}`);
+      const playerRows = await db
+        .select({ rumorId: rumorPlayers.rumorId, slug: players.slug })
+        .from(rumorPlayers)
+        .innerJoin(players, eq(players.id, rumorPlayers.playerId))
+        .where(sql`${rumorPlayers.rumorId} in ${ids}`);
+      const wantTeams = [...new Set(subject.teams)].sort().join(",");
+      const match = trades.find((c) => {
+        const theirTeams = [...new Set(teamRows.filter((t) => t.rumorId === c.id).map((t) => t.abbr))]
+          .sort()
+          .join(",");
+        if (theirTeams !== wantTeams) return false;
+        return playerRows.some((p) => p.rumorId === c.id && subject.players.includes(p.slug));
+      });
+      if (match) return match;
+    }
+  }
 
   /*
    * No key matched. Before filing a second post, check whether one about the
@@ -606,6 +660,8 @@ export async function publishExtraction(
     status: extraction.status,
     // Slugified here to match what the tags hold, without writing any rows yet.
     primaries: extraction.players.filter((p) => p.isPrimary).map((p) => slugify(p.name)),
+    teams: extraction.teams.map((t) => t.abbreviation.toUpperCase()),
+    players: extraction.players.map((p) => slugify(p.name)),
   }, superseded);
   if (existing) {
     await attachSource(existing.id, existing, item, extraction);
