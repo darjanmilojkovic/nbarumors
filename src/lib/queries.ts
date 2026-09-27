@@ -349,13 +349,29 @@ const SOURCE_WEIGHT = sql`greatest(${OUTLET_WEIGHT}, case when lower(coalesce(${
  * reported by Windhorst and carried by 11 outlets, sat 19th behind a run of
  * camp cuts and Exhibit 10 filings.
  */
-const IN_THE_WORKS = sql`(case ${rumors.status} when 'reported' then 12 when 'debunked' then -30 else 0 end)`;
+const IN_THE_WORKS = sql`(case
+  when ${rumors.status} = 'reported' then 12
+  when ${rumors.status} = 'debunked' then -30
+  /*
+   * A done trade ranks at least with talks. Without this a blockbuster that
+   * had just broken sat 12 points below chatter about a similar player until
+   * other outlets caught up. Trades only: done signings and waivers are
+   * mostly camp paperwork, and lifting them lifts the filler with them.
+   */
+  when ${rumors.status} in ('completed', 'confirmed') and ${rumors.type} = 'trade' then 12
+  else 0 end)`;
 
 /** Six points per extra outlet, up to three: coverage is the wire's own vote. */
 const CORROBORATION = sql`(least(${OUTLETS} - 1, 3) * 6)`;
 
 /** Rank decayed by age — the default feed order. */
-const RANK = sql`(${PROMINENCE} + ${SOURCE_WEIGHT} + ${IN_THE_WORKS} + ${CORROBORATION} - extract(epoch from (now() - ${rumors.publishedAt})) / 3600.0 * 1.2) desc`;
+/*
+ * Roundups are docked here as in Top Rated. It could not be done while every
+ * post with two primaries was stored as a roundup, which would have docked
+ * every multi-player trade; that ended on 27 Sep 2026. On that day a Cavs
+ * offseason recap and a Heat camp-notes column sat first and third.
+ */
+const RANK = sql`(${PROMINENCE} + ${SOURCE_WEIGHT} + ${IN_THE_WORKS} + ${CORROBORATION} + (case when ${rumors.isRoundup} then -25 else 0 end) - extract(epoch from (now() - ${rumors.publishedAt})) / 3600.0 * 1.2) desc`;
 
 /**
  * The ordering behind the tab labelled "Biggest". Lives in SQL so it
