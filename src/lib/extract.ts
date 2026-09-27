@@ -510,6 +510,60 @@ const META = [
   /\bthis is (speculation|analysis|an opinion)\b/i,
 ];
 
+/**
+ * Outlets whose reporters an aggregator credits by name. Used only to read
+ * credits out of the source text: nothing here is ever added unprompted.
+ */
+const CREDIT_OUTLETS = [
+  "ESPN", "The Athletic", "Bleacher Report", "The Stein Line", "Yahoo Sports",
+  "NBC Sports", "CBS Sports", "New York Post", "Miami Herald", "HoopsHype",
+  "ClutchPoints", "Sports Illustrated", "The Ringer", "SNY", "USA Today",
+  "Spotrac", "Boston Globe", "Los Angeles Times", "New York Times", "FanDuel TV",
+];
+
+/** Names the prompt says to write plainly: the name is the credential. */
+const STANDALONE = new Set(["Marc Stein", "Stephen A. Smith"]);
+
+const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * A reporter the source credits with an outlet, named in our summary without
+ * it: "ESPN's Shams Charania reported Saturday" became "Shams Charania
+ * reported". The prompt already requires that affiliation when it is not the
+ * card's own outlet, and it was still missing on 16 of 30 non-ESPN posts
+ * naming Charania in the 30 days to 27 Sep 2026.
+ *
+ * Returns the credit to restore ("ESPN's Shams Charania"), or null. Reads only
+ * credits written in the source, so it cannot invent an employer.
+ */
+export function dropsReporterOutlet(
+  source: string | null,
+  body: string,
+  cardNames: (string | null)[],
+): string | null {
+  if (!source) return null;
+  const card = cardNames.filter(Boolean).map((n) => n!.toLowerCase());
+  // No full stop inside a name, or "Charania. The" runs into the next sentence.
+  const name = "([A-Z][a-z]+(?: [A-Z][a-zA-Z'-]+){1,2})";
+  for (const outlet of CREDIT_OUTLETS) {
+    if (card.some((c) => c.includes(outlet.toLowerCase()) || outlet.toLowerCase().includes(c))) continue;
+    if (body.toLowerCase().includes(outlet.toLowerCase())) continue;
+    const o = esc(outlet);
+    const patterns = [
+      // "ESPN's Shams Charania", and "Yahoo Sports' Jake Fischer".
+      new RegExp(`${o}['’]s? ${name}`, "g"),
+      new RegExp(`${name},? (?:of|from) ${o}\\b`, "g"),
+    ];
+    for (const re of patterns) {
+      for (const m of source.matchAll(re)) {
+        // The source's own wording, so "Yahoo Sports' Jake Fischer" stays that way.
+        if (body.includes(m[1]) && !STANDALONE.has(m[1])) return m[0];
+      }
+    }
+  }
+  return null;
+}
+
 export function talksAboutTheItem(body: string): boolean {
   return META.some((re) => re.test(body));
 }
@@ -545,8 +599,8 @@ export async function extractRumor(item: {
   publisher: string | null;
   sourceName: string;
   recentHeadlines?: string[];
-}, opts: { retry?: "outlet" | "verb" | "meta"; onUsage?: (u: CallUsage) => void } = {}): Promise<Extraction> {
-  const { retry, onUsage } = opts;
+}, opts: { retry?: "outlet" | "verb" | "meta" | "credit"; credit?: string; onUsage?: (u: CallUsage) => void } = {}): Promise<Extraction> {
+  const { retry, credit, onUsage } = opts;
   const response = await client.messages.create({
     model: modelFor(),
     max_tokens: 2000,
@@ -607,6 +661,12 @@ export async function extractRumor(item: {
                 `Your previous attempt named the outlet printed on the card, either as the opening subject or later in the summary. Do not name it anywhere: not \"floated by\", not \"according to\", not \"per\". The card prints it directly above as a link, so the words tell the reader nothing they cannot already see. If the item credits a reporter or a different outlet, name THAT one instead. If it credits nobody, carry it in the verb and stop: \"A trade idea would send...\" needs no source at all. Open with the substance: the player, the teams, the terms or the named reporter. "${outletName(item.publisher, item.sourceName)} floats a trade sending..." is wrong; "A trade idea would send..." or "Tim MacMahon reports..." is right.`,
               ]
             : []),
+          ...(retry === "credit" && credit
+            ? [
+                ``,
+                `Your previous summary named a reporter without the outlet the item gives them. The item says "${credit}". Write the summary again with that affiliation on first mention, exactly as the item gives it: "${credit} reports...". Change nothing else.`,
+              ]
+            : []),
           ...(retry === "meta"
             ? [
                 ``,
@@ -663,6 +723,23 @@ export async function extractRumor(item: {
       namesOwnOutlet(parsed.body, [outletName(item.publisher, item.sourceName), item.publisher, item.sourceName]))
   ) {
     return extractRumor(item, { retry: "outlet", onUsage });
+  }
+
+  /*
+   * The same repair for a reporter credited in the source with an outlet that
+   * the summary dropped. Second in line: naming the wrong outlet is worse than
+   * omitting the right one, and both beat a clumsy sentence.
+   */
+  const dropped =
+    !retry && parsed.isRumor && parsed.body
+      ? dropsReporterOutlet(item.rawSummary, parsed.body, [
+          outletName(item.publisher, item.sourceName),
+          item.publisher,
+          item.sourceName,
+        ])
+      : null;
+  if (dropped) {
+    return extractRumor(item, { retry: "credit", credit: dropped, onUsage });
   }
 
   /*
