@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Fragment } from "react";
 import { Quoted } from "@/components/Quoted";
 import { surname } from "@/lib/names";
 import { toParagraphs } from "@/lib/paragraphs";
@@ -42,6 +43,38 @@ const OUTCOME_LABEL = "Confirmed";
  * move confirms the claim. Set false to hide the badge site-wide again.
  */
 const SHOW_OUTCOME_BADGE = true;
+
+/** One leg of the movement line: "Curry GSW → ATL", or a bare "GSW → ATL". */
+type Movement = { name: string | null; from: string; to: string };
+
+/*
+ * The "stays with" mark on an extension or re-signing: "Curry ↻ GSW".
+ *
+ * An SVG, not the ↻ character. The line is set in the system mono stack, and
+ * U+21BB is missing from several of those fonts, so the browser borrows it
+ * from whatever has it — at a different weight and baseline from the → beside
+ * it. Drawn here it takes the text colour and sits at the cap height.
+ */
+function RenewedIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="1.1em"
+      height="1.1em"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.25}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="inline-block align-[-0.2em]"
+      role="img"
+      aria-label="stays with"
+    >
+      <path d="M20 12a8 8 0 1 1-2.34-5.66" />
+      <path d="M20 4v4.5h-4.5" />
+    </svg>
+  );
+}
 
 const STATE: Record<string, { label: string; cls: string }> = {
   /*
@@ -308,18 +341,23 @@ export function WireItem({
    * two primaries, so a surname there would pin the arrow on whichever name
    * sorted first and state something the post does not. Two of 200 land in
    * that case, and they keep the bare team arrow.
+   *
+   * Where from and to are the same team — an extension, or a free agent
+   * re-signing — "GSW → GSW" reads as a move that goes nowhere. Those legs
+   * render as "Curry ↻ GSW" instead, naming the team once.
    */
-  const movements: string[] =
+  const movements: Movement[] =
     moves.length > 0
-      ? moves.map((p) => `${surname(p.fullName)} ${p.fromAbbrev} → ${p.toAbbrev}`)
+      ? moves.map((p) => ({ name: surname(p.fullName), from: p.fromAbbrev!, to: p.toAbbrev! }))
       : movedFrom && movedTo
         ? [
             (() => {
               const primaries = rumor.players.filter((p) => p.isPrimary);
-              const arrow = `${movedFrom.abbreviation} → ${movedTo.abbreviation}`;
-              return primaries.length === 1
-                ? `${surname(primaries[0].fullName)} ${arrow}`
-                : arrow;
+              return {
+                name: primaries.length === 1 ? surname(primaries[0].fullName) : null,
+                from: movedFrom.abbreviation,
+                to: movedTo.abbreviation,
+              };
             })(),
           ]
         : [];
@@ -734,7 +772,20 @@ export function WireItem({
                  */}
                 {movements.length > 0 && (
                   <span className="font-mono text-[10px] tracking-widest text-muted uppercase">
-                    {movements.join("  |  ")}
+                    {movements.map((m, i) => (
+                      <Fragment key={i}>
+                        {i > 0 && "  |  "}
+                        {m.name && `${m.name} `}
+                        {m.from === m.to ? (
+                          <>
+                            <RenewedIcon />
+                            {` ${m.to}`}
+                          </>
+                        ) : (
+                          `${m.from} → ${m.to}`
+                        )}
+                      </Fragment>
+                    ))}
                   </span>
                 )}
 
