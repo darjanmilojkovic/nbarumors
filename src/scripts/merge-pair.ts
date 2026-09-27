@@ -65,11 +65,19 @@ async function main() {
   if (dryRun) return console.log("dry run, nothing written");
 
   /*
-   * The duplicate's own feed item already has a rumor_sources row, pointing at
-   * the duplicate, and the table holds one row per feed item. So reassign that
-   * row to the keeper rather than inserting a second one — which is also what
-   * makes the redirect resolve, since it finds the keeper by feed item.
+   * Every report on the duplicate moves to the keeper, not just its own.
+   *
+   * Each report is one rumor_sources row, one per feed item, so reassigning
+   * rows rather than inserting copies avoids the unique-key collision — and
+   * moving the duplicate's own row is what makes the redirect resolve, since
+   * the page finds the keeper by feed item. This used to move only that one
+   * row, so a duplicate carrying six outlets handed the keeper one and left
+   * five attached to a hidden post.
    */
+  await db
+    .update(rumorSources)
+    .set({ rumorId: keeper.id })
+    .where(eq(rumorSources.rumorId, dupe.id));
   if (dupe.feedItemId) {
     await db
       .update(rumorSources)
