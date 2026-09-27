@@ -365,9 +365,11 @@ export async function runOutcomeCheck(
 
     /*
      * A rumour our own later post settled is not "unrecorded" — it has a
-     * record, just not in the NBA's log, which never carries extensions. The
-     * link to that post is set at publish time and this pass never touches
-     * it: outcome_rumor_id is not the log's to clear.
+     * record, whether or not the NBA's log has caught up. (The log does carry
+     * extensions, as "re-signed ... to a Veteran Extension", but only once the
+     * paperwork is filed, days after the reports.) The link to that post is
+     * set at publish time and this pass never touches it: outcome_rumor_id is
+     * not the log's to clear.
      */
     const ageDays = (now - reportedAt) / 864e5;
     if (isSpeculative && ageDays > STALE_DAYS && !r.outcome_rumor_id) {
