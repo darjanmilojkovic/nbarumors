@@ -48,7 +48,7 @@ const SHOW_OUTCOME_BADGE = true;
 type Movement = { name: string | null; from: string; to: string };
 
 /*
- * The "stays with" mark on an extension or re-signing: "Curry ↻ GSW".
+ * The "keeps" mark on an extension or re-signing: "GSW ↻ Curry".
  *
  * An SVG, not the ↻ character. The line is set in the system mono stack, and
  * U+21BB is missing from several of those fonts, so the browser borrows it
@@ -68,7 +68,7 @@ function RenewedIcon() {
       strokeLinejoin="round"
       className="inline-block align-[-0.2em]"
       role="img"
-      aria-label="stays with"
+      aria-label="keeps"
     >
       <path d="M20 12a8 8 0 1 1-2.34-5.66" />
       <path d="M20 4v4.5h-4.5" />
@@ -344,7 +344,7 @@ export function WireItem({
    *
    * Where from and to are the same team — an extension, or a free agent
    * re-signing — "GSW → GSW" reads as a move that goes nowhere. Those legs
-   * render as "Curry ↻ GSW" instead, naming the team once.
+   * render as "GSW ↻ Curry" instead, naming the team once.
    */
   const movements: Movement[] =
     moves.length > 0
@@ -775,14 +775,19 @@ export function WireItem({
                     {movements.map((m, i) => (
                       <Fragment key={i}>
                         {i > 0 && "  |  "}
-                        {m.name && `${m.name} `}
                         {m.from === m.to ? (
+                          /*
+                           * Team first on a renewal — "GSW ↻ Curry", the club
+                           * keeping its player — where a move leads with the
+                           * player going somewhere.
+                           */
                           <>
+                            {`${m.to} `}
                             <RenewedIcon />
-                            {` ${m.to}`}
+                            {m.name && ` ${m.name}`}
                           </>
                         ) : (
-                          `${m.from} → ${m.to}`
+                          `${m.name ? `${m.name} ` : ""}${m.from} → ${m.to}`
                         )}
                       </Fragment>
                     ))}
