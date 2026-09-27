@@ -248,15 +248,20 @@ async function storiesPerPlayer(): Promise<Map<number, number>> {
 /**
  * How big a story is, by who it is about.
  *
- * The primary player carries it, plus a quarter of the best other name tagged.
+ * The primary player carries it, plus a little of the best other name tagged.
  * Taking the plain maximum meant a Peyton Watson trade sorted as a Nikola
  * Jokic story purely because Jokic was mentioned — rated 100 when Watson is
  * 49. Taking the primary alone would drop it to 49 and lose the fact that a
- * Jokic-adjacent trade genuinely is more interesting than an ordinary one.
+ * Jokic-adjacent trade genuinely is more interesting than an ordinary one; at
+ * 59 it still sits above a routine Watson signing.
  *
- * A quarter splits it: that post lands at 74, above a routine Watson signing
- * and below a real Jokic story. Multi-player trades keep some lift from the
- * biggest name in them without being mistaken for stories about that name.
+ * It was a quarter until 27 Sep 2026, which was worth up to 25 points — as
+ * much as three extra outlets on Top Rated. That put "DeRozan says Jokic,
+ * Gordon, Murray calls swayed him to Denver", an interview from one outlet,
+ * third in Top Rated because it quoted Jokic. Now a tenth, capped at 10: a
+ * named star still nudges a post up but can no longer carry it. Previewed that
+ * day over 1,103 posts: the average lift fell from 16.6 to 6.6, DeRozan went
+ * 3rd to 8th, and no post rose in either top 15 because of the bonus.
  */
 const PROMINENCE = sql`(
   coalesce((
@@ -264,11 +269,11 @@ const PROMINENCE = sql`(
     join players p on p.id = rp.player_id
     where rp.rumor_id = ${rumors.id} and rp.is_primary
   ), 0)
-  + 0.25 * coalesce((
+  + least(10, 0.1 * coalesce((
     select max(p.prominence) from rumor_players rp
     join players p on p.id = rp.player_id
     where rp.rumor_id = ${rumors.id} and not rp.is_primary
-  ), 0)
+  ), 0))
 )`;
 
 const HOT = sql`(case when ${rumors.publishedAt} > now() - interval '7 days' then (
