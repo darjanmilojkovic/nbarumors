@@ -335,9 +335,12 @@ const OUTLETS = sql`(
  * docked 8 as Heavy. The reporter is the source; the aggregator is the
  * carrier. Kept to people who report on teams' actual dealings, not analysts
  * who pitch trades.
+ *
+ * Kevin O'Connor added 27 Sep 2026 on the user's call: he reports as well as
+ * analyses. The dot matches either apostrophe.
  */
 const INSIDERS =
-  "(charania|marc stein|jake fischer|windhorst|scotto|macmahon|chris haynes|sam amick|anthony slater|ian begley|kelly iko|bobby marks)";
+  "(charania|marc stein|jake fischer|windhorst|scotto|macmahon|chris haynes|sam amick|anthony slater|ian begley|kelly iko|bobby marks|kevin o.connor)";
 
 const SOURCE_WEIGHT = sql`greatest(${OUTLET_WEIGHT}, case when lower(coalesce(${rumors.reportedBy}, '')) ~ ${INSIDERS} then 15 else -99 end)`;
 
