@@ -350,6 +350,13 @@ const SOURCE_WEIGHT = sql`greatest(${OUTLET_WEIGHT}, case when lower(coalesce(${
  * camp cuts and Exhibit 10 filings.
  */
 const IN_THE_WORKS = sql`(case
+  /*
+   * Not a rumour that has already come true. "Curry signals he'd take less
+   * money" stays stored as reported so the signing keeps its own post, and on
+   * 27 Sep 2026 that status alone put it 13th in Trending, days after he
+   * signed. Its Update line points at the post that is the news now.
+   */
+  when ${rumors.outcomeRumorId} is not null or ${rumors.outcome} = 'confirmed' then 0
   when ${rumors.status} = 'reported' then 12
   when ${rumors.status} = 'debunked' then -30
   /*
@@ -693,6 +700,11 @@ export async function feedPage(opts: {
    */
   if (tab === "live" || tab === "top") {
     filters.push(sql`not ${rumors.isTradeIdea}`);
+    /*
+     * Nor a rumour whose deal has its own post now. Its Update line points
+     * there, and showing both put two Curry cards in Trending for one story.
+     */
+    filters.push(sql`${rumors.outcomeRumorId} is null`);
   }
   const extra = filters.length ? and(...filters) : undefined;
 
