@@ -102,7 +102,11 @@ const slugify = (s: string) =>
  * and a surprise.
  */
 export async function runStatsSync(
-  opts: { dryRun?: boolean } = {},
+  opts: {
+    dryRun?: boolean;
+    /** Dry runs only: floors to use instead of the stored ones, by player row id. */
+    floorOverrides?: Map<number, number>;
+  } = {},
 ): Promise<StatsSyncResult> {
   const result: StatsSyncResult = {
     seasons: {},
@@ -290,7 +294,8 @@ export async function runStatsSync(
      * rating cannot fall below. Without it Carmelo Anthony — a top-ten
      * all-time scorer with no current season — would have dropped to 51.
      */
-    const score = Math.max(computed, p.prominenceFloor);
+    const floor = (opts.dryRun ? opts.floorOverrides?.get(p.id) : undefined) ?? p.prominenceFloor;
+    const score = Math.max(computed, floor);
     return {
       id: p.id,
       score,

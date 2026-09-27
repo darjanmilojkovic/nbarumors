@@ -240,7 +240,12 @@ const ALL_TIME_LISTS = [
   "ASTLeaders",
   "STLLeaders",
   "BLKLeaders",
-  "FG3MLeaders",
+  /*
+   * Three-pointers made was here until 27 Sep 2026. It is a volume-shooter
+   * longevity list, the same reason percentages are left out: it pinned Buddy
+   * Hield and Eric Gordon at 90, level with All-Stars, and put a Hield trade
+   * second and third in Top Rated. Their seasons put them near 40.
+   */
 ] as const;
 
 /** Top ten on any of those lists, then a step down for the rest of the top twenty. */
@@ -250,7 +255,9 @@ function allTimeFloorFor(rank: number): number {
   return 0;
 }
 
-export async function fetchAllTimeFloors(): Promise<Map<string, number>> {
+export async function fetchAllTimeFloors(
+  lists: readonly string[] = ALL_TIME_LISTS,
+): Promise<Map<string, number>> {
   const res = await fetch(
     "https://stats.nba.com/stats/alltimeleadersgrids?LeagueID=00" +
       "&PerMode=Totals&SeasonType=Regular+Season&TopX=20",
@@ -262,7 +269,7 @@ export async function fetchAllTimeFloors(): Promise<Map<string, number>> {
   };
 
   const floors = new Map<string, number>();
-  for (const name of ALL_TIME_LISTS) {
+  for (const name of lists) {
     const rs = json.resultSets.find((r) => r.name === name);
     if (!rs) continue;
     const iId = rs.headers.indexOf("PLAYER_ID");
