@@ -646,22 +646,16 @@ export async function publishExtraction(
       publishedAt: item.publishedAt,
       isPublished,
       /*
-       * Belt and braces while primaries are still singular.
+       * The model's own answer, and only that.
        *
-       * The feed used to infer a roundup from the primary count, and that
-       * proxy held only because extraction names one subject per post. Asking
-       * the model directly is the honest signal and the one that survives
-       * plural primaries, but it is new and unproven, so for now a post that
-       * somehow comes back with two subjects is still treated as a survey —
-       * exactly the old behaviour.
-       *
-       * DELETE THE SECOND CLAUSE when primaries go plural. Left in place it
-       * would flag every multi-player trade as a roundup and dock it 25
-       * points, which is the regression this whole step exists to prevent.
+       * Until 27 Sep 2026 a post with two primaries was also treated as a
+       * survey, a belt-and-braces rule from when primaries were singular. They
+       * no longer are: 88 posts in 30 days carried two or more, 34 of them
+       * trades, and every one was flagged a roundup, docked 25 points in Top
+       * Rated and barred from the Confirmed badge. "Detroit trades X to New
+       * York for Y" is the biggest kind of story, not a survey.
        */
-      isRoundup:
-        extraction.isRoundup ||
-        extraction.players.filter((p) => p.isPrimary).length > 1,
+      isRoundup: extraction.isRoundup,
       isTradeIdea,
     })
     .onConflictDoNothing({ target: rumors.feedItemId })
