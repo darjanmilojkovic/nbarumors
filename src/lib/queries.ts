@@ -338,9 +338,13 @@ const OUTLETS = sql`(
  *
  * Kevin O'Connor added 27 Sep 2026 on the user's call: he reports as well as
  * analyses. The dot matches either apostrophe.
+ *
+ * National ESPN, Athletic and SI reporters added the same day. Team beat
+ * writers are left off on purpose: reliable, but mostly camp notes about one
+ * club, which is the filler Trending is already trying to push down.
  */
 const INSIDERS =
-  "(charania|marc stein|jake fischer|windhorst|scotto|macmahon|chris haynes|sam amick|anthony slater|ian begley|kelly iko|bobby marks|kevin o.connor)";
+  "(charania|marc stein|jake fischer|windhorst|scotto|macmahon|chris haynes|sam amick|anthony slater|ian begley|kelly iko|bobby marks|kevin o.connor|youngmisuk|shelburne|mcmenamin|mannix|krawczynski)";
 
 const SOURCE_WEIGHT = sql`greatest(${OUTLET_WEIGHT}, case when lower(coalesce(${rumors.reportedBy}, '')) ~ ${INSIDERS} then 15 else -99 end)`;
 
