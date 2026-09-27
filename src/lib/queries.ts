@@ -818,6 +818,127 @@ export async function rumorsForPlayer(playerSlug: string, page = 1) {
 }
 
 /**
+ * The posts shown beneath one being read, closest match first.
+ *
+ * This used to take the 200 top-RANKED posts and keep any sharing a player or
+ * a team with this one, in any role. A Harden post therefore offered three
+ * Cavaliers stories about other people, or a roundup naming him once, and his
+ * own earlier stories never appeared once they fell out of that window.
+ *
+ * Now a reader of a post about a player is offered more about that player,
+ * searching the whole archive, and each slot is filled from the first tier
+ * that has anything:
+ *
+ *   0. on a trade idea only: other trade ideas about one of its clubs, the
+ *      club it sends a player TO first, then the one it takes him FROM. A
+ *      reader of a hypothetical wants more hypotheticals for that team, not
+ *      the real news about whichever player it happened to move. "Lakers
+ *      pundit pushes team to call Pelicans on Herbert Jones" is a Lakers idea;
+ *      Jones's own club is New Orleans, which is why this is not keyed on the
+ *      subject. A club an idea only name-checks counts on neither side: a
+ *      Dallas mention let a Knicks idea outrank 27 Lakers ones;
+ *   1. the lead subject is also the subject there;
+ *   2. another of this post's subjects is the subject there — a two-player
+ *      trade has two players it is about;
+ *   3. the lead subject is merely named there;
+ *   4. the post is about this post's own club — the subject's current team, or
+ *      the destination when there is no subject;
+ *   5. the post is about another club in the move;
+ *   6. any post naming any of this post's clubs, in any role, roundups and
+ *      trade ideas included;
+ *   7. the newest posts on the site, trade ideas excluded.
+ *
+ * Tiers 4 and 5 count only a club a post is about, never one it name-checks,
+ * and skip roundups and trade ideas: those tag a dozen clubs, or one club in a
+ * hypothetical, and won slots merely by being new. They are split because a
+ * Celtics camp-roster post, whose signing came from Sacramento, otherwise
+ * offered three Kings stories.
+ *
+ * Every post shows three, by the user's decision on 27 Sep 2026 — tier 7 is
+ * what guarantees it. Measured that day over 1,179 posts: 38% had three other
+ * posts sharing a subject and 26% had none, so the lower tiers do real work
+ * now and less of it as the archive grows.
+ *
+ * Within a tier, newest first: the reader wants where the story has got to.
+ */
+export async function relatedRumors(opts: {
+  rumorId: number;
+  leadPlayer: string | null;
+  otherSubjects: string[];
+  homeTeam: string | null;
+  otherTeams: string[];
+  mentionedTeams: string[];
+  limit: number;
+}): Promise<FeedRumor[]> {
+  const { rumorId, leadPlayer, otherSubjects, homeTeam, otherTeams, mentionedTeams, limit } =
+    opts;
+  const list = (xs: (string | number)[]) => sql.join(xs.map((x) => sql`${x}`), sql`, `);
+
+  /* Every arm names its columns: a union takes its names from the first. */
+  const tiers: SQL[] = [
+    sql`select rt.rumor_id,
+        case when mine.role = 'to' then -1 else 0 end as tier
+      from rumor_teams mine
+      join rumors o on o.id = mine.rumor_id and o.is_trade_idea
+      join rumor_teams rt on rt.team_id = mine.team_id and rt.role <> 'mentioned'
+      join rumors x on x.id = rt.rumor_id and x.is_trade_idea
+      where mine.rumor_id = ${rumorId} and mine.role <> 'mentioned'`,
+  ];
+  if (leadPlayer) {
+    tiers.push(sql`select rp.rumor_id, 1 as tier from rumor_players rp
+      join players p on p.id = rp.player_id
+      where p.slug = ${leadPlayer} and rp.is_primary`);
+  }
+  if (otherSubjects.length) {
+    tiers.push(sql`select rp.rumor_id, 2 as tier from rumor_players rp
+      join players p on p.id = rp.player_id
+      where p.slug in (${list(otherSubjects)}) and rp.is_primary`);
+  }
+  if (leadPlayer) {
+    tiers.push(sql`select rp.rumor_id, 3 as tier from rumor_players rp
+      join players p on p.id = rp.player_id
+      where p.slug = ${leadPlayer}`);
+  }
+  const single = sql`join rumors x on x.id = rt.rumor_id
+    and not x.is_roundup and not x.is_trade_idea`;
+  if (homeTeam) {
+    tiers.push(sql`select rt.rumor_id, 4 as tier from rumor_teams rt
+      join teams t on t.id = rt.team_id ${single}
+      where t.slug = ${homeTeam} and rt.role <> 'mentioned'`);
+  }
+  if (otherTeams.length) {
+    tiers.push(sql`select rt.rumor_id, 5 as tier from rumor_teams rt
+      join teams t on t.id = rt.team_id ${single}
+      where t.slug in (${list(otherTeams)}) and rt.role <> 'mentioned'`);
+  }
+  const allTeams = [...(homeTeam ? [homeTeam] : []), ...otherTeams, ...mentionedTeams];
+  if (allTeams.length) {
+    tiers.push(sql`select rt.rumor_id, 6 as tier from rumor_teams rt
+      join teams t on t.id = rt.team_id
+      where t.slug in (${list(allTeams)})`);
+  }
+  tiers.push(sql`(select id as rumor_id, 7 as tier from rumors
+    where is_published and not is_trade_idea
+    order by published_at desc limit ${limit + 1})`);
+
+  const picked = await db.execute(sql`
+    select c.rumor_id as id, min(c.tier)::int as tier
+    from (${sql.join(tiers, sql` union all `)}) c
+    join rumors r on r.id = c.rumor_id
+    where r.is_published and r.id <> ${rumorId}
+    group by c.rumor_id, r.published_at
+    order by min(c.tier), r.published_at desc
+    limit ${limit}`);
+
+  const order = ((picked.rows ?? picked) as unknown as { id: number }[]).map((r) =>
+    Number(r.id),
+  );
+  if (!order.length) return [];
+  const rows = await hydrate(await baseSelect(sql`${rumors.id} in (${list(order)})`));
+  return order.flatMap((id) => rows.filter((r) => r.id === id));
+}
+
+/**
  * Everyone on an NBA roster this season, alphabetical by first name.
  * Inactive names — retired players and others that only ever showed up in a
  * rumor — are excluded from the directory but keep their own pages.

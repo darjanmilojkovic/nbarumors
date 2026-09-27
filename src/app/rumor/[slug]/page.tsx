@@ -8,7 +8,7 @@ import { rumorSources, rumors } from "@/db/schema";
 import { WireItem } from "@/components/WireItem";
 import { WireShell } from "@/components/WireShell";
 import { surname } from "@/lib/names";
-import { latestRumors, rumorBySlug } from "@/lib/queries";
+import { relatedRumors, rumorBySlug } from "@/lib/queries";
 import { SITE } from "@/lib/site";
 import { isUsableShareImage, isWideEnough } from "@/lib/share-image";
 import { leadSubject } from "@/lib/subject";
@@ -155,16 +155,6 @@ export default async function RumorPage({ params }: PageProps<"/rumor/[slug]">) 
   const rumor = await getRumor(slug);
   if (!rumor) notFound();
 
-  const feed = await latestRumors(200);
-  const related = feed
-    .filter(
-      (r) =>
-        r.id !== rumor.id &&
-        (r.players.some((p) => rumor.players.some((q) => q.slug === p.slug)) ||
-          r.teams.some((t) => rumor.teams.some((u) => u.slug === t.slug))),
-    )
-    .slice(0, RELATED_LIMIT);
-
   /*
    * The rail names the team and player this post is ABOUT.
    *
@@ -213,6 +203,21 @@ export default async function RumorPage({ params }: PageProps<"/rumor/[slug]">) 
    */
   const subjectTeam =
     subjectPlayer?.currentTeam ?? rumor.teams.find((t) => t.role === "to");
+
+  /* More about the same player first; see relatedRumors for the tiers. */
+  const related = await relatedRumors({
+    rumorId: rumor.id,
+    leadPlayer: subjectPlayer?.slug ?? null,
+    otherSubjects: rumor.players
+      .filter((p) => p.isPrimary && p.slug !== subjectPlayer?.slug)
+      .map((p) => p.slug),
+    homeTeam: subjectTeam?.slug ?? null,
+    otherTeams: rumor.teams
+      .filter((t) => t.role !== "mentioned" && t.slug !== subjectTeam?.slug)
+      .map((t) => t.slug),
+    mentionedTeams: rumor.teams.filter((t) => t.role === "mentioned").map((t) => t.slug),
+    limit: RELATED_LIMIT,
+  });
 
   return (
     <WireShell
