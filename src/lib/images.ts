@@ -231,6 +231,9 @@ export async function cacheHeadshot(
   return { status: "photo", sourceMd5 };
 }
 
+/** The share of its box a team mark may cover; see cacheTeamLogo. */
+const LOGO_AREA_CAP = 0.62;
+
 /**
  * Fetch and store one team mark: the SVG, plus a WebP per LOGO_SIZES rendered
  * from it. A raster is (re)written whenever it is missing or the SVG was just
@@ -260,36 +263,50 @@ export async function cacheTeamLogo(
   const sharp = (await import("sharp")).default;
   /*
    * The NBA draws each mark with margins inside its own canvas — a round badge
-   * fills about 75% of it — so the empty edge is cut off before sizing, and
-   * every mark fills its box the same way whatever the original padding.
+   * fills about 75% of it — so the empty edge is cut off before sizing.
    */
   const rendered = await sharp(await readFile(file), { density: 600 })
     .resize(1024, 1024, { fit: "inside" })
     .png()
     .toBuffer();
-  const svg = await sharp(rendered).trim({ threshold: 1 }).png().toBuffer();
+  const trimmed = await sharp(rendered).trim({ threshold: 1 }).png().toBuffer({ resolveWithObject: true });
+
+  /*
+   * Fit the trimmed mark into a box, then shrink it until it covers no more
+   * than LOGO_AREA_CAP of that box. Fitting alone made a round badge fill its
+   * whole square while the Spurs and Jazz wordmarks, limited by their width,
+   * covered under half — so the badges looked twice the size. Capping the area
+   * lets wide marks keep their full width and brings square ones down to
+   * match. Chosen side by side on all 30 marks, 29 Sep 2026.
+   */
+  const { width: w, height: h } = trimmed.info;
+  const mark = async (box: number) => {
+    const fit = Math.min(box / w, box / h);
+    const share = (w * fit * h * fit) / (box * box);
+    const k = fit * Math.min(1, Math.sqrt(LOGO_AREA_CAP / share));
+    const scaled = await sharp(trimmed.data)
+      .resize(Math.round(w * k), Math.round(h * k), { kernel: "lanczos3" })
+      .sharpen({ sigma: 0.5 })
+      .png()
+      .toBuffer();
+    return sharp({ create: { width: box, height: box, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+      .composite([{ input: scaled, gravity: "centre" }]);
+  };
+
   for (const size of LOGO_SIZES) {
     const out = join(dir, `${nbaTeamId}-${size}.webp`);
     if (!fetched && (await access(out).then(() => true, () => false))) continue;
-    const px = size * 2;
-    const webp = await sharp(svg)
-      .resize(px, px, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 }, kernel: "lanczos3" })
-      .sharpen({ sigma: 0.5 })
-      .webp({ quality: 90, alphaQuality: 100 })
-      .toBuffer();
+    const webp = await (await mark(size * 2)).webp({ quality: 90, alphaQuality: 100 }).toBuffer();
     await writeFile(out, webp);
   }
 
   const shareOut = join(dir, `${nbaTeamId}-share.png`);
   if (fetched || !(await access(shareOut).then(() => true, () => false))) {
-    const inner = Math.round(LOGO_SHARE_PX * 0.8);
-    const mark = await sharp(svg)
-      .resize(inner, inner, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
-      .toBuffer();
+    const inner = await (await mark(Math.round(LOGO_SHARE_PX * 0.8))).png().toBuffer();
     const png = await sharp({
       create: { width: LOGO_SHARE_PX, height: LOGO_SHARE_PX, channels: 3, background: "#e8e8e8" },
     })
-      .composite([{ input: mark, gravity: "centre" }])
+      .composite([{ input: inner, gravity: "centre" }])
       .png({ compressionLevel: 9, palette: true })
       .toBuffer();
     await writeFile(shareOut, png);
