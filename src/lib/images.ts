@@ -236,7 +236,7 @@ export async function cacheTeamLogo(
  * the column was put back.
  */
 
-/** The cached headshot for a player, or null to fall back to initials. */
+/** The cached headshot for a player, or null to fall back to the silhouette. */
 export const headshotFor = (nbaPlayerId: string | null | undefined) =>
   nbaPlayerId && CACHED_HEADSHOTS.has(nbaPlayerId)
     ? localHeadshotPath(nbaPlayerId)

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import { SILHOUETTE } from "@/lib/silhouette";
 import { notFound, permanentRedirect } from "next/navigation";
 import { cache } from "react";
 import { WireItem } from "@/components/WireItem";
@@ -166,28 +167,16 @@ export default async function PlayerPage({
        */}
       <div className="mb-6 px-4 pt-8 sm:px-0">
         <div className="flex items-center gap-4 rounded-sm border border-rule bg-surface p-4">
-          {player.headshotUrl ? (
-            <Image
-              src={player.headshotUrl}
-              alt={player.fullName}
-              width={128}
-              height={94}
-              className="h-14 w-14 shrink-0 rounded-sm border border-rule bg-ink object-cover object-top sm:h-[72px] sm:w-[72px]"
-              unoptimized
-            />
-          ) : (
-            /* 213 of 582 rostered players have no NBA headshot; initials keep
-               the lockup the same shape rather than collapsing it, and take the
-               same plate so the panel does not change height between them. */
-            <span className="font-semibold grid h-14 w-14 shrink-0 place-items-center rounded-sm border border-rule bg-ink text-base text-body sm:h-[72px] sm:w-[72px]">
-              {player.fullName
-                .split(" ")
-                .map((w) => w[0])
-                .join("")
-                .slice(0, 2)
-                .toUpperCase()}
-            </span>
-          )}
+          {/* Many players have no NBA headshot; the silhouette keeps the
+              lockup the same shape rather than collapsing it. */}
+          <Image
+            src={player.headshotUrl ?? SILHOUETTE}
+            alt={player.fullName}
+            width={128}
+            height={94}
+            className="h-14 w-14 shrink-0 rounded-sm border border-rule bg-ink object-cover object-top sm:h-[72px] sm:w-[72px]"
+            unoptimized
+          />
           <div>
             <h1 className="display text-2xl text-white sm:text-3xl">
               {player.fullName}

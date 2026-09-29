@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import { SILHOUETTE } from "@/lib/silhouette";
 import Link from "next/link";
 import { WireShell } from "@/components/WireShell";
 import { allPlayers } from "@/lib/queries";
@@ -28,28 +29,14 @@ export default async function PlayersPage() {
               href={`/player/${p.slug}`}
               className="flex items-center gap-2 rounded-sm bg-surface px-2 py-2 hover:bg-surface-2 sm:gap-3 sm:px-3"
             >
-              {p.headshotUrl ? (
-                <Image
-                  src={p.headshotUrl}
-                  alt=""
-                  width={64}
-                  height={47}
-                  className="h-10 w-10 shrink-0 rounded-full bg-surface-2 object-cover object-top"
-                  unoptimized
-                />
-              ) : (
-                // No NBA id yet — a name we only know from a rumor.
-                <span
-                  aria-hidden
-                  className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-surface-2 text-xs text-muted"
-                >
-                  {p.fullName
-                    .split(" ")
-                    .map((w) => w[0])
-                    .slice(0, 2)
-                    .join("")}
-                </span>
-              )}
+              <Image
+                src={p.headshotUrl ?? SILHOUETTE}
+                alt=""
+                width={64}
+                height={47}
+                className="h-10 w-10 shrink-0 rounded-full bg-surface-2 object-cover object-top"
+                unoptimized
+              />
               <span className="min-w-0 text-xs leading-tight sm:text-sm">
                 {p.fullName}
               </span>

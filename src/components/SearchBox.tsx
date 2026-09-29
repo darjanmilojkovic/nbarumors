@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { SILHOUETTE } from "@/lib/silhouette";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -156,18 +157,14 @@ export function SearchBox() {
           onClick={() => setQuery("")}
           className={rowClass}
         >
-          {p.headshotUrl ? (
-            <Image
-              src={p.headshotUrl}
-              alt=""
-              width={64}
-              height={47}
-              className="h-8 w-8 shrink-0 rounded-full bg-surface-2 object-cover object-top"
-              unoptimized
-            />
-          ) : (
-            <span className="h-8 w-8 shrink-0 rounded-full bg-surface-2" />
-          )}
+          <Image
+            src={p.headshotUrl ?? SILHOUETTE}
+            alt=""
+            width={64}
+            height={47}
+            className="h-8 w-8 shrink-0 rounded-full bg-surface-2 object-cover object-top"
+            unoptimized
+          />
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[13px] font-semibold">
               {p.fullName}

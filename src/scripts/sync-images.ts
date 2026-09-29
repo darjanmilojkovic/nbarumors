@@ -70,7 +70,7 @@ async function main() {
     if (!nbaId || headshotIds.has(nbaId)) continue;
 
     const path = dryRun ? "dry" : await cacheHeadshot(nbaId, { force });
-    // No image on the CDN for this id — the card falls back to initials.
+    // No image on the CDN for this id — the card falls back to the silhouette.
     if (!path) misses.push(p.name);
     else headshotIds.add(nbaId);
   }
@@ -107,7 +107,30 @@ async function main() {
       return [];
     }
   };
-  const haveHeadshots = await onDisk("headshots", ".webp");
+  /*
+   * Minus the NBA's stand-in. For a player it has no photo of, the CDN answers
+   * 200 with a generic grey silhouette, so the fetch "succeeds" — 154 of 1,270
+   * cached files were that one image on 29 Sep 2026. Listed, it made the
+   * player look photographed: the card's fall-back-to-logos rule never fired
+   * and he showed differently from a player with no file at all.
+   *
+   * The files stay on disk so the next run does not fetch them again; they are
+   * only left out of the manifest, and the UI draws public/silhouette.webp for
+   * every player without a photo. Matched byte for byte against that file,
+   * which is a copy of one, so a change in sharp's output would stop the match
+   * — the count below would then jump, which is the thing to watch.
+   */
+  const { readFile } = await import("node:fs/promises");
+  const silhouette = await readFile(join(process.cwd(), "public", "silhouette.webp"));
+  const headshotFiles = await onDisk("headshots", ".webp");
+  const haveHeadshots: string[] = [];
+  let standIns = 0;
+  for (const id of headshotFiles) {
+    const bytes = await readFile(join(process.cwd(), "public", "headshots", `${id}.webp`));
+    if (bytes.equals(silhouette)) standIns++;
+    else haveHeadshots.push(id);
+  }
+  console.log(`  headshots: ${standIns} of ${headshotFiles.length} files are the NBA stand-in, not listed`);
   const haveLogos = await onDisk("logos", ".svg");
 
   const manifest = [

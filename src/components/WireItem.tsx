@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { SILHOUETTE } from "@/lib/silhouette";
 import Link from "next/link";
 import { Fragment } from "react";
 import { Quoted } from "@/components/Quoted";
@@ -168,13 +169,6 @@ function agoPhrase(d: Date, now = new Date()) {
     : `${Math.floor(months / MONTHS_PER_YEAR)}y ago`;
 }
 
-const initials = (name: string) =>
-  name
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 
 /**
  * @param preview  Show the opening paragraph and link to the rest.
@@ -253,12 +247,16 @@ export function WireItem({
 
   /*
    * Some rumors name no player at all — "Kings and Raptors talks collapsed" —
-   * and some name only players we have no photo for. Rather than a column of
-   * initials or a generic mark, fall back to the team logos, which identify
-   * the story just as well.
+   * and those fall back to the team logos, which identify the story just as
+   * well.
+   *
+   * Only those. A post naming players we have no photo for used to get logos
+   * too, so an undrafted signing showed a club crest while the next card
+   * showed a silhouette for the same situation. Since 29 Sep 2026 a named
+   * player always gets a face, the silhouette when there is no photo, by the
+   * owner's choice. Revert: gate on `!cast.some((p) => p.headshotUrl)`.
    */
-  const hasAnyPhoto = cast.some((p) => p.headshotUrl);
-  const logoTiles = !hasAnyPhoto ? rumor.teams.slice(0, MAX_FACES) : [];
+  const logoTiles = cast.length === 0 ? rumor.teams.slice(0, MAX_FACES) : [];
 
   const hasNamedReporter =
     Boolean(rumor.reportedBy) && rumor.reportedBy !== rumor.sourceName;
@@ -561,20 +559,14 @@ export function WireItem({
           ) : faces.length > 0 ? (
             faces.map((p) => (
               <Link key={p.slug} href={`/player/${p.slug}`} title={p.fullName}>
-                {p.headshotUrl ? (
-                  <Image
-                    src={p.headshotUrl}
-                    alt={p.fullName}
-                    width={128}
-                    height={94}
-                    className="h-14 w-14 shrink-0 rounded-sm border border-rule bg-surface-2 object-cover object-top"
-                    unoptimized
-                  />
-                ) : (
-                  <span className="font-semibold grid h-14 w-14 shrink-0 place-items-center rounded-sm border border-rule bg-surface-2 text-sm text-body">
-                    {initials(p.fullName)}
-                  </span>
-                )}
+                <Image
+                  src={p.headshotUrl ?? SILHOUETTE}
+                  alt={p.fullName}
+                  width={128}
+                  height={94}
+                  className="h-14 w-14 shrink-0 rounded-sm border border-rule bg-surface-2 object-cover object-top"
+                  unoptimized
+                />
               </Link>
             ))
           ) : (
