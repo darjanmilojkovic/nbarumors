@@ -76,9 +76,18 @@ function fold(s: string) {
   return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
+/**
+ * The club column's value. With no club it names the group the player sits in
+ * on the team view — the same FREE and PROS as the jump bar — so a prospect in
+ * A–Z or a search is not passed off as a free agent.
+ */
+function teamLabel(p: DirectoryPlayer) {
+  return p.teamAbbr ?? (p.hasPlayed ? "FREE" : "PROS");
+}
+
 function meta(p: DirectoryPlayer, showTeam: boolean) {
   const parts: string[] = [];
-  if (showTeam) parts.push(p.teamAbbr ?? "FA");
+  if (showTeam) parts.push(teamLabel(p));
   parts.push(p.posts > 0 ? `${p.posts} post${p.posts === 1 ? "" : "s"}` : "No posts yet");
   return parts.join(" · ");
 }
@@ -219,7 +228,7 @@ export function PlayersDirectory({
                         {p.fullName}
                       </span>
                       <span className="font-mono text-[10px] text-muted">
-                        {p.teamAbbr ?? "FA"} · {p.recent} post{p.recent === 1 ? "" : "s"}
+                        {teamLabel(p)} · {p.recent} post{p.recent === 1 ? "" : "s"}
                       </span>
                     </Link>
                   </li>
@@ -356,7 +365,7 @@ function Players({
             >
               <Headshot p={p} size="sm" />
               <span className="min-w-0 flex-1 truncate text-[13px]">{p.fullName}</span>
-              {showTeam && <span className="font-mono text-[10px] text-muted">{p.teamAbbr ?? "FA"}</span>}
+              {showTeam && <span className="font-mono text-[10px] text-muted">{teamLabel(p)}</span>}
               <span className="w-8 text-right font-mono text-[11px] text-muted">{p.posts || "–"}</span>
             </Link>
           </li>
@@ -387,7 +396,7 @@ function Players({
                 </Link>
               </td>
               {showTeam && (
-                <td className="w-12 font-mono text-[11px] text-muted">{p.teamAbbr ?? "FA"}</td>
+                <td className="w-12 font-mono text-[11px] text-muted">{teamLabel(p)}</td>
               )}
               <td className="w-20 pr-2 text-right font-mono text-[11px] text-muted sm:pr-0">
                 {p.posts ? `${p.posts} post${p.posts === 1 ? "" : "s"}` : "–"}
