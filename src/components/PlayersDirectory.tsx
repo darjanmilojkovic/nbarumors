@@ -185,13 +185,9 @@ export function PlayersDirectory({
   const matches = q ? players.filter((p) => fold(p.fullName).includes(q)) : null;
   const groups = view === "team" ? byTeam : byLetter;
 
-  /*
-   * `xl:pr-5` mirrors the right rail's own `pl-5`. The feed's cards can run up
-   * to the rail's rule, but rows of names and right-aligned numbers cannot:
-   * without a gutter the dates ended up touching the line.
-   */
+  // The side gutters live on the page wrapper, so the h1 lines up with the list.
   return (
-    <div className="xl:pr-5">
+    <div>
       {/*
        * Phones only. From lg up the left rail carries the site search, which
        * finds players too; a second box beside it would be two ways to do one
@@ -245,7 +241,12 @@ export function PlayersDirectory({
             </section>
           )}
 
-          <div className="sticky top-0 z-10 -mx-4 mb-6 border-b border-rule bg-ink px-4 pb-2.5 pt-3 sm:mx-0 sm:px-0">
+          {/*
+           * Bled out over the page's side gutters and given a shadow. Ending at
+           * the content edge on a rule like every row's, it read as one more
+           * row, and the list slid under it cut in half with nothing to say so.
+           */}
+          <div className="sticky top-0 z-10 -mx-4 mb-6 border-b border-rule bg-ink px-4 pb-3 pt-3 shadow-[0_10px_14px_-8px_rgba(0,0,0,0.9)] sm:mx-0 sm:px-0 lg:-ml-8 lg:pl-8 xl:-mr-8 xl:pr-8">
             <div className="mb-2 flex items-center gap-1" role="tablist" aria-label="Sort players">
               {(
                 [
