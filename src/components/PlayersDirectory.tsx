@@ -141,7 +141,7 @@ export function PlayersDirectory({
       {
         id: "free-agents",
         label: "Free agents",
-        short: "FA",
+        short: "FREE",
         note: "Played in the NBA, no club right now",
         players: unattached.filter((p) => p.hasPlayed).sort(order),
       },
