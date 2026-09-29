@@ -171,7 +171,7 @@ export default async function TeamPage({
        * onto a card, and the lockup ran into the list on nothing but a change
        * of background.
        */}
-      <div className="border border-rule bg-surface">
+      <div className="border border-rule bg-ink">
         {total === 0 ? (
           <p className="px-4 py-16 text-center text-sm text-muted">
             No rumors for this team yet.

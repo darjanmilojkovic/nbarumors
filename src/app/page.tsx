@@ -141,7 +141,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
     <WireShell pinHeader={false}>
       <h1 className="sr-only">Latest NBA trade rumors and signings</h1>
 
-      <div className="border-x border-b border-rule bg-surface sm:mx-0">
+      <div className="border-x border-b border-rule bg-ink sm:mx-0">
         {/* tabs */}
         {/*
          * Pinned to the top of the viewport, full stop. It used to stick to a
@@ -150,7 +150,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
          * hide itself. The masthead now scrolls away like an ordinary header,
          * so this offset is a constant.
          */}
-        <div className="sticky top-0 z-10 border-b border-rule bg-surface/95 backdrop-blur">
+        <div className="sticky top-0 z-10 border-b border-rule bg-ink/95 backdrop-blur">
           <div className="flex">
             {TABS.map((t) => (
               <Link
@@ -160,7 +160,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
                 className={`flex-1 border-b-2 py-3 text-center font-mono text-[11px] tracking-wider uppercase ${
                   tab === t.key
                     ? "border-link text-link"
-                    : "border-transparent text-muted hover:bg-surface-2 hover:text-white"
+                    : "border-transparent text-muted hover:bg-surface hover:text-white"
                 }`}
               >
                 {t.label}

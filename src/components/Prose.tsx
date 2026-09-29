@@ -9,7 +9,7 @@ export function Prose({
   children: React.ReactNode;
 }) {
   return (
-    <div className="border-x border-rule bg-surface px-4 py-8 sm:px-8">
+    <div className="border-x border-rule bg-ink px-4 py-8 sm:px-8">
       <h1 className="display mb-1 text-2xl text-white sm:text-3xl">{title}</h1>
       {updated && (
         <p className="mb-7 font-mono text-[11px] tracking-wider text-muted uppercase">

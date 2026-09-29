@@ -419,7 +419,7 @@ export function WireItem({
    * gap between two lines within one.
    */
   return (
-    <article className="border-b border-rule px-4 py-7 transition-colors hover:bg-surface-2 sm:px-5">
+    <article className="border-b border-rule px-4 py-7 transition-colors hover:bg-surface sm:px-5">
       {/*
        * Explicit grid rather than a flex row. Byline and kicker sit in the
        * text column so they line up with the headline, while the portrait
