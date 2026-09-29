@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
 import { SILHOUETTE } from "@/lib/silhouette";
 import { notFound, permanentRedirect } from "next/navigation";
 import { cache } from "react";
@@ -182,8 +183,16 @@ export default async function PlayerPage({
               {player.fullName}
             </h1>
             <p className="text-xs text-muted">
+              {/* Club first, matching the team page's conference · division. */}
+              {player.teamSlug ? (
+                <Link href={`/team/${player.teamSlug}`} className="hover:text-link">
+                  {player.teamName}
+                </Link>
+              ) : (
+                player.clubStatus
+              )}{" "}
               {/* The whole body of coverage, not the ten on this page. */}
-              {total} update{total === 1 ? "" : "s"}
+              · {total} update{total === 1 ? "" : "s"}
             </p>
           </div>
         </div>

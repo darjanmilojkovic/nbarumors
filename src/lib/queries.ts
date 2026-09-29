@@ -1250,8 +1250,31 @@ export async function playerBySlug(slug: string) {
 
   const headshot = headshotFor(p.nbaPlayerId);
 
+  /*
+   * The club line under the name, on the same rules as the directory: a club
+   * if we have one, otherwise retired, free agent (has NBA stats) or prospect.
+   */
+  const [club] = await db
+    .select({
+      slug: teams.slug,
+      name: sql<string | null>`${teams.city} || ' ' || ${teams.name}`,
+      retired: sql<boolean>`${RETIRED}`,
+    })
+    .from(players)
+    .leftJoin(teams, eq(teams.id, players.currentTeamId))
+    .where(eq(players.id, p.id));
+
   return {
     ...p,
+    teamSlug: club?.slug ?? null,
+    teamName: club?.name ?? null,
+    clubStatus: club?.slug
+      ? null
+      : club?.retired
+        ? "Retired"
+        : p.pointsPerGame != null
+          ? "Free agent"
+          : "Prospect",
     headshotUrl: headshot,
     /** Absolute already for Commons; the headshot is a local path. */
     shareImage: shot?.url ?? headshot,
