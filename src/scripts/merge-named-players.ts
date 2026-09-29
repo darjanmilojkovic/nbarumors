@@ -29,6 +29,9 @@ const PAIRS: [string, string][] = [
   // Confirmed the same player by the owner, 29 Sep 2026. The article row had
   // no NBA id, so it showed a silhouette while the league row held his photo.
   ["PJ Washington", "P.J. Washington"],
+  // Confirmed the same player by the owner, 29 Sep 2026. Both rows read ATL;
+  // the article row had no NBA id, so the roster sync could never reach it.
+  ["Lu Dort", "Luguentz Dort"],
 ];
 
 async function main() {
