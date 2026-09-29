@@ -44,7 +44,7 @@ export function TeamsDirectory({ teams }: { teams: DirectoryTeam[] }) {
 
   return (
     <div>
-      <div className="mb-6 flex items-center gap-1 border-b border-rule pb-2.5" role="tablist" aria-label="Arrange teams">
+      <div className="mb-6 flex items-center gap-1 border-b border-rule pb-2.5 lg:px-5" role="tablist" aria-label="Arrange teams">
         {(
           [
             ["division", "By division"],
@@ -70,10 +70,10 @@ export function TeamsDirectory({ teams }: { teams: DirectoryTeam[] }) {
       {view === "division" ? (
         CONFERENCES.map((c) => (
           <section key={c.key} className="mb-10">
-            <h2 className="display mb-4 text-xl text-white">{c.label}</h2>
+            <h2 className="display mb-4 text-xl text-white lg:px-5">{c.label}</h2>
             {c.divisions.map((d) => (
               <div key={d} className="mb-6">
-                <h3 className="label mb-1 border-b border-rule px-2 pb-2 text-[11px] text-muted">
+                <h3 className="label mb-1 border-b border-rule px-2 pb-2 text-[11px] text-muted lg:px-5">
                   {d}
                 </h3>
                 <ul>
@@ -100,7 +100,7 @@ export function TeamsDirectory({ teams }: { teams: DirectoryTeam[] }) {
 
 function TeamRow({ team: t, rank }: { team: DirectoryTeam; rank?: number }) {
   return (
-    <li className={`flex items-center gap-3 border-b border-rule px-2 py-2.5 hover:bg-surface ${t.week === 0 ? "opacity-70" : ""}`}>
+    <li className={`flex items-center gap-3 border-b border-rule px-2 py-2.5 hover:bg-surface lg:px-5 ${t.week === 0 ? "opacity-70" : ""}`}>
       {rank !== undefined && (
         <span className="w-5 shrink-0 text-right font-mono text-[11px] text-muted">{rank}</span>
       )}

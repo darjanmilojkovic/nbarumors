@@ -210,7 +210,7 @@ export function PlayersDirectory({
       ) : (
         <>
           {hot.length > 0 && (
-            <section className="mb-9">
+            <section className="mb-9 lg:px-5">
               <h2 className="label mb-3 text-xs text-muted">Most talked about this week</h2>
               {/*
                * A sideways strip on a phone: as a grid, twelve cards filled the
@@ -242,7 +242,7 @@ export function PlayersDirectory({
            * the content edge on a rule like every row's, it read as one more
            * row, and the list slid under it cut in half with nothing to say so.
            */}
-          <div className="sticky top-0 z-10 -mx-4 mb-6 border-b border-rule bg-ink px-4 pb-3 pt-3 shadow-[0_10px_14px_-8px_rgba(0,0,0,0.9)] sm:mx-0 sm:px-0 lg:-ml-8 lg:pl-8 xl:-mr-8 xl:pr-8">
+          <div className="sticky top-0 z-10 -mx-4 mb-6 border-b border-rule bg-ink px-4 pb-3 pt-3 shadow-[0_10px_14px_-8px_rgba(0,0,0,0.9)] sm:mx-0 sm:px-0 lg:px-5">
             <div className="mb-2 flex items-center gap-1" role="tablist" aria-label="Sort players">
               {(
                 [
@@ -327,7 +327,7 @@ function GroupHeading({ group, boxed, inset }: { group: Group; boxed: boolean; i
       className={`flex items-center gap-2.5 ${
         boxed
           ? "border-b border-rule px-3 py-2.5"
-          : `border-b border-rule pb-2.5 ${inset ? "mb-1 px-2" : "mb-3"}`
+          : `border-b border-rule pb-2.5 ${inset ? "mb-1 px-2 lg:px-5" : "mb-3"}`
       }`}
     >
       {group.logoUrl && (
@@ -389,7 +389,7 @@ function Players({
           {list.map((p) => (
             <tr key={p.slug} className={`border-b border-rule hover:bg-surface ${quiet(p)}`}>
               {/* Inset at both ends, so the hover band has room around its text. */}
-              <td className="py-2 pl-2 pr-3">
+              <td className="py-2 pl-2 pr-3 lg:pl-5">
                 <Link href={`/player/${p.slug}`} className="flex items-center gap-2.5">
                   <Headshot p={p} size="sm" />
                   <span className="truncate">{p.fullName}</span>
@@ -401,7 +401,7 @@ function Players({
               <td className="w-20 pr-2 text-right font-mono text-[11px] text-muted sm:pr-0">
                 {p.posts ? `${p.posts} post${p.posts === 1 ? "" : "s"}` : "–"}
               </td>
-              <td className="hidden w-20 pr-2 text-right font-mono text-[11px] text-muted sm:table-cell">
+              <td className="hidden w-20 pr-2 text-right lg:pr-5 font-mono text-[11px] text-muted sm:table-cell">
                 {shortDate(p.lastAt) ?? ""}
               </td>
             </tr>
