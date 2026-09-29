@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { SILHOUETTE } from "@/lib/silhouette";
+import { logoAt } from "@/lib/logo-sizes";
 import type { DirectoryPlayer } from "@/lib/queries";
 
 /**
@@ -342,7 +343,7 @@ function GroupHeading({ group, boxed, inset }: { group: Group; boxed: boolean; i
       }`}
     >
       {group.logoUrl && (
-        <Image src={group.logoUrl} alt="" width={28} height={28} className="h-7 w-7 object-contain" unoptimized />
+        <Image src={logoAt(group.logoUrl, 24)} alt="" width={32} height={32} className="h-8 w-8 rounded-sm bg-body p-1 object-contain" unoptimized />
       )}
       <h2 className={`display text-white ${group.short.length === 1 ? "text-2xl" : "text-lg"}`}>
         {group.label}

@@ -1,0 +1,23 @@
+/*
+ * The sizes a layout draws a team logo at, in CSS pixels: the /teams row and
+ * /players group header, the rumor card tile, and the team page masthead
+ * (which also covers its 40px mobile size).
+ *
+ * Each is rendered from the SVG at exactly 2x and lightly sharpened (see
+ * cacheTeamLogo). At these sizes the browser's own SVG rendering came out
+ * softer — judged side by side on all 30 marks, 29 Sep 2026. The SVG stays on
+ * disk as the source.
+ *
+ * Kept in its own module so client components can import it without pulling
+ * in the headshot manifest.
+ */
+export const LOGO_SIZES = [24, 36, 56] as const;
+export type LogoSize = (typeof LOGO_SIZES)[number];
+
+/**
+ * The raster for a logo URL at one display size. Takes the URL logoFor gave,
+ * so a null (not in the deploy) stays null. Revert to plain SVG by returning
+ * `logoUrl` unchanged.
+ */
+export const logoAt = <T extends string | null | undefined>(logoUrl: T, size: LogoSize) =>
+  (logoUrl ? logoUrl.replace(/\.svg$/, `-${size}.webp`) : logoUrl) as T;

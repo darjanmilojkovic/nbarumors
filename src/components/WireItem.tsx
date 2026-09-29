@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { SILHOUETTE } from "@/lib/silhouette";
+import { logoAt } from "@/lib/logo-sizes";
 import Link from "next/link";
 import { Fragment } from "react";
 import { Quoted } from "@/components/Quoted";
@@ -544,7 +545,7 @@ export function WireItem({
               >
                 {t.logoUrl ? (
                   <Image
-                    src={t.logoUrl}
+                    src={logoAt(t.logoUrl, 36)}
                     alt={`${t.city} ${t.name}`}
                     width={56}
                     height={56}

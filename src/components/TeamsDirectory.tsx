@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { logoAt } from "@/lib/logo-sizes";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { DirectoryTeam } from "@/lib/queries";
@@ -106,7 +107,7 @@ function TeamRow({ team: t, rank }: { team: DirectoryTeam; rank?: number }) {
       )}
       <Link href={`/team/${t.slug}`} className="shrink-0" tabIndex={-1} aria-hidden="true">
         {t.logoUrl ? (
-          <Image src={t.logoUrl} alt="" width={32} height={32} className="h-8 w-8 rounded-sm bg-body p-1 object-contain" unoptimized />
+          <Image src={logoAt(t.logoUrl, 24)} alt="" width={32} height={32} className="h-8 w-8 rounded-sm bg-body p-1 object-contain" unoptimized />
         ) : (
           <span className="grid h-8 w-8 place-items-center font-mono text-[10px] text-muted">{t.abbreviation}</span>
         )}

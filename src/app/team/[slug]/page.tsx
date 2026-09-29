@@ -6,6 +6,7 @@ import { WireItem } from "@/components/WireItem";
 import { Pager } from "@/components/Pager";
 import { WireShell } from "@/components/WireShell";
 import { rumorsForTeam, teamBySlug } from "@/lib/queries";
+import { logoAt } from "@/lib/logo-sizes";
 import { SITE } from "@/lib/site";
 
 export const revalidate = 300;
@@ -132,7 +133,7 @@ export default async function TeamPage({
               right-sized box beats a broken image. */}
           {team.logoUrl ? (
             <Image
-              src={team.logoUrl}
+              src={logoAt(team.logoUrl, 56)}
               alt=""
               width={64}
               height={64}

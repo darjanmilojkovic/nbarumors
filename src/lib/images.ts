@@ -1,5 +1,6 @@
 import type { PlayerImage } from "@/db/schema";
 import { CACHED_HEADSHOTS, CACHED_LOGOS } from "@/lib/cached-images";
+import { LOGO_SIZES } from "@/lib/logo-sizes";
 
 
 /** Licenses we will publish. Anything else is dropped at ingest. */
@@ -231,32 +232,44 @@ export async function cacheHeadshot(
 }
 
 /**
- * Fetch and store one team mark. Left as SVG — it is 14KB, it scales, and
- * rasterising it would only make it bigger and worse.
+ * Fetch and store one team mark: the SVG, plus a WebP per LOGO_SIZES rendered
+ * from it. A raster is (re)written whenever it is missing or the SVG was just
+ * fetched, so the two can never drift and an existing cache gains the rasters
+ * on the next run without a --force.
  */
 export async function cacheTeamLogo(
   nbaTeamId: string,
   { force = false } = {},
 ): Promise<string | null> {
-  const { writeFile, mkdir, access } = await import("node:fs/promises");
+  const { writeFile, mkdir, access, readFile } = await import("node:fs/promises");
   const { join } = await import("node:path");
 
   const dir = join(process.cwd(), "public", "logos");
   const file = join(dir, `${nbaTeamId}.svg`);
-  if (!force) {
-    try {
-      await access(file);
-      return localLogoPath(nbaTeamId);
-    } catch {
-      // Not cached yet.
-    }
+  const exists = await access(file).then(() => true, () => false);
+
+  let fetched = false;
+  if (force || !exists) {
+    const res = await fetch(nbaLogoSourceUrl(nbaTeamId));
+    if (!res.ok) return null;
+    await mkdir(dir, { recursive: true });
+    await writeFile(file, Buffer.from(await res.arrayBuffer()));
+    fetched = true;
   }
 
-  const res = await fetch(nbaLogoSourceUrl(nbaTeamId));
-  if (!res.ok) return null;
-
-  await mkdir(dir, { recursive: true });
-  await writeFile(file, Buffer.from(await res.arrayBuffer()));
+  const sharp = (await import("sharp")).default;
+  const svg = await readFile(file);
+  for (const size of LOGO_SIZES) {
+    const out = join(dir, `${nbaTeamId}-${size}.webp`);
+    if (!fetched && (await access(out).then(() => true, () => false))) continue;
+    const px = size * 2;
+    const webp = await sharp(svg, { density: 600 })
+      .resize(px, px, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 }, kernel: "lanczos3" })
+      .sharpen({ sigma: 0.5 })
+      .webp({ quality: 90, alphaQuality: 100 })
+      .toBuffer();
+    await writeFile(out, webp);
+  }
   return localLogoPath(nbaTeamId);
 }
 
