@@ -24,7 +24,12 @@ config({ path: ".env.local" });
  */
 
 /** loser -> keeper, both by exact full_name. */
-const PAIRS: [string, string][] = [["Gary Payton Jr.", "Gary Payton II"]];
+const PAIRS: [string, string][] = [
+  ["Gary Payton Jr.", "Gary Payton II"],
+  // Confirmed the same player by the owner, 29 Sep 2026. The article row had
+  // no NBA id, so it showed a silhouette while the league row held his photo.
+  ["PJ Washington", "P.J. Washington"],
+];
 
 async function main() {
   const apply = process.argv.includes("--apply");
