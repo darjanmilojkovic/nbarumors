@@ -545,11 +545,11 @@ export function WireItem({
               >
                 {t.logoUrl ? (
                   <Image
-                    src={logoAt(t.logoUrl, 36)}
+                    src={logoAt(t.logoUrl, 44)}
                     alt={`${t.city} ${t.name}`}
                     width={56}
                     height={56}
-                    className="h-9 w-9 object-contain"
+                    className="h-11 w-11 object-contain"
                     unoptimized
                   />
                 ) : (

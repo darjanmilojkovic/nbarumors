@@ -140,11 +140,11 @@ export default async function TeamPage({
               right-sized box beats a broken image. */}
           {team.logoUrl ? (
             <Image
-              src={logoAt(team.logoUrl, 56)}
+              src={logoAt(team.logoUrl, 64)}
               alt=""
               width={64}
               height={64}
-              className="h-14 w-14 shrink-0 rounded-sm border border-rule bg-body p-2 object-contain sm:h-[72px] sm:w-[72px]"
+              className="h-14 w-14 shrink-0 rounded-sm border border-rule bg-body p-1 object-contain sm:h-[72px] sm:w-[72px]"
               unoptimized
             />
           ) : (

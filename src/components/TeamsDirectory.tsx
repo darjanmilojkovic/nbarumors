@@ -107,7 +107,7 @@ function TeamRow({ team: t, rank }: { team: DirectoryTeam; rank?: number }) {
       )}
       <Link href={`/team/${t.slug}`} className="shrink-0" tabIndex={-1} aria-hidden="true">
         {t.logoUrl ? (
-          <Image src={logoAt(t.logoUrl, 24)} alt="" width={32} height={32} className="h-8 w-8 rounded-sm bg-body p-1 object-contain" unoptimized />
+          <Image src={logoAt(t.logoUrl, 28)} alt="" width={32} height={32} className="h-8 w-8 rounded-sm bg-body p-0.5 object-contain" unoptimized />
         ) : (
           <span className="grid h-8 w-8 place-items-center font-mono text-[10px] text-muted">{t.abbreviation}</span>
         )}

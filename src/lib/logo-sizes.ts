@@ -1,7 +1,7 @@
 /*
  * The sizes a layout draws a team logo at, in CSS pixels: the /teams row and
  * /players group header, the rumor card tile, and the team page masthead
- * (which also covers its 40px mobile size).
+ * (which also covers its 48px mobile size).
  *
  * Each is rendered from the SVG at exactly 2x and lightly sharpened (see
  * cacheTeamLogo). At these sizes the browser's own SVG rendering came out
@@ -11,7 +11,7 @@
  * Kept in its own module so client components can import it without pulling
  * in the headshot manifest.
  */
-export const LOGO_SIZES = [24, 36, 56] as const;
+export const LOGO_SIZES = [28, 44, 64] as const;
 export type LogoSize = (typeof LOGO_SIZES)[number];
 
 /**

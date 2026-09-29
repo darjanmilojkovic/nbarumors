@@ -258,12 +258,21 @@ export async function cacheTeamLogo(
   }
 
   const sharp = (await import("sharp")).default;
-  const svg = await readFile(file);
+  /*
+   * The NBA draws each mark with margins inside its own canvas — a round badge
+   * fills about 75% of it — so the empty edge is cut off before sizing, and
+   * every mark fills its box the same way whatever the original padding.
+   */
+  const rendered = await sharp(await readFile(file), { density: 600 })
+    .resize(1024, 1024, { fit: "inside" })
+    .png()
+    .toBuffer();
+  const svg = await sharp(rendered).trim({ threshold: 1 }).png().toBuffer();
   for (const size of LOGO_SIZES) {
     const out = join(dir, `${nbaTeamId}-${size}.webp`);
     if (!fetched && (await access(out).then(() => true, () => false))) continue;
     const px = size * 2;
-    const webp = await sharp(svg, { density: 600 })
+    const webp = await sharp(svg)
       .resize(px, px, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 }, kernel: "lanczos3" })
       .sharpen({ sigma: 0.5 })
       .webp({ quality: 90, alphaQuality: 100 })
@@ -273,8 +282,8 @@ export async function cacheTeamLogo(
 
   const shareOut = join(dir, `${nbaTeamId}-share.png`);
   if (fetched || !(await access(shareOut).then(() => true, () => false))) {
-    const inner = Math.round(LOGO_SHARE_PX * 0.72);
-    const mark = await sharp(svg, { density: 600 })
+    const inner = Math.round(LOGO_SHARE_PX * 0.8);
+    const mark = await sharp(svg)
       .resize(inner, inner, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
       .toBuffer();
     const png = await sharp({

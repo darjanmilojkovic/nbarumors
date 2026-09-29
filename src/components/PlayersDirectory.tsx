@@ -343,7 +343,7 @@ function GroupHeading({ group, boxed, inset }: { group: Group; boxed: boolean; i
       }`}
     >
       {group.logoUrl && (
-        <Image src={logoAt(group.logoUrl, 24)} alt="" width={32} height={32} className="h-8 w-8 rounded-sm bg-body p-1 object-contain" unoptimized />
+        <Image src={logoAt(group.logoUrl, 28)} alt="" width={32} height={32} className="h-8 w-8 rounded-sm bg-body p-0.5 object-contain" unoptimized />
       )}
       <h2 className={`display text-white ${group.short.length === 1 ? "text-2xl" : "text-lg"}`}>
         {group.label}
