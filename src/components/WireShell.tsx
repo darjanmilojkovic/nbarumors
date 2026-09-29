@@ -102,7 +102,7 @@ async function RightRail() {
   const [players, done] = await Promise.all([mostMentioned(), recentlyDone()]);
 
   return (
-    <aside className="sticky top-4 hidden border-l border-rule py-6 pl-5 xl:block">
+    <aside className="sticky top-4 hidden py-6 pl-5 xl:block">
       <section className="mb-5 overflow-hidden rounded-sm border border-rule bg-surface">
         <div className="flex items-baseline justify-between border-b border-rule px-3.5 py-2.5">
           <h3 className="label text-xs">
@@ -233,7 +233,7 @@ export function WireShell({
       )}
       <div className="mx-auto grid max-w-[1280px] grid-cols-1 items-start px-0 sm:px-5 lg:grid-cols-[230px_minmax(0,1fr)] xl:grid-cols-[230px_minmax(0,1fr)_300px]">
         <LeftRail teamSlug={teamSlug} />
-        <main className="min-h-screen">{children}</main>
+        <main className="min-h-screen self-stretch lg:border-l lg:border-rule xl:border-r">{children}</main>
         <RightRail />
       </div>
     </>

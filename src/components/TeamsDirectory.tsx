@@ -70,10 +70,10 @@ export function TeamsDirectory({ teams }: { teams: DirectoryTeam[] }) {
 
       {view === "division" ? (
         CONFERENCES.map((c) => (
-          <section key={c.key} className="mb-10">
+          <section key={c.key} className="mb-10 last:mb-0">
             <h2 className="display mb-4 text-xl text-white lg:px-5">{c.label}</h2>
             {c.divisions.map((d) => (
-              <div key={d} className="mb-6">
+              <div key={d} className="mb-6 last:mb-0">
                 <h3 className="label mb-1 border-b border-rule px-2 pb-2 text-[11px] text-muted lg:px-5">
                   {d}
                 </h3>

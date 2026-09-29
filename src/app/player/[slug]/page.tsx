@@ -166,7 +166,7 @@ export default async function PlayerPage({
        * panel instead of a sticker on top of it.
        */}
       <div className="mb-6 px-4 pt-8 sm:px-0">
-        <div className="flex items-center gap-4 rounded-sm border border-rule bg-surface p-4">
+        <div className="flex items-center gap-4 bg-ink py-4 sm:px-5">
           {/* Many players have no NBA headshot; the silhouette keeps the
               lockup the same shape rather than collapsing it. */}
           <Image
@@ -189,13 +189,13 @@ export default async function PlayerPage({
         </div>
       </div>
       {/*
-       * border-t as well as border-x. On the feed this panel opens with the
+       * border-t as well as border-b. On the feed this panel opens with the
        * sticky filter bar, which carries its own bottom rule, so the chrome
        * above is always divided from the first card. Here it opens straight
        * onto a card, and the lockup ran into the list on nothing but a change
        * of background.
        */}
-      <div className="border border-rule bg-ink">
+      <div className="border-y border-rule bg-ink">
         {total === 0 ? (
           <p className="px-4 py-16 text-center text-sm text-muted">
             Nothing on this player yet.

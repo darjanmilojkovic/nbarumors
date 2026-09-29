@@ -300,7 +300,7 @@ export default async function RumorPage({ params }: PageProps<"/rumor/[slug]">) 
         }}
       />
 
-      <div className="border-x border-b border-rule bg-ink">
+      <div className="border-b border-rule bg-ink">
         <div className="border-b border-rule px-4 py-3 sm:px-5">
           <Link
             href="/"

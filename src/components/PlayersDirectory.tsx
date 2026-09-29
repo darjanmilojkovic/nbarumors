@@ -314,7 +314,7 @@ export function PlayersDirectory({
                 className={`scroll-mt-28 md:scroll-mt-32 ${
                   layout === "roster" && view === "team"
                     ? "self-start rounded-sm border border-rule bg-surface"
-                    : "mb-8"
+                    : "mb-8 last:mb-0"
                 }`}
               >
                 <GroupHeading
