@@ -90,8 +90,8 @@ export function TeamsDirectory({ teams }: { teams: DirectoryTeam[] }) {
         ))
       ) : (
         <ul>
-          {ranked.map((t, i) => (
-            <TeamRow key={t.slug} team={t} rank={i + 1} />
+          {ranked.map((t) => (
+            <TeamRow key={t.slug} team={t} showDivision />
           ))}
         </ul>
       )}
@@ -99,12 +99,9 @@ export function TeamsDirectory({ teams }: { teams: DirectoryTeam[] }) {
   );
 }
 
-function TeamRow({ team: t, rank }: { team: DirectoryTeam; rank?: number }) {
+function TeamRow({ team: t, showDivision }: { team: DirectoryTeam; showDivision?: boolean }) {
   return (
     <li className={`flex items-center gap-3 border-b border-rule px-2 py-2.5 hover:bg-surface lg:px-5 ${t.week === 0 ? "opacity-70" : ""}`}>
-      {rank !== undefined && (
-        <span className="w-5 shrink-0 text-right font-mono text-[11px] text-muted">{rank}</span>
-      )}
       <Link href={`/team/${t.slug}`} className="shrink-0" tabIndex={-1} aria-hidden="true">
         {t.logoUrl ? (
           <Image src={logoAt(t.logoUrl, 28)} alt="" width={32} height={32} className="h-8 w-8 rounded-sm bg-body p-0.5 object-contain" unoptimized />
@@ -115,7 +112,7 @@ function TeamRow({ team: t, rank }: { team: DirectoryTeam; rank?: number }) {
       <div className="min-w-0 flex-1">
         <Link href={`/team/${t.slug}`} className="block text-sm font-semibold text-white hover:underline">
           {t.city} {t.name}
-          {rank !== undefined && (
+          {showDivision && (
             <span className="ml-2 font-mono text-[10px] font-normal text-muted">{t.division}</span>
           )}
         </Link>
