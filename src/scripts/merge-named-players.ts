@@ -32,6 +32,32 @@ const PAIRS: [string, string][] = [
   // Confirmed the same player by the owner, 29 Sep 2026. Both rows read ATL;
   // the article row had no NBA id, so the roster sync could never reach it.
   ["Lu Dort", "Luguentz Dort"],
+  /*
+   * Confirmed by the owner as a list, 29 Sep 2026, after each pair was checked
+   * against the database: one row made from an article's spelling, one from
+   * the league (the keeper, holding the NBA id), and the loser's posts all
+   * about the same player. Dominique Daniels is the exception with no id on
+   * either side; the league spells him with the Jr.
+   *
+   * Deliberately NOT here: Ron Harper (the row holds his father's id), RJ Luis
+   * (possibly two people) and Tyrone Marshall (one person, a suspect id).
+   */
+  ["A.J. Johnson", "AJ Johnson"],
+  ["Barry Dunning", "Barry Dunning Jr."],
+  ["Benedict Mathurin", "Bennedict Mathurin"],
+  ["Cam Johnson", "Cameron Johnson"],
+  ["Chris Cenac Jr.", "Chris Cenac"],
+  ["Daron Holmes II", "DaRon Holmes"],
+  ["Dominique Daniels", "Dominique Daniels Jr."],
+  ["Herb Jones", "Herbert Jones"],
+  ["Igor Milicic", "Igor Milicic Jr."],
+  ["Jabari Smith", "Jabari Smith Jr."],
+  ["Jaime Jaquez", "Jaime Jaquez Jr."],
+  ["Marvin Bagley", "Marvin Bagley III"],
+  ["Ricky Council", "Ricky Council IV"],
+  ["Steve Settle III", "Steve Settle"],
+  ["Trey Murphy", "Trey Murphy III"],
+  ["Xavier Tillman", "Xavier Tillman Sr."],
 ];
 
 async function main() {
