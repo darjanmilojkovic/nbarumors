@@ -286,7 +286,7 @@ export function PlayersDirectory({
              */}
             <nav
               aria-label={view === "team" ? "Jump to team" : "Jump to letter"}
-              className="flex gap-1 overflow-x-auto pb-1 [scrollbar-width:none] md:flex-wrap md:overflow-visible"
+              className="flex gap-1 overflow-x-auto pb-1 [scrollbar-width:none] md:flex-wrap md:justify-center md:overflow-visible"
             >
               {groups.map((g) => (
                 <a
