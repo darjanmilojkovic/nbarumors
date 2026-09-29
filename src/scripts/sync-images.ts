@@ -31,7 +31,7 @@ async function main() {
   const dryRun = process.argv.includes("--dry");
   const force = process.argv.includes("--force");
 
-  const { writeFile, readdir } = await import("node:fs/promises");
+  const { writeFile, readdir, readFile } = await import("node:fs/promises");
   const { join } = await import("node:path");
   const { db } = await import("@/db");
   const { players, teams } = await import("@/db/schema");
@@ -62,20 +62,55 @@ async function main() {
     .from(players)
     .where(isNotNull(players.nbaPlayerId));
 
-  const headshotIds = new Set<string>();
+  /*
+   * `--refresh` re-checks every player, not just the ones with no file.
+   *
+   * The NBA replaces photos — a new season's, a new team's uniform, or a real
+   * photo where it first served its grey stand-in — and a file we already hold
+   * was never looked at again. The weekly job runs with this flag. The
+   * prebuild on Vercel does not, so deploys stay quick.
+   *
+   * headshot-sources.json holds the md5 of each CDN original we last stored.
+   * An original that has not changed writes nothing, so the commit carries
+   * only the photos that really changed rather than 1,200 re-encoded files.
+   */
+  const refresh = process.argv.includes("--refresh");
+  const sourcesFile = join(process.cwd(), "src", "lib", "headshot-sources.json");
+  const sources: Record<string, string> = JSON.parse(
+    await readFile(sourcesFile, "utf8").catch(() => "{}"),
+  );
+
+  const ids = [...new Set(playerRows.map((p) => p.nbaPlayerId!).filter(Boolean))];
+  const names = new Map(playerRows.map((p) => [p.nbaPlayerId!, p.name]));
+  const tally: Record<string, number> = {};
   const misses: string[] = [];
+  const changed: string[] = [];
 
-  for (const p of playerRows) {
-    const nbaId = p.nbaPlayerId;
-    if (!nbaId || headshotIds.has(nbaId)) continue;
+  let cursor = 0;
+  await Promise.all(
+    Array.from({ length: refresh ? 8 : 1 }, async () => {
+      while (cursor < ids.length) {
+        const id = ids[cursor++];
+        if (dryRun) continue;
+        const r = await cacheHeadshot(id, {
+          force: force || refresh,
+          knownSourceMd5: force ? undefined : sources[id],
+        });
+        tally[r.status] = (tally[r.status] ?? 0) + 1;
+        if (r.sourceMd5) sources[id] = r.sourceMd5;
+        // No image on the CDN for this id — the card falls back to the silhouette.
+        if (r.status === "missing") misses.push(names.get(id) ?? id);
+        if (r.status === "photo" && refresh) changed.push(names.get(id) ?? id);
+      }
+    }),
+  );
 
-    const path = dryRun ? "dry" : await cacheHeadshot(nbaId, { force });
-    // No image on the CDN for this id — the card falls back to the silhouette.
-    if (!path) misses.push(p.name);
-    else headshotIds.add(nbaId);
+  console.log(`  headshots: ${ids.length} players · ${JSON.stringify(tally)}`);
+  if (changed.length) {
+    console.log(
+      `  new or changed photos (${changed.length}): ${changed.slice(0, 8).join(", ")}${changed.length > 8 ? " …" : ""}`,
+    );
   }
-
-  console.log(`  headshots: ${headshotIds.size}/${playerRows.length} cached`);
   if (misses.length) {
     console.log(
       `  no CDN image (${misses.length}): ${misses.slice(0, 8).join(", ")}${misses.length > 8 ? " …" : ""}`,
@@ -86,6 +121,11 @@ async function main() {
     console.log("\n(dry run — nothing downloaded, no manifest written)");
     return;
   }
+
+  await writeFile(
+    sourcesFile,
+    JSON.stringify(Object.fromEntries(Object.entries(sources).sort()), null, 0) + "\n",
+  );
 
   /*
    * The manifest is a listing of the directories, not a record of what this
@@ -114,23 +154,40 @@ async function main() {
    * player look photographed: the card's fall-back-to-logos rule never fired
    * and he showed differently from a player with no file at all.
    *
-   * The files stay on disk so the next run does not fetch them again; they are
-   * only left out of the manifest, and the UI draws public/silhouette.webp for
-   * every player without a photo. Matched byte for byte against that file,
-   * which is a copy of one, so a change in sharp's output would stop the match
-   * — the count below would then jump, which is the thing to watch.
+   * The files stay on disk, left out of the manifest, and the UI draws
+   * public/silhouette.webp for every player without a photo. cacheHeadshot
+   * recognises the stand-in on the raw download and writes an exact copy of
+   * that file, so the byte match here does not depend on sharp's version.
    */
-  const { readFile } = await import("node:fs/promises");
   const silhouette = await readFile(join(process.cwd(), "public", "silhouette.webp"));
+  const { createHash } = await import("node:crypto");
   const headshotFiles = await onDisk("headshots", ".webp");
   const haveHeadshots: string[] = [];
+  const byContent = new Map<string, number>();
   let standIns = 0;
   for (const id of headshotFiles) {
     const bytes = await readFile(join(process.cwd(), "public", "headshots", `${id}.webp`));
-    if (bytes.equals(silhouette)) standIns++;
-    else haveHeadshots.push(id);
+    if (bytes.equals(silhouette)) {
+      standIns++;
+      continue;
+    }
+    haveHeadshots.push(id);
+    const h = createHash("md5").update(bytes).digest("hex");
+    byContent.set(h, (byContent.get(h) ?? 0) + 1);
   }
   console.log(`  headshots: ${standIns} of ${headshotFiles.length} files are the NBA stand-in, not listed`);
+  /*
+   * Real photos are all different, so many players sharing one file means the
+   * NBA has changed its stand-in and NBA_STAND_IN_MD5 in lib/images no longer
+   * catches it. Warned rather than guessed at: GitHub shows ::warning lines on
+   * the run.
+   */
+  const [, shared = 0] = [...byContent].sort((a, b) => b[1] - a[1])[0] ?? [];
+  if (shared > 5) {
+    console.log(
+      `::warning::${shared} listed headshots are byte-identical — probably a new NBA stand-in. Update NBA_STAND_IN_MD5 and public/silhouette.webp.`,
+    );
+  }
   const haveLogos = await onDisk("logos", ".svg");
 
   const manifest = [

@@ -159,36 +159,75 @@ const HEADSHOT_H = 188;
  * headshot stays null and the card falls back to initials, which is what the
  * 213 players with no NBA id already do.
  */
+/**
+ * md5 of the CDN's own stand-in PNG, the grey silhouette it answers 200 with
+ * for a player it has no photo of (12,430 bytes; the same for ids 1622,
+ * 1643764 and 76442 on 29 Sep 2026).
+ *
+ * Recognised on the raw download rather than after resizing, because the
+ * resized bytes depend on the installed sharp and a runner's could differ from
+ * a laptop's. If the NBA ever changes its stand-in this stops matching, and
+ * sync-images warns when many players share one file.
+ */
+const NBA_STAND_IN_MD5 = "e7f284977a4931dedd1cb6ba4c32283e";
+
+export type HeadshotResult = {
+  /**
+   * photo: a new or changed photo was written. stand-in: the NBA has none and
+   * the silhouette was written. unchanged: re-fetched, same as last time,
+   * nothing written. cached: not fetched, a file exists. missing: the fetch
+   * failed; any existing file is left alone.
+   */
+  status: "photo" | "stand-in" | "unchanged" | "cached" | "missing";
+  /** md5 of the CDN original, whenever one was downloaded. */
+  sourceMd5?: string;
+};
+
+/**
+ * Fetch and store one headshot.
+ *
+ * With `force`, fetch even when a file exists; pass the source md5 recorded
+ * last time as `knownSourceMd5` and an unchanged original writes nothing. That
+ * is what lets the weekly job re-check every player — picking up a new
+ * season's photo, or a real photo replacing the stand-in — while committing
+ * only the files that actually changed.
+ *
+ * A stand-in is stored as an exact copy of public/silhouette.webp, which is
+ * what keeps it out of the manifest (see sync-images).
+ */
 export async function cacheHeadshot(
   nbaPlayerId: string,
-  { force = false } = {},
-): Promise<string | null> {
-  const { writeFile, mkdir, access } = await import("node:fs/promises");
+  { force = false, knownSourceMd5 }: { force?: boolean; knownSourceMd5?: string } = {},
+): Promise<HeadshotResult> {
+  const { writeFile, mkdir, readFile, access } = await import("node:fs/promises");
   const { join } = await import("node:path");
+  const { createHash } = await import("node:crypto");
   const sharp = (await import("sharp")).default;
 
   const dir = join(process.cwd(), "public", "headshots");
   const file = join(dir, `${nbaPlayerId}.webp`);
-  if (!force) {
-    try {
-      await access(file);
-      return localHeadshotPath(nbaPlayerId);
-    } catch {
-      // Not cached yet; fall through and fetch it.
-    }
+  const exists = await access(file).then(() => true, () => false);
+  if (exists && !force) return { status: "cached" };
+
+  const res = await fetch(nbaHeadshotSourceUrl(nbaPlayerId)).catch(() => null);
+  if (!res?.ok) return { status: "missing" };
+  const raw = Buffer.from(await res.arrayBuffer());
+  const sourceMd5 = createHash("md5").update(raw).digest("hex");
+
+  if (exists && sourceMd5 === knownSourceMd5) return { status: "unchanged", sourceMd5 };
+
+  await mkdir(dir, { recursive: true });
+  if (sourceMd5 === NBA_STAND_IN_MD5) {
+    await writeFile(file, await readFile(join(process.cwd(), "public", "silhouette.webp")));
+    return { status: "stand-in", sourceMd5 };
   }
 
-  const res = await fetch(nbaHeadshotSourceUrl(nbaPlayerId));
-  if (!res.ok) return null;
-
-  const resized = await sharp(Buffer.from(await res.arrayBuffer()))
+  const resized = await sharp(raw)
     .resize(HEADSHOT_W, HEADSHOT_H, { fit: "cover", position: "top" })
     .webp({ quality: 82 })
     .toBuffer();
-
-  await mkdir(dir, { recursive: true });
   await writeFile(file, resized);
-  return localHeadshotPath(nbaPlayerId);
+  return { status: "photo", sourceMd5 };
 }
 
 /**

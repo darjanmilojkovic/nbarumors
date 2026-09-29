@@ -1,7 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { players } from "@/db/schema";
-import { cacheHeadshot, nbaHeadshotSourceUrl } from "@/lib/images";
+import { cacheHeadshot, localHeadshotPath, nbaHeadshotSourceUrl } from "@/lib/images";
 
 /**
  * Give names we only know from rumors a real identity: an NBA id, and with it
@@ -245,7 +245,9 @@ export async function discoverPlayers(
     if (samples.length < 10) samples.push(`${p.fullName} → ${usable[0]} (${how})`);
     if (dryRun) continue;
 
-    const headshotUrl = cacheImages ? await cacheHeadshot(usable[0]) : null;
+    const fetched = cacheImages ? await cacheHeadshot(usable[0]) : null;
+    const headshotUrl =
+      fetched && fetched.status !== "missing" ? localHeadshotPath(usable[0]) : null;
     if (headshotUrl) cached++;
 
     /*

@@ -1,4 +1,5 @@
-# Fetch headshots for players who have gained an NBA id since the last run,
+# Fetch headshots for players who have gained an NBA id since the last run, and
+# re-check every existing one for a photo the NBA has since replaced,
 # and commit them next to the manifest that lists them.
 #
 # This job exists because of an invariant in src/scripts/sync-images.ts: images
@@ -61,21 +62,26 @@ jobs:
       # Reads players and teams for their NBA ids. Writes nothing to the
       # database -- an earlier version did, and repointing headshot_url from a
       # laptop took every image on the live site down.
-      - name: Fetch new headshots and rebuild the manifest
+      # --refresh re-checks every player, not just new ids, so a new season's
+      # photo -- or a real photo where the NBA first served its grey stand-in --
+      # replaces the old file. Unchanged originals write nothing (their md5s are
+      # in src/lib/headshot-sources.json), so the commit is only real changes.
+      - name: Fetch new and changed headshots and rebuild the manifest
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: npm run sync:images
+        run: npm run sync:images -- --refresh
 
       - name: Commit whatever is new
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # Only these paths: nothing else in the tree is this job's business.
-          git add public/headshots src/lib/cached-images.ts
-          if git diff --cached --quiet; then
-            echo "no new headshots"
+          git add public/headshots src/lib/cached-images.ts src/lib/headshot-sources.json
+          if git diff --cached --quiet -- public/headshots src/lib/cached-images.ts; then
+            echo "no new or changed headshots"
             exit 0
           fi
-          count=$(git diff --cached --name-only -- public/headshots | wc -l)
-          git commit -m "Add ${count} player headshot(s) fetched by the weekly sync"
+          added=$(git diff --cached --name-only --diff-filter=A -- public/headshots | wc -l)
+          updated=$(git diff --cached --name-only --diff-filter=M -- public/headshots | wc -l)
+          git commit -m "Headshots from the weekly sync: ${added} new, ${updated} updated"
           git push
