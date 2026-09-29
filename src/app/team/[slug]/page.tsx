@@ -134,7 +134,7 @@ export default async function TeamPage({
        * Bulls, Pelicans and Grizzlies lost their lettering. Revert: bg-ink.
        */}
       <div className="mb-6 px-4 pt-8 sm:px-0">
-        <div className="flex items-center gap-4 bg-ink py-4 sm:px-5">
+        <div className="flex items-center gap-3 bg-ink py-4 sm:gap-4 sm:px-5">
           {/* Every mark is committed, so the fallback should never render — but
               the manifest decides what is on disk, and an abbreviation in the
               right-sized box beats a broken image. */}
@@ -144,11 +144,11 @@ export default async function TeamPage({
               alt=""
               width={64}
               height={64}
-              className="h-14 w-14 shrink-0 rounded-sm border border-rule bg-body p-1 object-contain sm:h-[72px] sm:w-[72px]"
+              className="h-[72px] w-[72px] shrink-0 rounded-sm border border-rule bg-body p-1 object-contain"
               unoptimized
             />
           ) : (
-            <span className="display grid h-14 w-14 shrink-0 place-items-center rounded-sm border border-rule bg-ink text-sm text-body sm:h-[72px] sm:w-[72px]">
+            <span className="display grid h-[72px] w-[72px] shrink-0 place-items-center rounded-sm border border-rule bg-ink text-sm text-body">
               {team.abbreviation}
             </span>
           )}

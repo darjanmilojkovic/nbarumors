@@ -166,7 +166,7 @@ export default async function PlayerPage({
        * panel instead of a sticker on top of it.
        */}
       <div className="mb-6 px-4 pt-8 sm:px-0">
-        <div className="flex items-center gap-4 bg-ink py-4 sm:px-5">
+        <div className="flex items-center gap-3 bg-ink py-4 sm:gap-4 sm:px-5">
           {/* Many players have no NBA headshot; the silhouette keeps the
               lockup the same shape rather than collapsing it. */}
           <Image
@@ -174,7 +174,7 @@ export default async function PlayerPage({
             alt={player.fullName}
             width={128}
             height={94}
-            className="h-14 w-14 shrink-0 rounded-sm border border-rule bg-ink object-cover object-top sm:h-[72px] sm:w-[72px]"
+            className="h-[72px] w-[72px] shrink-0 rounded-sm border border-rule bg-ink object-cover object-top"
             unoptimized
           />
           <div>
