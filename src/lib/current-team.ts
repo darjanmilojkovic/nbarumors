@@ -224,8 +224,28 @@ export const BEST_TEAM = sql`
       and rp.from_team_id is not null
       and rp.to_team_id is null
   ),
+  /*
+   * A club resting on our posts alone expires after a year.
+   *
+   * A player with no NBA id is invisible to the roster sync and the
+   * transaction feed, so nothing but our reporting can ever move him — and a
+   * trade post from August 2025 would keep RJ Luis Jr. a Celtic for good,
+   * though he has since gone back to college at LSU. With an id, the league's
+   * own absence clears a stale club; without one, age has to. Measured on
+   * 29 Sep 2026: 3 of 31 id-less players held a club older than a year.
+   */
   posts as (
-    select distinct on (player_id) player_id, team_id, at
+    select distinct on (player_id) player_id,
+      case
+        when at < now() - interval '1 year'
+         and not exists (
+           select 1 from players pp
+            where pp.id = moves.player_id and pp.nba_player_id is not null
+         )
+        then null
+        else team_id
+      end as team_id,
+      at
     from (
       select player_id, team_id, at, rumor_id from post_moves where team_id is not null
       union all
