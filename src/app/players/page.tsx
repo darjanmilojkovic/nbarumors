@@ -17,8 +17,12 @@ export default async function PlayersPage() {
 
   return (
     <WireShell>
-      {/* Wider gutters than the feed: rows of text need air between the rails. */}
-      <div className="px-4 pt-8 sm:px-0 lg:pl-8 xl:pr-8">
+      {/*
+       * Wider gutters than the feed: rows of text need air between the rails.
+       * The left rule mirrors the right rail's border-l, which the extra
+       * gutter otherwise left looking one-sided.
+       */}
+      <div className="px-4 pt-8 sm:px-0 lg:border-l lg:border-rule lg:pl-8 xl:pr-8">
         <h1 className="display mb-6 text-2xl text-white sm:text-3xl">All Players</h1>
         <PlayersDirectory
           players={players}
