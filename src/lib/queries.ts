@@ -1106,6 +1106,81 @@ export async function allTeams() {
   return rows.map((t) => ({ ...t, logoUrl: logoFor(t.nbaTeamId) }));
 }
 
+/**
+ * Every club with what has been written about it, for the /teams directory.
+ *
+ * `week` uses the same rule as the players directory's "Most talked about":
+ * the last 7 days, without trade ideas or roundups, so a club is not "active"
+ * on speculation or on one line in a camp-roster round-up.
+ */
+export async function teamsDirectory() {
+  const res = await db.execute(sql`
+    with tagged as (
+      select rt.team_id, r.slug, r.headline, r.published_at, r.is_trade_idea, r.is_roundup
+        from rumor_teams rt
+        join rumors r on r.id = rt.rumor_id and r.is_published
+    ),
+    counts as (
+      select team_id,
+             count(*)::int as total,
+             (count(*) filter (where published_at > now() - interval '7 days'
+                                 and not is_trade_idea and not is_roundup))::int as week
+        from tagged group by team_id
+    ),
+    /*
+     * The headline shown under a club prefers posts that name it. Tagging
+     * alone was not enough: the 76ers' latest was "Harden's $97M deal and
+     * Watson trade highlight Cavs' offseason", and the role column does not
+     * rescue it — it marks the Cavs "to" on a Nuggets–Thunder offer sheet and
+     * "mentioned" on genuine Knicks and Pistons stories alike.
+     */
+    latest as (
+      select distinct on (x.team_id) x.team_id, x.slug, x.headline, x.published_at
+        from tagged x
+        join teams t on t.id = x.team_id
+       where not x.is_trade_idea
+       order by x.team_id,
+                (x.headline ilike '%' || t.city || '%'
+                 or x.headline ilike '%' || split_part(t.name, ' ', array_length(string_to_array(t.name, ' '), 1)) || '%'
+                 or x.headline ilike '%' || (case t.abbreviation
+                      when 'PHI' then 'Sixers' when 'CLE' then 'Cavs' when 'DAL' then 'Mavs'
+                      when 'MIN' then 'Wolves' when 'NOP' then 'Pels' else t.name end) || '%') desc,
+                x.published_at desc
+    )
+    select t.id, t.slug, t.city, t.name, t.abbreviation, t.conference, t.division,
+           t.nba_team_id as "nbaTeamId",
+           coalesce(c.total, 0) as total, coalesce(c.week, 0) as week,
+           l.slug as "latestSlug", l.headline as "latestHeadline",
+           l.published_at as "latestAt"
+      from teams t
+      left join counts c on c.team_id = t.id
+      left join latest l on l.team_id = t.id
+     order by t.city`);
+
+  type Row = {
+    id: number;
+    slug: string;
+    city: string;
+    name: string;
+    abbreviation: string;
+    conference: string;
+    division: string;
+    nbaTeamId: string;
+    total: number;
+    week: number;
+    latestSlug: string | null;
+    latestHeadline: string | null;
+    latestAt: string | null;
+  };
+  return ((res.rows ?? res) as Row[]).map((t) => ({
+    ...t,
+    latestAt: t.latestAt ? new Date(t.latestAt).toISOString() : null,
+    logoUrl: logoFor(t.nbaTeamId),
+  }));
+}
+
+export type DirectoryTeam = Awaited<ReturnType<typeof teamsDirectory>>[number];
+
 export async function teamBySlug(slug: string) {
   const [t] = await db.select().from(teams).where(eq(teams.slug, slug)).limit(1);
   return t ? { ...t, logoUrl: logoFor(t.nbaTeamId) } : null;

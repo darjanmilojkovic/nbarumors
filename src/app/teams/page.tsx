@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import Image from "next/image";
-import Link from "next/link";
+import { TeamsDirectory } from "@/components/TeamsDirectory";
 import { WireShell } from "@/components/WireShell";
-import { allTeams } from "@/lib/queries";
+import { teamsDirectory } from "@/lib/queries";
 
 export const revalidate = 3600;
 
@@ -14,50 +13,14 @@ export const metadata: Metadata = {
 };
 
 export default async function TeamsPage() {
-  const teams = await allTeams();
-  const east = teams.filter((t) => t.conference === "East");
-  const west = teams.filter((t) => t.conference === "West");
+  const teams = await teamsDirectory();
 
   return (
     <WireShell>
-      <div className="px-4 pt-8 sm:px-0">
-      <h1 className="display mb-6 text-2xl text-white sm:text-3xl">All Teams</h1>
-      {[
-        { label: "Eastern Conference", list: east },
-        { label: "Western Conference", list: west },
-      ].map((group) => (
-        <section key={group.label} className="mb-8">
-          <h2 className="label mb-3 text-xs text-muted">{group.label}</h2>
-          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {group.list.map((t) => (
-              <li key={t.slug}>
-                <Link
-                  href={`/team/${t.slug}`}
-                  className="flex items-center gap-3 rounded-sm bg-surface px-3 py-2 hover:bg-surface-2"
-                >
-                  {t.logoUrl ? (
-                    <Image
-                      src={t.logoUrl}
-                      alt=""
-                      width={32}
-                      height={32}
-                      className="h-8 w-8 object-contain"
-                      unoptimized
-                    />
-                  ) : (
-                    <span className="grid h-8 w-8 place-items-center text-[10px] text-muted">
-                      {t.abbreviation}
-                    </span>
-                  )}
-                  <span className="text-sm">
-                    {t.city} {t.name}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
+      {/* Wider gutters than the feed: rows of text need air between the rails. */}
+      <div className="px-4 pt-8 sm:px-0 lg:pl-8 xl:pr-8">
+        <h1 className="display mb-6 text-2xl text-white sm:text-3xl">All Teams</h1>
+        <TeamsDirectory teams={teams} />
       </div>
     </WireShell>
   );
