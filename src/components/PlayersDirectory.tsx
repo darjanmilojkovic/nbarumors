@@ -85,11 +85,11 @@ function fold(s: string) {
 
 /**
  * The club column's value. With no club it names the group the player sits in
- * on the team view — the same FREE and PROS as the jump bar — so a prospect in
+ * on the team view — the same FA and PROS as the jump bar — so a prospect in
  * A–Z or a search is not passed off as a free agent.
  */
 function teamLabel(p: DirectoryPlayer) {
-  return p.teamAbbr ?? (p.hasPlayed ? "FREE" : "PROS");
+  return p.teamAbbr ?? (p.hasPlayed ? "FA" : "PROS");
 }
 
 function meta(p: DirectoryPlayer, showTeam: boolean) {
@@ -157,7 +157,7 @@ export function PlayersDirectory({
       {
         id: "free-agents",
         label: "Free agents",
-        short: "FREE",
+        short: "FA",
         note: "Played in the NBA, no club right now",
         players: unattached.filter((p) => p.hasPlayed).sort(order),
       },
