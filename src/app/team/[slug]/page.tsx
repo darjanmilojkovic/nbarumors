@@ -120,6 +120,10 @@ export default async function TeamPage({
        * page, so it floated while the player's headshot at least had a frame.
        * It is padded because a logo is a silhouette rather than a crop: without
        * the inset the mark touches its own border.
+       *
+       * The plate is light (bg-body) because the NBA draws these marks for a
+       * white ground: on bg-ink the Spurs and Blazers all but vanished and the
+       * Bulls, Pelicans and Grizzlies lost their lettering. Revert: bg-ink.
        */}
       <div className="mb-6 px-4 pt-8 sm:px-0">
         <div className="flex items-center gap-4 rounded-sm border border-rule bg-surface p-4">
@@ -132,7 +136,7 @@ export default async function TeamPage({
               alt=""
               width={64}
               height={64}
-              className="h-14 w-14 shrink-0 rounded-sm border border-rule bg-ink p-2 object-contain sm:h-[72px] sm:w-[72px]"
+              className="h-14 w-14 shrink-0 rounded-sm border border-rule bg-body p-2 object-contain sm:h-[72px] sm:w-[72px]"
               unoptimized
             />
           ) : (

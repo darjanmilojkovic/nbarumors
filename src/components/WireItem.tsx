@@ -540,7 +540,7 @@ export function WireItem({
                 key={t.slug}
                 href={`/team/${t.slug}`}
                 title={`${t.city} ${t.name}`}
-                className="grid h-14 w-14 shrink-0 place-items-center rounded-sm border border-rule bg-surface-2"
+                className={`grid h-14 w-14 shrink-0 place-items-center rounded-sm border border-rule ${t.logoUrl ? "bg-body" : "bg-surface-2"}`}
               >
                 {t.logoUrl ? (
                   <Image

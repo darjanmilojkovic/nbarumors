@@ -66,6 +66,12 @@ function shortDate(iso: string | null) {
   return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}`;
 }
 
+/** "Kevin McCullar Jr." → ["Kevin", "McCullar Jr."]; a one-word name gets an empty second half. */
+function splitName(name: string): [string, string] {
+  const i = name.indexOf(" ");
+  return i < 0 ? [name, ""] : [name.slice(0, i), name.slice(i + 1)];
+}
+
 /** "Şengün" files under S, "Ömer" under O. */
 function letterOf(name: string) {
   const c = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").charAt(0).toUpperCase();
@@ -224,8 +230,13 @@ export function PlayersDirectory({
                       className="flex h-full flex-col items-center gap-2 rounded-sm bg-surface px-2 py-3 text-center hover:bg-surface-2"
                     >
                       <Headshot p={p} size="lg" />
-                      <span className="text-xs font-semibold leading-tight text-white sm:text-[13px]">
-                        {p.fullName}
+                      {/*
+                       * First name over the rest, always two rows, so every card's
+                       * post count sits on the same line whatever the name's length.
+                       */}
+                      <span className="w-full text-xs font-semibold leading-tight text-white sm:text-[13px]">
+                        <span className="block truncate">{splitName(p.fullName)[0]}</span>
+                        <span className="block truncate">{splitName(p.fullName)[1] || " "}</span>
                       </span>
                       <span className="font-mono text-[10px] text-muted">
                         {teamLabel(p)} · {p.recent} post{p.recent === 1 ? "" : "s"}
