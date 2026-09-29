@@ -53,7 +53,28 @@ const ARRIVAL_KINDS = ["Signing", "Trade", "AwardOnWaivers", "ContractConverted"
  * necessary again the moment the roster comes from somewhere that does not date
  * itself.
  */
-const ROSTER_LAG_DAYS = 0;
+const ROSTER_LAG_DAYS = 2;
+
+/*
+ * 29 Sep 2026: the roster now comes from nba.com's LIVE index, stamped at
+ * fetch time, and the two numbers here are about that source.
+ *
+ * ROSTER_LAG_DAYS is 2 again: a live page can still trail a signing by a day,
+ * and our own report of it should hold until the league catches up.
+ *
+ * ABSENCE_LAG_DAYS dates "not on any roster" 30 days back. The index lists
+ * standard and two-way contracts, not camp deals, so in September dozens of
+ * players we correctly reported signing — Exhibit 10s, camp invites — are
+ * missing from it. Anything we or the transaction feed recorded in the last
+ * month outranks the absence; anything older does not.
+ *
+ * Previewed on 29 Sep 2026 (src/scripts/preview-roster-sync.ts), together with
+ * release posts counting as departures: 163 clubs change — 2 moved, 51 gained
+ * (the 2026 draft class the June file never had), 110 cleared (Micic, Olynyk,
+ * Westbrook, and September camp cuts) — while the camp signings we reported
+ * this month keep their club despite not being on the index yet.
+ */
+const ABSENCE_LAG_DAYS = 30;
 
 /**
  * Kinds that END a player's time at a club without starting one anywhere.
@@ -81,7 +102,8 @@ const DEPARTURE_KINDS = ["Waive"];
 
 const MOVE_KINDS = [...ARRIVAL_KINDS, ...DEPARTURE_KINDS];
 
-const BEST_TEAM = sql`
+/** Exported for dry runs, which replay it inside a rolled-back transaction. */
+export const BEST_TEAM = sql`
   with feed as (
     select distinct on (p.id)
       p.id as player_id,
@@ -94,9 +116,25 @@ const BEST_TEAM = sql`
     /*
      * On a tie the arrival wins: a player waived by one club and signed by
      * another the same day is at the new club, and both rows carry the same
-     * date. false sorts before true, so the non-departure comes first.
+     * date.
+     *
+     * Unless it is the SAME club. Milwaukee received Vasilije Micic in a trade
+     * and waived him on 6 July 2025, both rows dated that day, and the arrival
+     * winning kept him a Buck for fifteen months. Five players were in that
+     * state. A waive by the club he just joined is the later of the two.
      */
-    order by p.id, tr.occurred_at desc, (tr.kind in ${DEPARTURE_KINDS}) asc
+    order by p.id, tr.occurred_at desc,
+      (case
+        when tr.kind in ${DEPARTURE_KINDS} and exists (
+          select 1 from transactions a
+           where a.nba_player_id = tr.nba_player_id
+             and a.occurred_at = tr.occurred_at
+             and a.nba_team_id = tr.nba_team_id
+             and a.kind in ${ARRIVAL_KINDS}
+        ) then 0
+        when tr.kind in ${DEPARTURE_KINDS} then 2
+        else 1
+      end) asc
   ),
   /*
    * Our own completed reporting, taking the destination from the post when the
@@ -163,10 +201,36 @@ const BEST_TEAM = sql`
    * win and answer "nowhere": Anthony Davis, Giannis Antetokounmpo and Stephen
    * Curry all lost their club to a later post that named none.
    */
+  /*
+   * ...plus explicit releases, which answer "nowhere" on purpose.
+   *
+   * Our posts could only ever move a player TO a club, so a release we
+   * reported never ended anything. "Hornets waive Rob Dillingham day after
+   * acquiring him" left him a Hornet, and 22 others the same. The per-player
+   * columns carry the direction even on a crowded post — "Nembhard cut loose
+   * as Hornets bring back Joiner" records CHA→nothing for Nembhard and
+   * nothing→CHA for Joiner — so a settled waiver or buyout where the player
+   * has a from and no to is a departure at the post's date. Unlike an
+   * unresolved destination, which the filter above rightly drops, this null
+   * is stated. A later signing still outranks it.
+   */
+  releases as (
+    select rp.player_id, null::int as team_id, r.published_at as at, r.id as rumor_id
+    from rumor_players rp
+    join rumors r on r.id = rp.rumor_id
+    where r.is_published
+      and r.status in ('completed', 'confirmed')
+      and r.type in ('waiver', 'buyout')
+      and rp.from_team_id is not null
+      and rp.to_team_id is null
+  ),
   posts as (
     select distinct on (player_id) player_id, team_id, at
-    from post_moves
-    where team_id is not null
+    from (
+      select player_id, team_id, at, rumor_id from post_moves where team_id is not null
+      union all
+      select player_id, team_id, at, rumor_id from releases
+    ) as moves
     order by player_id, at desc, rumor_id desc
   ),
   /*
@@ -198,7 +262,9 @@ const BEST_TEAM = sql`
     select
       id as player_id,
       roster_team_id as team_id,
-      roster_synced_at - interval '${sql.raw(String(ROSTER_LAG_DAYS))} days' as at
+      roster_synced_at - (case when roster_team_id is null
+        then interval '${sql.raw(String(ABSENCE_LAG_DAYS))} days'
+        else interval '${sql.raw(String(ROSTER_LAG_DAYS))} days' end) as at
     from players
     where roster_synced_at is not null
   ),

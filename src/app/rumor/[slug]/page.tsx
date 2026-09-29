@@ -200,9 +200,17 @@ export default async function RumorPage({ params }: PageProps<"/rumor/[slug]">) 
    * It surfaced when waives began clearing current_team_id on 30 Aug 2026.
    * Before that a released player kept the club that cut him on his own row,
    * so this fallback was rarely reached and agreed with the row when it was.
+   *
+   * And only on a settled post. A rumour's "to" is where he MIGHT go, and the
+   * masthead states where he is: with no club on record, "Knicks eye Ben
+   * Simmons" would have announced New York as his team. That became reachable
+   * on 29 Sep 2026, when players missing from nba.com's live roster index
+   * started losing their club instead of keeping a stale one.
    */
+  const settled = rumor.status === "completed" || rumor.status === "confirmed";
   const subjectTeam =
-    subjectPlayer?.currentTeam ?? rumor.teams.find((t) => t.role === "to");
+    subjectPlayer?.currentTeam ??
+    (settled ? rumor.teams.find((t) => t.role === "to") : undefined);
 
   /* More about the same player first; see relatedRumors for the tiers. */
   const related = await relatedRumors({
