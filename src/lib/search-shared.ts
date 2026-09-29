@@ -15,7 +15,7 @@ export type SearchResults = {
     headshotUrl: string | null;
     teamName: string | null;
   }[];
-  teams: { slug: string; name: string; city: string; abbreviation: string }[];
+  teams: { slug: string; name: string; city: string; abbreviation: string; logoUrl: string | null }[];
   rumors: { slug: string; headline: string; publishedAt: string }[];
 };
 

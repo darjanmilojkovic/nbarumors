@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { db } from "@/db";
-import { headshotFor } from "@/lib/images";
+import { headshotFor, logoFor } from "@/lib/images";
 import {
   EMPTY_RESULTS,
   MIN_QUERY,
@@ -82,7 +82,7 @@ export async function searchSite(
       limit ${limit}
     `),
     db.execute(sql`
-      select slug, name, city, abbreviation
+      select slug, name, city, abbreviation, nba_team_id
       from teams
       where city || ' ' || name ilike ${term}
          or abbreviation ilike ${term}
@@ -127,7 +127,8 @@ export async function searchSite(
       name: string;
       city: string;
       abbreviation: string;
-    }>(teamRows),
+      nba_team_id: string;
+    }>(teamRows).map(({ nba_team_id, ...t }) => ({ ...t, logoUrl: logoFor(nba_team_id) })),
     rumors: rows<{ slug: string; headline: string; published_at: string }>(
       rumorRows,
     ).map((r) => ({

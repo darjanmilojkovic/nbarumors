@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { SILHOUETTE } from "@/lib/silhouette";
+import { logoAt } from "@/lib/logo-sizes";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -183,9 +184,20 @@ export function SearchBox() {
           onClick={() => setQuery("")}
           className={rowClass}
         >
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-2 font-mono text-[10px] text-muted">
-            {t.abbreviation}
-          </span>
+          {t.logoUrl ? (
+            <Image
+              src={logoAt(t.logoUrl, 28)}
+              alt=""
+              width={32}
+              height={32}
+              className="h-8 w-8 shrink-0 rounded-full bg-body p-0.5 object-contain"
+              unoptimized
+            />
+          ) : (
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-2 font-mono text-[10px] text-muted">
+              {t.abbreviation}
+            </span>
+          )}
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[13px] font-semibold">
               {t.city} {t.name}
