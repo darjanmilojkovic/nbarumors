@@ -69,6 +69,9 @@ const PAIRS: [string, string][] = [
   // Marshall, 1954-58, and is deleted with it — the merge copies only aliases
   // and prominence.
   ["Tyrone Marshall Jr.", "Tyrone Marshall"],
+  // Confirmed by the owner, 29 Sep 2026. James is Jay Huff's given name; the
+  // article row's one post is his July 2025 trade from Memphis to Indiana.
+  ["James Huff", "Jay Huff"],
 ];
 
 async function main() {
