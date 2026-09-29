@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
-import Image from "next/image";
-import { SILHOUETTE } from "@/lib/silhouette";
-import Link from "next/link";
+import { PlayersDirectory } from "@/components/PlayersDirectory";
 import { WireShell } from "@/components/WireShell";
-import { allPlayers } from "@/lib/queries";
+import { allPlayers, allTeams } from "@/lib/queries";
 
 export const revalidate = 3600;
 
@@ -15,35 +13,25 @@ export const metadata: Metadata = {
 };
 
 export default async function PlayersPage() {
-  const players = await allPlayers();
+  const [players, teams] = await Promise.all([allPlayers(), allTeams()]);
 
   return (
     <WireShell>
       <div className="px-4 pt-8 sm:px-0">
-      <h1 className="display mb-6 text-2xl text-white sm:text-3xl">All Players</h1>
-
-      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-        {players.map((p) => (
-          <li key={p.slug}>
-            <Link
-              href={`/player/${p.slug}`}
-              className="flex items-center gap-2 rounded-sm bg-surface px-2 py-2 hover:bg-surface-2 sm:gap-3 sm:px-3"
-            >
-              <Image
-                src={p.headshotUrl ?? SILHOUETTE}
-                alt=""
-                width={64}
-                height={47}
-                className="h-10 w-10 shrink-0 rounded-full bg-surface-2 object-cover object-top"
-                unoptimized
-              />
-              <span className="min-w-0 text-xs leading-tight sm:text-sm">
-                {p.fullName}
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
+        <h1 className="display mb-6 text-2xl text-white sm:text-3xl">All Players</h1>
+        <PlayersDirectory
+          players={players}
+          // By city, not by conference as on /teams: the jump bar reads as one run.
+          teams={[...teams]
+            .sort((a, b) => a.city.localeCompare(b.city))
+            .map((t) => ({
+              slug: t.slug,
+              city: t.city,
+              name: t.name,
+              abbreviation: t.abbreviation,
+              logoUrl: t.logoUrl,
+            }))}
+        />
       </div>
     </WireShell>
   );

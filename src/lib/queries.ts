@@ -958,25 +958,54 @@ export async function allPlayers() {
    * that state with Kyrie Irving among them. If we wrote about him, he is a
    * player we track.
    */
+  /*
+   * Post counts ride along so the directory can say who is being written
+   * about. `recent` is the last 7 days — the same window as the rail's "Most
+   * mentioned" — without trade ideas, which Trending already leaves out, and
+   * without roundups: a "camps fill out their rosters" post names a dozen
+   * two-way signings at once, and counted in full it put Mark Sears and Jordan
+   * Riley at the top of the page ahead of anyone a reader was looking for.
+   */
+  const counts = db
+    .select({
+      playerId: rumorPlayers.playerId,
+      posts: sql<number>`count(*)::int`.as("posts"),
+      recent: sql<number>`(count(*) filter (where ${rumors.publishedAt} > now() - interval '7 days' and not ${rumors.isTradeIdea} and not ${rumors.isRoundup}))::int`.as("recent"),
+      lastAt: sql<string>`max(${rumors.publishedAt})`.as("last_at"),
+    })
+    .from(rumorPlayers)
+    .innerJoin(rumors, sql`${rumors.id} = ${rumorPlayers.rumorId} and ${rumors.isPublished}`)
+    .groupBy(rumorPlayers.playerId)
+    .as("counts");
+
   const rows = await db
     .select({
       slug: players.slug,
       fullName: players.fullName,
       nbaPlayerId: players.nbaPlayerId,
       prominence: players.prominence,
+      /*
+       * No points-per-game means the stats sync never saw him in an NBA game —
+       * the draft class, college names and overseas players. With no club as
+       * well, that is what the directory calls a prospect.
+       */
+      hasPlayed: sql<boolean>`${players.pointsPerGame} is not null`,
+      teamSlug: currentTeam.slug,
+      teamAbbr: currentTeam.abbreviation,
+      posts: sql<number>`coalesce(${counts.posts}, 0)`,
+      recent: sql<number>`coalesce(${counts.recent}, 0)`,
+      lastAt: counts.lastAt,
     })
     .from(players)
-    .where(
-      sql`${players.isActive} or exists (
-        select 1 from rumor_players rp
-          join rumors r on r.id = rp.rumor_id and r.is_published
-         where rp.player_id = ${players.id}
-      )`,
-    )
+    .leftJoin(currentTeam, eq(currentTeam.id, players.currentTeamId))
+    .leftJoin(counts, eq(counts.playerId, players.id))
+    .where(sql`${players.isActive} or ${counts.posts} > 0`)
     .orderBy(players.fullName);
 
   return rows.map((p) => ({ ...p, headshotUrl: headshotFor(p.nbaPlayerId) }));
 }
+
+export type DirectoryPlayer = Awaited<ReturnType<typeof allPlayers>>[number];
 
 /** Counts per rumor type — the left rail's "Beats" list. */
 export async function beatCounts() {
