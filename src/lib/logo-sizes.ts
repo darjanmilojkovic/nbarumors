@@ -21,3 +21,15 @@ export type LogoSize = (typeof LOGO_SIZES)[number];
  */
 export const logoAt = <T extends string | null | undefined>(logoUrl: T, size: LogoSize) =>
   (logoUrl ? logoUrl.replace(/\.svg$/, `-${size}.webp`) : logoUrl) as T;
+
+/*
+ * The link-preview image for a team: a square PNG, because Facebook, X, Slack
+ * and LinkedIn all refuse an SVG og:image. The logo is baked onto the site's
+ * light plate rather than left transparent — a preview is drawn on whatever
+ * the app's background is, and on a dark-mode feed the Spurs would vanish
+ * exactly as they did on our own black plate.
+ */
+export const LOGO_SHARE_PX = 512;
+
+export const logoShare = (logoUrl: string | null | undefined) =>
+  logoUrl ? logoUrl.replace(/\.svg$/, "-share.png") : null;

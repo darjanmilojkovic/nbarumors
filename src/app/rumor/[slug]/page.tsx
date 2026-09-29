@@ -10,6 +10,7 @@ import { WireShell } from "@/components/WireShell";
 import { surname } from "@/lib/names";
 import { relatedRumors, rumorBySlug } from "@/lib/queries";
 import { SITE } from "@/lib/site";
+import { logoShare } from "@/lib/logo-sizes";
 import { isUsableShareImage, isWideEnough } from "@/lib/share-image";
 import { leadSubject } from "@/lib/subject";
 
@@ -63,6 +64,10 @@ export async function generateMetadata({
    * The fallback is the NBA headshot of whoever the post is about. It is only
    * 256x188, so it takes the small card rather than the wide one, but it is
    * always the right player — which a 362-year-old almanac is not.
+   *
+   * After that, the first club's logo: a post naming no one, or no one we
+   * have a photo of, gets the same mark its feed card shows instead of the
+   * site's own.
    */
   const lead =
     leadSubject(rumor.players, rumor.headline) ?? rumor.players[0] ?? null;
@@ -76,7 +81,8 @@ export async function generateMetadata({
     ? rumor.imageUrl
     : null;
 
-  const share = commons ?? lead?.headshotUrl ?? null;
+  const share =
+    commons ?? lead?.headshotUrl ?? logoShare(rumor.teams[0]?.logoUrl) ?? null;
   const wide = Boolean(commons) && isWideEnough(rumor.imageWidth);
 
   return {

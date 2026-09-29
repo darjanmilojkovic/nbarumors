@@ -1,6 +1,6 @@
 import type { PlayerImage } from "@/db/schema";
 import { CACHED_HEADSHOTS, CACHED_LOGOS } from "@/lib/cached-images";
-import { LOGO_SIZES } from "@/lib/logo-sizes";
+import { LOGO_SHARE_PX, LOGO_SIZES } from "@/lib/logo-sizes";
 
 
 /** Licenses we will publish. Anything else is dropped at ingest. */
@@ -269,6 +269,21 @@ export async function cacheTeamLogo(
       .webp({ quality: 90, alphaQuality: 100 })
       .toBuffer();
     await writeFile(out, webp);
+  }
+
+  const shareOut = join(dir, `${nbaTeamId}-share.png`);
+  if (fetched || !(await access(shareOut).then(() => true, () => false))) {
+    const inner = Math.round(LOGO_SHARE_PX * 0.72);
+    const mark = await sharp(svg, { density: 600 })
+      .resize(inner, inner, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .toBuffer();
+    const png = await sharp({
+      create: { width: LOGO_SHARE_PX, height: LOGO_SHARE_PX, channels: 3, background: "#e8e8e8" },
+    })
+      .composite([{ input: mark, gravity: "centre" }])
+      .png({ compressionLevel: 9, palette: true })
+      .toBuffer();
+    await writeFile(shareOut, png);
   }
   return localLogoPath(nbaTeamId);
 }

@@ -6,7 +6,7 @@ import { WireItem } from "@/components/WireItem";
 import { Pager } from "@/components/Pager";
 import { WireShell } from "@/components/WireShell";
 import { rumorsForTeam, teamBySlug } from "@/lib/queries";
-import { logoAt } from "@/lib/logo-sizes";
+import { LOGO_SHARE_PX, logoAt, logoShare } from "@/lib/logo-sizes";
 import { SITE } from "@/lib/site";
 
 export const revalidate = 300;
@@ -31,6 +31,10 @@ export async function generateMetadata({
 
   const name = `${team.city} ${team.name}`;
   const description = `${name} trade rumors, signings and roster moves, gathered from around the league and updated through the day.`;
+  const logo = logoShare(team.logoUrl);
+  const shareImage = logo
+    ? { url: logo, width: LOGO_SHARE_PX, height: LOGO_SHARE_PX, alt: name }
+    : { url: "/android-chrome-512x512.png", width: 512, height: 512 };
 
   /*
    * Page 2 holds posts page 1 does not, so it earns its own canonical and a
@@ -47,18 +51,21 @@ export async function generateMetadata({
       description,
       url: `${SITE.url}${pageHref(team.slug, page)}`,
       /*
-       * The site mark, not the club's own logo, and that is a limitation
-       * rather than a choice: the logos on disk are SVG, and Facebook, X,
-       * Slack and LinkedIn all refuse to render an SVG og:image. Raster
-       * versions of the thirty would give each club its own card.
+       * The club's own logo, as the PNG made for exactly this (see
+       * logoShare); the site mark only if the logo is not in the deploy.
        *
        * Declared explicitly because naming an openGraph block here replaces
        * the root one rather than merging with it — which is exactly how these
        * pages came to have no image at all.
        */
-      images: [
-        { url: "/android-chrome-512x512.png", width: 512, height: 512 },
-      ],
+      images: [shareImage],
+    },
+    /* Without its own block X takes the root's twitter:image, the site mark. */
+    twitter: {
+      card: "summary",
+      title: `${name} rumors`,
+      description,
+      images: [shareImage.url],
     },
   };
 }
