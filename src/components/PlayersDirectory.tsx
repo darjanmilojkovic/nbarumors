@@ -34,13 +34,6 @@ import type { DirectoryPlayer } from "@/lib/queries";
 const LAYOUT: Layout = "list";
 type Layout = "cards" | "roster" | "list";
 
-/**
- * Retired players who still turn up in coverage. An editorial call, not a
- * derived one: nothing in the table says "retired", and neither the prominence
- * floors nor the accolade counts pick these out from current stars.
- */
-const LEGENDS = new Set(["dirk-nowitzki", "chris-paul"]);
-
 /** How many make "Most talked about". Two rows at every breakpoint's width. */
 const HOT_COUNT = 12;
 
@@ -138,11 +131,12 @@ export function PlayersDirectory({
       short: t.abbreviation,
       logoUrl: t.logoUrl,
       players: players
-        .filter((p) => p.teamSlug === t.slug && !LEGENDS.has(p.slug))
+        .filter((p) => p.teamSlug === t.slug)
         .sort(order),
     }));
 
-    const unattached = players.filter((p) => !p.teamSlug && !LEGENDS.has(p.slug));
+    // Retired players never reach here: allPlayers() leaves them out.
+    const unattached = players.filter((p) => !p.teamSlug);
     groups.push(
       {
         id: "free-agents",
@@ -157,13 +151,6 @@ export function PlayersDirectory({
         short: "PROS",
         note: "Draft class, college and overseas — no NBA games yet",
         players: unattached.filter((p) => !p.hasPlayed).sort(order),
-      },
-      {
-        id: "legends",
-        label: "Legends",
-        short: "LEG",
-        note: "Retired, still in the news",
-        players: players.filter((p) => LEGENDS.has(p.slug)).sort(order),
       },
     );
     return groups.filter((g) => g.players.length > 0);

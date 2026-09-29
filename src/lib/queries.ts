@@ -944,9 +944,9 @@ export async function relatedRumors(opts: {
 }
 
 /**
- * Everyone on an NBA roster this season, alphabetical by first name.
- * Inactive names — retired players and others that only ever showed up in a
- * rumor — are excluded from the directory but keep their own pages.
+ * Everyone on an NBA roster this season, plus anyone we have published about,
+ * alphabetical by first name. Retired players are left out (see RETIRED) but
+ * keep their own pages.
  */
 export async function allPlayers() {
   /*
@@ -999,11 +999,38 @@ export async function allPlayers() {
     .from(players)
     .leftJoin(currentTeam, eq(currentTeam.id, players.currentTeamId))
     .leftJoin(counts, eq(counts.playerId, players.id))
-    .where(sql`${players.isActive} or ${counts.posts} > 0`)
+    .where(sql`(${players.isActive} or ${counts.posts} > 0) and not ${RETIRED}`)
     .orderBy(players.fullName);
 
   return rows.map((p) => ({ ...p, headshotUrl: headshotFor(p.nbaPlayerId) }));
 }
+
+/**
+ * Retired players the directory keeps off entirely, by editorial decision
+ * (29 Sep 2026): they keep their own pages and stay linked from posts, but a
+ * list of who can be traded or signed has no row for them.
+ *
+ * Nothing in the table says "retired", so it is inferred: no roster, no club,
+ * three or more All-Star selections, the latest at least three seasons ago.
+ * Measured against the live table that picked fourteen names — Chris Paul,
+ * Carmelo Anthony, Dwight Howard, Derrick Rose and the like — and no current
+ * player. The age condition is what keeps a star between contracts in July,
+ * with no club and no roster spot, from being retired by his own free agency.
+ *
+ * The slugs are for retired players the honours cannot see. Dirk Nowitzki has
+ * none recorded, because sync-awards has no source it can reach, and with no
+ * stats either he otherwise files as a prospect.
+ */
+const RETIRED_SLUGS = ["dirk-nowitzki"];
+const RETIRED = sql`(
+  ${players.slug} in (${sql.join(RETIRED_SLUGS.map((s) => sql`${s}`), sql`, `)})
+  or (not ${players.isActive} and ${players.currentTeamId} is null and (
+    select count(distinct split_part(h, '|', 1)) >= 3
+       and max(split_part(h, '|', 1)::int) <= extract(year from now())::int - 3
+      from unnest(${players.honors}) h
+     where split_part(h, '|', 2) = 'NBA All-Star'
+  ))
+)`;
 
 export type DirectoryPlayer = Awaited<ReturnType<typeof allPlayers>>[number];
 
