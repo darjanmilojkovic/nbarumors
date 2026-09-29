@@ -17,12 +17,23 @@ import Anthropic from "@anthropic-ai/sdk";
  * columns about one player rather than two reports of one event.
  *
  * So the shape is: cheap rules find candidates, and this decides. It is only
- * reached when a post about the same player, of the same type, exists within
- * two days and the keys did NOT already match — a handful of times a day.
+ * reached when a post about the same player exists within two days and the
+ * keys did NOT already match — a handful of times a day.
  */
 
-// Follows extraction; see the note above MODEL in lib/extract.ts.
-const MODEL = process.env.EXTRACTION_MODEL ?? "claude-sonnet-5";
+/*
+ * Opus 5.5, not the extraction model.
+ *
+ * Sonnet 5 at low effort was consistent (3 of 78 verdicts moved across three
+ * runs, 29 Sep 2026) but too willing to say SAME: on clear pairs it merged a
+ * ranking of unsigned free agents into Duren's own story, and Grill's
+ * Exhibit 10 signing into his release two days later — six such errors in 30
+ * days, hidden only because candidates then had to share a type label. Opus
+ * 5.5 at low effort got all six right with the same prompt. It thinks before
+ * answering, which is why max_tokens is 4,000 rather than 8. About half a cent
+ * a call.
+ */
+const MODEL = process.env.SAME_STORY_MODEL ?? "claude-opus-5-5";
 /*
  * Built on first use, not at import.
  *
@@ -41,7 +52,7 @@ Two reports are given. Answer whether they describe the SAME underlying event, m
 
 Same event: two outlets reporting one signing, trade, buyout or set of talks, even where each carries details the other lacks, names a different team in the discussions, or frames it around a different player in the same deal. A follow-up adding terms, a reaction to the same move, or a later report of talks already covered are all the same event.
 
-DIFFERENT events: two separate transactions involving one player; a report about a player's contract and a report about a trade for him; two opinion or list pieces that happen to feature the same name; a move and an unrelated rumour from the same day; a piece weighing several options for a team ("Heat weigh Konchar, a Vincent reunion, or holding the spot open") and a report about just one of those options ("Konchar could land in Miami"); a player's own push or situation and a list of trade candidates that includes him; a signing and a later piece about the roster or salary math it left behind. When a reader would reasonably want both, say different.
+DIFFERENT events: two separate transactions involving one player; a report about a player's contract and a report about a trade for him; two opinion or list pieces that happen to feature the same name; a move and an unrelated rumour from the same day; a piece weighing several options for a team ("Heat weigh Konchar, a Vincent reunion, or holding the spot open") and a report about just one of those options ("Konchar could land in Miami"); a player's own push or situation and a list of trade candidates that includes him; a signing and a later piece about the roster or salary math it left behind; a roundup covering several stories and a report on just one of them, even when that story leads the roundup; two reports giving conflicting accounts of where one deal stands (one says it is nearly done, the other that it is on hold), which stay apart until events show which was right. When a reader would reasonably want both, say different.
 
 Answer with the word SAME or DIFFERENT and nothing else.`;
 
@@ -53,15 +64,13 @@ export async function sameStory(
   try {
     const res = await anthropic().messages.create({
       model: MODEL,
-      max_tokens: 8,
+      max_tokens: 4000,
       output_config: { effort: "low" },
       /*
-       * No cache_control, deliberately.
-       *
-       * This prompt is 284 tokens and Sonnet 5 will not cache a prefix under
-       * 1,024. The marker that used to sit here could never have worked: no
-       * error, no write, `cache_creation_input_tokens: 0` — it simply read as
-       * though caching were on. Measured with count_tokens on 30 Aug 2026.
+       * No cache_control, deliberately: the prompt is a few hundred tokens,
+       * below any model's minimum cacheable prefix. A marker here once read as
+       * though caching were on while writing nothing — measured with
+       * count_tokens on 30 Aug 2026.
        */
       system: [{ type: "text", text: SYSTEM }],
       messages: [
@@ -78,9 +87,16 @@ export async function sameStory(
       ],
     });
     if (res.stop_reason === "refusal") return false;
-    const text = res.content.find((c) => c.type === "text");
-    if (!text || text.type !== "text") return false;
-    return /\bSAME\b/i.test(text.text);
+    const text = res.content
+      .map((c) => (c.type === "text" ? c.text : ""))
+      .join(" ");
+    // The last verdict word, in case the answer restates the question.
+    const verdict = [...text.matchAll(/\b(SAME|DIFFERENT)\b/gi)].pop()?.[1];
+    if (!verdict) {
+      console.warn(`  ! same-story check gave no verdict (${res.stop_reason})`);
+      return false;
+    }
+    return verdict.toUpperCase() === "SAME";
   } catch (e) {
     /*
      * Failing closed is right — an unanswered question must leave both posts

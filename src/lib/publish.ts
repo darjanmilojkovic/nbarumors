@@ -325,8 +325,15 @@ export async function findExistingEvent(
 
   /*
    * No key matched. Before filing a second post, check whether one about the
-   * same player, of the same kind, landed in the last two days — and if so ask
-   * whether it is the same story.
+   * same player landed in the last two days — and if so ask whether it is the
+   * same story.
+   *
+   * Whatever its type. Type is model-generated and inconsistent for one event:
+   * Jokic's $360M Denver deal came in as `extension` and then `free_agency`,
+   * Anthony Davis's player-option comments as `other` and `extension`, and both
+   * stood as duplicates because this filter once required matching types, so
+   * the question was never asked. Dropping it was safe only once the judge
+   * moved to Opus (see lib/same-story.ts); measured on 30 days to 29 Sep 2026.
    *
    * Keys cannot answer this. Three reports on Nikola Jovic's trade value, all
    * Jake Fischer, all on one day, scored 0.44, 0.20 and 0.15 against a 0.50
@@ -344,7 +351,6 @@ export async function findExistingEvent(
     const hours = Math.abs(publishedAt.getTime() - c.publishedAt.getTime()) / 3_600_000;
     return (
       hours <= ADJUDICATE_WINDOW_HOURS &&
-      c.type === subject.type &&
       !c.isTradeIdea &&
       canMergeInto(subject.status, c.status)
     );
