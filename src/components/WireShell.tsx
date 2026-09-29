@@ -82,7 +82,7 @@ async function LeftRail({ teamSlug }: { teamSlug?: string }) {
           <Link
             key={t.slug}
             href={`/team/${t.slug}`}
-            aria-pressed={teamSlug === t.slug}
+            aria-current={teamSlug === t.slug ? "page" : undefined}
             title={`${t.abbreviation} · ${t.n} update${t.n === 1 ? "" : "s"}`}
             className={`rounded-sm border py-1 text-center font-mono text-[11px] tracking-wide ${
               teamSlug === t.slug

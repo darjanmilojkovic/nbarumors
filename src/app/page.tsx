@@ -174,7 +174,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
               <Link
                 key={c.key || "all"}
                 href={href(tab, c.key)}
-                aria-pressed={cat === c.key}
+                aria-current={cat === c.key ? "page" : undefined}
                 className={`shrink-0 rounded-full border px-2.5 py-1 font-mono text-[11px] tracking-wider uppercase ${
                   cat === c.key
                     ? "border-link bg-link/10 text-link"
