@@ -39,8 +39,8 @@ const PAIRS: [string, string][] = [
    * about the same player. Dominique Daniels is the exception with no id on
    * either side; the league spells him with the Jr.
    *
-   * Deliberately NOT here: Ron Harper (the row holds his father's id), RJ Luis
-   * (possibly two people) and Tyrone Marshall (one person, a suspect id).
+   * Deliberately NOT here: Ron Harper — the row holds his father's id and its
+   * one post is the son's, which wants a retag, not a merge.
    */
   ["A.J. Johnson", "AJ Johnson"],
   ["Barry Dunning", "Barry Dunning Jr."],
@@ -58,6 +58,17 @@ const PAIRS: [string, string][] = [
   ["Steve Settle III", "Steve Settle"],
   ["Trey Murphy", "Trey Murphy III"],
   ["Xavier Tillman", "Xavier Tillman Sr."],
+  // Confirmed the same player by the owner, 29 Sep 2026. Both rows read CHI.
+  ["Nicolas Claxton", "Nic Claxton"],
+  // Confirmed the same person by the owner, 29 Sep 2026: traded to Boston in
+  // 2025, back at LSU by court order in 2026. Neither row has an NBA id and
+  // the league has no record of him, so the keeper is his full name.
+  ["RJ Luis", "RJ Luis Jr."],
+  // Confirmed the same person by the owner, 29 Sep 2026. The keeper holds the
+  // id nba.com's live roster uses (1629225); the Jr. row's 77467 is Tom
+  // Marshall, 1954-58, and is deleted with it — the merge copies only aliases
+  // and prominence.
+  ["Tyrone Marshall Jr.", "Tyrone Marshall"],
 ];
 
 async function main() {
