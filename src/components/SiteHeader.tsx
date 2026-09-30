@@ -66,7 +66,7 @@ export function SiteHeader({
         <div className="flex flex-col items-center gap-3 px-4 py-4 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-6 sm:gap-y-2 sm:border-l sm:border-transparent sm:px-5 lg:col-start-2 xl:col-end-4">
           <Link href="/" className="group flex items-center gap-2.5">
             <Logo className="h-12 w-12 transition-transform duration-200 group-hover:scale-105 sm:h-14 sm:w-14" />
-            <span className="label text-3xl leading-none font-semibold sm:text-2xl">
+            <span className="font-wordmark text-[44px] leading-none font-extrabold tracking-[0.01em] uppercase italic sm:text-[38px]">
               <span className="text-white transition-colors group-hover:text-link">
                 NBA
               </span>

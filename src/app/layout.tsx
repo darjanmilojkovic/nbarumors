@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Noto_Sans, Noto_Serif } from "next/font/google";
+import { Barlow_Condensed, Noto_Sans, Noto_Serif } from "next/font/google";
 import { Analytics } from "@/components/Analytics";
 import { Consent } from "@/components/Consent";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -33,6 +33,19 @@ const sans = Noto_Sans({
    */
   style: ["normal", "italic"],
   variable: "--font-sans-loaded",
+  display: "swap",
+});
+
+/*
+ * The wordmark only. One weight and style, so it costs a single small file.
+ * On trial from 30 Sep 2026; revert: drop this and the font-wordmark classes
+ * in SiteHeader to return to the Noto Sans label.
+ */
+const wordmark = Barlow_Condensed({
+  subsets: ["latin"],
+  weight: "800",
+  style: "italic",
+  variable: "--font-wordmark-loaded",
   display: "swap",
 });
 
@@ -78,7 +91,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${serif.variable} ${sans.variable}`}>
+    <html lang="en" className={`${serif.variable} ${sans.variable} ${wordmark.variable}`}>
       {/*
        * An explicit <head> purely so consent can be the first thing in it.
        * Next still injects everything from the metadata export below into this

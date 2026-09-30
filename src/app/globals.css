@@ -65,6 +65,8 @@
    * feel is what makes this look like a wire rather than a magazine.
    */
   --font-serif: var(--font-serif-loaded), Georgia, "Times New Roman", serif;
+  --font-wordmark: var(--font-wordmark-loaded), var(--font-sans-loaded),
+    ui-sans-serif, sans-serif;
   --font-sans: var(--font-sans-loaded), ui-sans-serif, system-ui, "Segoe UI",
     sans-serif;
 }
