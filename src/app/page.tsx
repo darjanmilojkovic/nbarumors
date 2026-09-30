@@ -169,7 +169,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
           </div>
 
           {/* category chips — horizontally scrollable on mobile */}
-          <div className="flex gap-1.5 overflow-x-auto px-3 py-2.5 sm:justify-center">
+          <div className="flex gap-1.5 overflow-x-auto px-3 py-2.5 [scrollbar-width:none] sm:justify-center">
             {CHIPS.map((c) => (
               <Link
                 key={c.key || "all"}
